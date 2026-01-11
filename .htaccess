@@ -1,0 +1,12 @@
+RewriteEngine On
+
+<IfModule mod_headers.c>
+  Header set ngrok-skip-browser-warning "1"
+</IfModule>
+
+# /otomedya -> /otomedya/public
+RewriteRule ^$ public/ [L]
+
+# /otomedya/admin gibi istekleri de /public altına yönlendir
+RewriteCond %{REQUEST_URI} !^/otomedya/public/
+RewriteRule ^(.*)$ public/$1 [L]
