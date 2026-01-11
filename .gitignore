@@ -45,6 +45,10 @@ $RECYCLE.BIN/
 .vagrant
 Vagrantfile
 
+# Uploads (runtime user files)
+public/uploads/*
+!public/uploads/index.html
+
 #-------------------------
 # Temporary Files
 #-------------------------
