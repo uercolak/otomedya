@@ -36,6 +36,7 @@ class Filters extends BaseFilters
         'performance'   => PerformanceMetrics::class,
         'auth'          => \App\Filters\AuthFilter::class,
         'admin'         => \App\Filters\AdminFilter::class,
+        'deploywebhook' => \App\Filters\DeployWebhookFilter::class,
     ];
 
     /**
@@ -74,16 +75,18 @@ class Filters extends BaseFilters
      */
     public array $globals = [
         'before' => [
-            // 'honeypot',
-            // 'csrf',
-            // 'invalidchars',
+            // ...
+            'csrf' => [
+                'except' => [
+                    'webhook/deploy',
+                ],
+            ],
         ],
         'after' => [
-            // 'honeypot',
-            // 'secureheaders',
+            // ...
         ],
     ];
-
+    
     /**
      * List of filter aliases that works on a
      * particular HTTP method (GET, POST, etc.).
@@ -108,5 +111,11 @@ class Filters extends BaseFilters
      *
      * @var array<string, array<string, list<string>>>
      */
-    public array $filters = [];
+    public array $filters = [
+    'csrf' => [
+        'before' => [
+            'deploy/*',  
+            ],
+        ],
+    ];
 }
