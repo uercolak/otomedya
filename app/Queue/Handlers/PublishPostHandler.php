@@ -76,10 +76,16 @@ class PublishPostHandler implements JobHandlerInterface
             );
         }
 
-        // Media URL (facebook için opsiyonel, instagram için zorunlu)
         $mediaUrl = '';
         if ($mediaPath !== '') {
-            $mediaUrl = base_url($mediaPath);
+            $contentId = (int)($row['content_id'] ?? 0);
+            if ($contentId <= 0) {
+                throw new \RuntimeException('content_id eksik, media_url üretilemedi.');
+            }
+
+            // ✅ Nginx statik yerine PHP stream endpoint kullan
+            $mediaUrl = site_url('media/' . $contentId);
+
             if (!preg_match('~^https?://~i', $mediaUrl)) {
                 throw new \RuntimeException('Media URL http/https olmalı: ' . $mediaUrl);
             }
