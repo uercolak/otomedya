@@ -9,7 +9,6 @@ class MediaController extends BaseController
 {
     public function show(int $id)
     {
-        // 1️⃣ Content kaydını al
         $contentModel = new ContentModel();
         $content = $contentModel->find($id);
 
@@ -17,26 +16,29 @@ class MediaController extends BaseController
             throw PageNotFoundException::forPageNotFound();
         }
 
-        // 2️⃣ Dosya yolu
-        $relativePath = $content['media_path']; 
+        $relativePath = (string)$content['media_path'];
         $absolutePath = FCPATH . $relativePath;
 
         if (!is_file($absolutePath)) {
             throw PageNotFoundException::forPageNotFound();
         }
 
-        // 3️⃣ MIME type
-        $mimeType = mime_content_type($absolutePath);
-        $fileSize = filesize($absolutePath);
+        $mimeType = mime_content_type($absolutePath) ?: 'application/octet-stream';
+        $fileSize = (int) filesize($absolutePath);
 
-        // 4️⃣ Header'lar (Meta uyumlu)
-        header('Content-Type: ' . $mimeType);
-        header('Content-Length: ' . $fileSize);
-        header('Cache-Control: public, max-age=31536000');
-        header('Accept-Ranges: bytes');
+        // CI Response üzerinden header bas
+        $this->response
+            ->setHeader('Content-Type', $mimeType)
+            ->setHeader('Content-Length', (string)$fileSize)
+            ->setHeader('Cache-Control', 'public, max-age=31536000')
+            ->setHeader('Accept-Ranges', 'bytes');
 
-        // 5️⃣ Dosyayı stream et
-        readfile($absolutePath);
-        exit;
+        // ✅ HEAD request: body göndermeden çık (Meta için kritik)
+        if ($this->request->getMethod(true) === 'HEAD') {
+            return $this->response->setStatusCode(200);
+        }
+
+        // GET: dosyayı stream et
+        return $this->response->setBody(file_get_contents($absolutePath));
     }
 }
