@@ -78,13 +78,7 @@ class PublishPostHandler implements JobHandlerInterface
 
         $mediaUrl = '';
         if ($mediaPath !== '') {
-            $contentId = (int)($row['content_id'] ?? 0);
-            if ($contentId <= 0) {
-                throw new \RuntimeException('content_id eksik, media_url üretilemedi.');
-            }
-
-            // ✅ Nginx statik yerine PHP stream endpoint kullan
-            $mediaUrl = site_url('media/' . $contentId);
+            $mediaUrl = base_url($mediaPath);
 
             if (!preg_match('~^https?://~i', $mediaUrl)) {
                 throw new \RuntimeException('Media URL http/https olmalı: ' . $mediaUrl);
