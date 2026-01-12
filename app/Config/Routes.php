@@ -9,6 +9,7 @@ $routes->get('/', function () {
     $routes->get('privacy',                     'Legal::privacy');
     $routes->get('terms',                       'Legal::terms');
     $routes->get('data-deletion',               'Legal::dataDeletion');
+    $routes->get('media/(:num)',                'MediaController::show/$1');
 
 
 $routes->group('auth', static function ($routes) {
