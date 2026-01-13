@@ -78,7 +78,7 @@ class Filters extends BaseFilters
             // ...
             'csrf' => [
                 'except' => [
-                    'webhook/deploy',
+                    'deploy/webhook',
                 ],
             ],
         ],
