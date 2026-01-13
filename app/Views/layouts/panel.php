@@ -69,11 +69,12 @@
                 <span class="chip d-none d-md-inline-flex">
                 <i class="bi bi-check-circle me-1"></i> Geliştirme Ortamı
                 </span>
-                <form action="<?= base_url('auth/logout'); ?>" method="post" class="m-0">
+                <form action="<?= site_url('auth/logout'); ?>" method="post" class="m-0">
+                <?= csrf_field() ?>
                 <button type="submit" class="btn-ghost">
                     <i class="bi bi-box-arrow-right me-1"></i> Çıkış
                 </button>
-                </form>
+                </form>             
             </div>
             </div>
 
