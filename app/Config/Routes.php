@@ -10,8 +10,7 @@ $routes->get('/', function () {
     $routes->get('terms',                       'Legal::terms');
     $routes->get('data-deletion',               'Legal::dataDeletion');
     $routes->get('media/(:num)',                'MediaController::show/$1');
-    $routes->post('deploy/webhook',             'DeployWebhookController::github');
-
+    $routes->post('deploy/webhook',             'DeployWebhookController::github', ['filter' => 'deploywebhook']);
 
 $routes->group('auth', static function ($routes) {
     $routes->get('login',                       'Auth::loginForm');
