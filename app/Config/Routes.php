@@ -60,7 +60,7 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->post('users/(:num)/toggle-status',     'Users::toggleStatus/$1');
     // Logs
     $routes->get('logs', 'LogsController::index');
-    // Jobs
+    
     $routes->get('jobs',            'JobsController::index');
     $routes->get('jobs/(:num)',     'JobsController::show/$1');
     $routes->post('jobs/(:num)/retry',      'JobsController::retry/$1');
