@@ -6,8 +6,11 @@ use CodeIgniter\Controller;
 
 class DeployWebhookController extends Controller
 {
+    
     public function github()
     {
+
+    log_message('info', 'DEPLOY WEBHOOK HIT');
         // 1) Secret kontrol
         $secret = getenv('GITHUB_WEBHOOK_SECRET');
         if (!$secret) {
