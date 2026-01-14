@@ -66,7 +66,7 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->post('jobs/(:num)/retry',      'JobsController::retry/$1');
     $routes->post('jobs/(:num)/reset',      'JobsController::reset/$1');
     $routes->post('jobs/(:num)/cancel',     'JobsController::cancel/$1');
-    // Publishes
+    
     $routes->get('publishes/create', 'PublishesController::create');
     $routes->post('publishes',       'PublishesController::store');
     $routes->get('publishes',        'PublishesController::index');
