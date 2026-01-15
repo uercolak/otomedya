@@ -150,3 +150,77 @@ if (! function_exists('ui_humanize_technical_note')) {
         };
     }
 }
+
+if (! function_exists('ui_humanize_error_tr')) {
+
+    /**
+     * Meta / API / teknik hata mesajlarını herkesin anlayacağı dile çevirir.
+     * - Çok spesifik mesajları yakalar
+     * - Bulamazsa daha genel ve anlaşılır bir Türkçe döner
+     */
+    function ui_humanize_error_tr(?string $msg): string
+    {
+        $msg = trim((string)$msg);
+        if ($msg === '') return '';
+
+        $m = mb_strtolower($msg);
+
+        // 1) Instagram / Meta medya
+        if (str_contains($m, 'missing or invalid image')) {
+            return 'Görsel bulunamadı veya geçersiz. Lütfen geçerli bir fotoğraf yükleyin.';
+        }
+
+        if (str_contains($m, 'only photo or video can be accepted')) {
+            return 'Sadece fotoğraf veya video paylaşılabilir. Metin tek başına gönderilemez.';
+        }
+
+        if (str_contains($m, 'invalid image file')) {
+            return 'Yüklenen görsel dosyası geçersiz görünüyor. Farklı bir görsel deneyin.';
+        }
+
+        // 2) Token / yetki
+        if (str_contains($m, 'access token') || str_contains($m, 'oauth')) {
+            return 'Hesap bağlantısı geçersiz veya süresi dolmuş. Lütfen hesabı yeniden bağlayın.';
+        }
+
+        if (str_contains($m, 'permission') || str_contains($m, 'permissions')) {
+            return 'Gerekli izinler eksik. Meta (Facebook/Instagram) izinlerini kontrol edin.';
+        }
+
+        // 3) Facebook grup
+        if (str_contains($m, 'posting to a group')) {
+            return 'Facebook grubuna paylaşım için yetki yok. Uygulama gruba ekli değil veya izinler eksik.';
+        }
+
+        // 4) Rate limit / timeout
+        if (str_contains($m, 'rate limit') || str_contains($m, 'too many requests')) {
+            return 'Çok fazla deneme yapıldı. Bir süre sonra tekrar deneyin.';
+        }
+
+        if (str_contains($m, 'timeout') || str_contains($m, 'timed out')) {
+            return 'Bağlantı zaman aşımına uğradı. Birkaç dakika sonra tekrar deneyin.';
+        }
+
+        // 5) HTTP / Meta error kodu varsa: daha anlaşılır genel mesaj
+        if (str_contains($m, 'meta error')) {
+            return 'Meta (Facebook/Instagram) paylaşımı reddetti. İçerik/format/izinleri kontrol edin.';
+        }
+
+        // Default: teknik mesajı tamamen kaybetmeyelim, ama yumuşatalım
+        return 'Paylaşım sırasında hata oluştu. Gerekirse iş detayından teknik bilgi görülebilir.';
+    }
+}
+
+if (! function_exists('ui_job_label_tr')) {
+    function ui_job_label_tr(): string
+    {
+        return 'Arka Plan İşi';
+    }
+}
+
+if (! function_exists('ui_publish_label_tr')) {
+    function ui_publish_label_tr(): string
+    {
+        return 'Paylaşım';
+    }
+}

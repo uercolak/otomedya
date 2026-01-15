@@ -191,36 +191,44 @@
                 $jobAttempts  = (int)($r['job_attempts'] ?? 0);
                 $jobMax       = (int)($r['job_max_attempts'] ?? 0);
 
-                // job last_error çok uzunsa kırp
-                $jobLastErrorShort = $jobLastError;
-                if ($jobLastErrorShort !== '' && mb_strlen($jobLastErrorShort) > 220) {
-                    $jobLastErrorShort = mb_substr($jobLastErrorShort, 0, 220) . '…';
-                }
+                // Türkçeleştirilmiş metinler
+                $pubErrTr = !empty($r['error']) ? ui_humanize_error_tr((string)$r['error']) : '';
+                $jobErrTr = $jobLastError !== '' ? ui_humanize_error_tr($jobLastError) : '';
                 ?>
 
                 <?php if (!empty($r['error']) || $jobLastError !== ''): ?>
                 <tr class="bg-light">
                     <td colspan="9">
+
                     <?php if (!empty($r['error'])): ?>
                         <div class="text-danger mb-2">
-                        <strong>Publish Hatası:</strong> <?= esc((string)$r['error']) ?>
+                        <strong><?= ui_publish_label_tr() ?> Hatası:</strong> <?= esc($pubErrTr) ?>
                         </div>
+
+                        <!-- İstersen teknik detayı collapsible yapalım -->
+                        <details>
+                        <summary class="text-muted">Teknik detay</summary>
+                        <div class="mt-2"><code><?= esc((string)$r['error']) ?></code></div>
+                        </details>
                     <?php endif; ?>
 
                     <?php if ($jobLastError !== ''): ?>
-                        <div class="text-muted">
-                        <strong>Job:</strong>
+                        <div class="text-muted mt-2">
+                        <strong><?= ui_job_label_tr() ?>:</strong>
                         <?= esc((string)($r['job_status'] ?? '')) ?>
                         · Deneme: <?= $jobAttempts ?><?= $jobMax ? ('/' . $jobMax) : '' ?>
                         </div>
 
                         <div class="text-danger mt-1">
-                        <strong>Job Hatası:</strong> <?= esc($jobLastErrorShort) ?>
-                        <?php if (mb_strlen($jobLastError) > 220): ?>
-                            <span class="text-muted">(detay için iş ekranına gir)</span>
-                        <?php endif; ?>
+                        <strong>İş Hatası:</strong> <?= esc($jobErrTr) ?>
                         </div>
+
+                        <details class="mt-2">
+                        <summary class="text-muted">Teknik detay</summary>
+                        <div class="mt-2"><code><?= esc($jobLastError) ?></code></div>
+                        </details>
                     <?php endif; ?>
+
                     </td>
                 </tr>
                 <?php endif; ?>
