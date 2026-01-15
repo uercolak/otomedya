@@ -58,7 +58,7 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->post('users/(:num)',                   'Users::update/$1');
     $routes->post('users/(:num)/delete',            'Users::delete/$1');
     $routes->post('users/(:num)/toggle-status',     'Users::toggleStatus/$1');
-    // Logs
+
     $routes->get('logs', 'LogsController::index');
     
     $routes->get('jobs',            'JobsController::index');
