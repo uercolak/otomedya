@@ -51,8 +51,9 @@ class PlannerController extends BaseController
         $baseText = trim((string)$this->request->getPost('base_text'));
         $scheduleAtRaw = trim((string)$this->request->getPost('schedule_at'));
 
+        // ✅ AUTO eklendi
         $postType = strtolower(trim((string)$this->request->getPost('post_type')));
-        if (!in_array($postType, ['post','reels','story'], true)) {
+        if (!in_array($postType, ['auto','post','reels','story'], true)) {
             return redirect()->to(site_url('panel/planner'))
                 ->with('error', 'Paylaşım tipi geçersiz.');
         }
@@ -84,7 +85,7 @@ class PlannerController extends BaseController
         }
 
         // upload (opsiyonel)
-        $mediaType = null;
+        $mediaType = null; // image|video|null
         $mediaPath = null;
 
         $file = $this->request->getFile('media');
@@ -109,31 +110,56 @@ class PlannerController extends BaseController
         }
 
         $selectedPlatforms = array_map(
-                fn($r) => strtolower((string)($r['platform'] ?? '')),
-                $rows
-            );
+            fn($r) => strtolower((string)($r['platform'] ?? '')),
+            $rows
+        );
 
-            $hasInstagram = in_array('instagram', $selectedPlatforms, true);
-            $hasFacebook  = in_array('facebook',  $selectedPlatforms, true);
+        $hasInstagram = in_array('instagram', $selectedPlatforms, true);
+        $hasFacebook  = in_array('facebook',  $selectedPlatforms, true);
+        $hasYoutube   = in_array('youtube',   $selectedPlatforms, true);
 
-            if ($hasInstagram) {
-                if ($postType === 'reels' && $mediaType !== 'video') {
-                    return redirect()->to(site_url('panel/planner'))
-                        ->with('error', 'Reels için video yüklemelisin.');
-                }
+        // =========================
+        // ✅ Platform-aware VALIDATION
+        // =========================
 
-                if (in_array($postType, ['post','story'], true) && $mediaType === null) {
-                    return redirect()->to(site_url('panel/planner'))
-                        ->with('error', 'Instagram Post/Story için en az 1 medya yüklemelisin.');
-                }
+        // YouTube: video zorunlu
+        if ($hasYoutube) {
+            if ($mediaType !== 'video' || $mediaPath === null) {
+                return redirect()->to(site_url('panel/planner'))
+                    ->with('error', 'YouTube için video yüklemek zorunlu.');
+            }
+        }
+
+        // Instagram: post/story için medya zorunlu, reels için video zorunlu
+        if ($hasInstagram) {
+            $igType = $this->resolvePostTypeForPlatform('instagram', $postType, $mediaType);
+
+            if ($igType === 'reels' && $mediaType !== 'video') {
+                return redirect()->to(site_url('panel/planner'))
+                    ->with('error', 'Instagram Reels için video yüklemelisin.');
             }
 
-            if ($hasFacebook && !$hasInstagram) {
+            if (in_array($igType, ['post','story'], true) && $mediaType === null) {
+                return redirect()->to(site_url('panel/planner'))
+                    ->with('error', 'Instagram Post/Story için en az 1 medya yüklemelisin.');
             }
+        }
+
+        // Facebook: medya yoksa text post OK, video varsa "video" akışı kullanacağız (handler tarafında ayrıştıracağız)
+        // Burada ekstra zorunluluk koymuyoruz.
 
         $db->transStart();
 
+        // =========================
         // 1) content
+        // =========================
+        // ✅ content.meta_json içine "base" post_type yazıyoruz (mevcut IG handler content_meta_json okuduğu için)
+        // Çoklu platformda gerçek tipleri job payload'da ayrıca taşıyacağız.
+        $contentMeta = [
+            'post_type'  => ($postType === 'auto' ? 'auto' : $postType),
+            'media_type' => $mediaType,
+        ];
+
         $db->table('contents')->insert([
             'user_id'     => $userId,
             'title'       => ($title !== '' ? $title : null),
@@ -141,7 +167,7 @@ class PlannerController extends BaseController
             'media_type'  => $mediaType,
             'media_path'  => $mediaPath,
             'template_id' => null,
-            'meta_json'   => null,
+            'meta_json'   => json_encode($contentMeta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'created_at'  => $now,
             'updated_at'  => $now,
         ]);
@@ -149,12 +175,18 @@ class PlannerController extends BaseController
 
         $createdPublishes = 0;
 
-        // 2) publish + job
+        // =========================
+        // 2) publish + job (platforma göre post_type normalize)
+        // =========================
         foreach ($rows as $acc) {
             $accountId = (int)$acc['id'];
             $platform  = strtolower((string)$acc['platform']);
 
-            $idempotencyKey = $this->makeIdempotencyKey($userId, $platform, $accountId, $contentId, $scheduleAt, $postType);
+            $effectivePostType = $this->resolvePostTypeForPlatform($platform, $postType, $mediaType);
+
+            $idempotencyKey = $this->makeIdempotencyKey(
+                $userId, $platform, $accountId, $contentId, $scheduleAt, $effectivePostType
+            );
 
             $existing = $db->table('publishes')
                 ->select('id')
@@ -166,6 +198,12 @@ class PlannerController extends BaseController
                 continue;
             }
 
+            // ✅ publish meta_json içine effective post type yazalım (ileride lazım olacak)
+            $publishMeta = [
+                'post_type' => $effectivePostType,
+                'source_post_type' => $postType,
+            ];
+
             $db->table('publishes')->insert([
                 'user_id'         => $userId,
                 'platform'        => $platform,
@@ -173,6 +211,8 @@ class PlannerController extends BaseController
                 'content_id'      => $contentId,
                 'status'          => 'queued',
                 'schedule_at'     => $scheduleAt,
+                'remote_id'       => null,
+                'meta_json'       => json_encode($publishMeta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'idempotency_key' => $idempotencyKey,
                 'created_at'      => $now,
                 'updated_at'      => $now,
@@ -186,7 +226,12 @@ class PlannerController extends BaseController
                     'platform'   => $platform,
                     'account_id' => $accountId,
                     'content_id' => $contentId,
-                    'post_type'  => $postType,   // ✅ yeni
+
+                    // ✅ platforma göre normalize edilmiş tip
+                    'post_type'  => $effectivePostType,
+
+                    // debug için
+                    'source_post_type' => $postType,
                 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'status'       => 'queued',
                 'priority'     => 100,
@@ -221,6 +266,59 @@ class PlannerController extends BaseController
 
         return redirect()->to(site_url('panel/calendar'))
             ->with('success', "Planlandı. Oluşturulan gönderi sayısı: {$createdPublishes}");
+    }
+
+    /**
+     * ✅ Platforma göre "doğru" post type seçer.
+     * Dönüşler:
+     * - instagram: post|reels|story
+     * - facebook: post|video
+     * - youtube: video
+     * - (ileride) tiktok: video
+     */
+    private function resolvePostTypeForPlatform(string $platform, string $requested, ?string $mediaType): string
+    {
+        $platform = strtolower(trim($platform));
+        $requested = strtolower(trim($requested));
+
+        // AUTO modu: medya tipine göre karar ver
+        if ($requested === 'auto') {
+            if ($platform === 'youtube') return 'video';
+            if ($platform === 'tiktok')  return 'video';
+
+            if ($mediaType === 'video') {
+                if ($platform === 'instagram') return 'reels';
+                if ($platform === 'facebook')  return 'video';
+            }
+
+            // image ya da medya yoksa
+            if ($platform === 'instagram') return 'post';
+            if ($platform === 'facebook')  return 'post';
+
+            return 'post';
+        }
+
+        // Manuel seçim: platforma uygun hale getir
+        if ($platform === 'youtube') {
+            // YouTube reels/story/post yok
+            return 'video';
+        }
+
+        if ($platform === 'tiktok') {
+            return 'video';
+        }
+
+        if ($platform === 'facebook') {
+            // Facebook'ta reels/story yönetmiyoruz: video varsa video akışına, yoksa post
+            if ($requested === 'reels') return ($mediaType === 'video' ? 'video' : 'post');
+            if ($requested === 'story') return 'post';
+            return 'post';
+        }
+
+        // instagram
+        if (in_array($requested, ['post','reels','story'], true)) return $requested;
+
+        return 'post';
     }
 
     private function normalizeDatetime(string $raw): ?string
