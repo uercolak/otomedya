@@ -19,3 +19,4 @@ jobs:
             set -e
             sudo -n /bin/systemctl start otomedya-deploy.service
             sudo -n /bin/systemctl status otomedya-deploy.service --no-pager || true
+            sudo -n journalctl -u otomedya-deploy.service -n 60 --no-pager || true
