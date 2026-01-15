@@ -139,9 +139,11 @@ class YouTubeOAuthController extends BaseController
         ]);
 
         $body = (string)$resp->getBody();
+        log_message('error', 'YT TOKEN HTTP='.$resp->getStatusCode().' BODY='.$body);
+
         $tok  = json_decode($body, true);
         if (!is_array($tok)) $tok = ['raw' => $body];
-
+        
         if (empty($tok['access_token'])) {
             return redirect()->to(site_url('panel/social-accounts/youtube/wizard'))
                 ->with('error', 'YouTube token alınamadı: ' . ($tok['error_description'] ?? $tok['error'] ?? 'Bilinmeyen hata'));
@@ -164,6 +166,7 @@ class YouTubeOAuthController extends BaseController
         ]);
 
         $ytBody = (string)$yt->getBody();
+        log_message('error', 'YT CHANNELS HTTP='.$yt->getStatusCode().' BODY='.$ytBody);
         $ytJson = json_decode($ytBody, true);
         if (!is_array($ytJson)) $ytJson = ['raw' => $ytBody];
 
