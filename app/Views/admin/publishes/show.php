@@ -112,21 +112,25 @@
   <div class="card-body d-flex flex-wrap gap-2">
     <?php if ($mmjHas): ?>
       <form method="post" action="<?= site_url('admin/publishes/' . (int)$row['id'] . '/check') ?>">
+        <?= csrf_field() ?>
         <button class="btn btn-outline-primary" type="submit">Şimdi Kontrol Et</button>
       </form>
     <?php endif; ?>
 
     <form method="post" action="<?= site_url('admin/publishes/' . (int)$row['id'] . '/retry') ?>">
+        <?= csrf_field() ?>
       <button class="btn btn-primary" type="submit">Tekrar Dene</button>
     </form>
 
     <form method="post" action="<?= site_url('admin/publishes/' . (int)$row['id'] . '/reset-job') ?>"
           onsubmit="return confirm('Bu işlem, ilgili kuyruğu sıfırlayıp paylaşımı tekrar çalıştırır. Devam edilsin mi?')">
+          <?= csrf_field() ?>
       <button class="btn btn-warning" type="submit">İşi Sıfırla</button>
     </form>
 
     <form method="post" action="<?= site_url('admin/publishes/' . (int)$row['id'] . '/cancel') ?>"
           onsubmit="return confirm('Bu paylaşımı iptal etmek istiyor musun?')">
+          <?= csrf_field() ?>
       <button class="btn btn-outline-danger" type="submit">İptal Et</button>
     </form>
   </div>
