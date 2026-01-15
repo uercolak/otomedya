@@ -7,7 +7,11 @@
   $status = (string)($row['status'] ?? '');
   [$badgeClass, $badgeText] = ui_status_badge($status);
 
+  $platformRaw = strtolower((string)($row['platform'] ?? ''));
   $platform = strtoupper((string)($row['platform'] ?? ''));
+  $isInstagram = ($platformRaw === 'instagram');
+  $isFacebook  = ($platformRaw === 'facebook');
+
   if (!empty($row['sa_username'])) $accLabel = '@' . $row['sa_username'];
   elseif (!empty($row['sa_name'])) $accLabel = (string)$row['sa_name'];
   else $accLabel = 'Hesap #' . (int)($row['account_id'] ?? 0);
@@ -18,10 +22,13 @@
 
   // permalink (published olduktan sonra meta_json içine yazıyorsun)
   $permalink = '';
+  $metaArr = null;
   $metaJson = (string)($row['meta_json'] ?? '');
   if ($metaJson) {
-    $tmp = json_decode($metaJson, true);
-    $permalink = (string)($tmp['meta']['permalink'] ?? '');
+    $metaArr = json_decode($metaJson, true);
+    if (is_array($metaArr)) {
+      $permalink = (string)($metaArr['meta']['permalink'] ?? '');
+    }
   }
 
   $mmjHas = !empty($mmj) && !empty($mmj['creation_id']);
@@ -66,9 +73,21 @@
       </div>
 
       <div class="col-md-3">
-        <div class="text-muted small">Instagram Bağlantısı</div>
+        <div class="text-muted small">
+          <?= $isFacebook ? 'Facebook Bağlantısı' : 'Instagram Bağlantısı' ?>
+        </div>
+
         <?php if ($permalink): ?>
-          <a class="btn btn-sm btn-outline-primary" href="<?= esc($permalink) ?>" target="_blank" rel="noreferrer">Instagram’da Aç</a>
+          <a class="btn btn-sm btn-outline-primary"
+             href="<?= esc($permalink) ?>" target="_blank" rel="noreferrer">
+            <?= $isFacebook ? 'Facebook’ta Aç' : 'Instagram’da Aç' ?>
+          </a>
+        <?php elseif (!empty($row['remote_id'])): ?>
+          <div class="fw-semibold">
+            <code><?= esc((string)$row['remote_id']) ?></code>
+            <?= function_exists('ui_clip_btn') ? ui_clip_btn((string)$row['remote_id']) : '' ?>
+          </div>
+          <div class="text-muted small">Permalink kaydedilmemiş. Post ID (remote_id) gösteriliyor.</div>
         <?php else: ?>
           <div class="text-muted">—</div>
         <?php endif; ?>

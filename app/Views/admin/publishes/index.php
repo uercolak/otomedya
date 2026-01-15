@@ -106,10 +106,18 @@
               [$badgeClass, $badgeText] = ui_status_badge($status);
 
               $platform = (string)($r['platform'] ?? '');
+              $platformRaw = strtolower($platform);
 
-              if (!empty($r['sa_username'])) $accLabel = '@' . $r['sa_username'];
-              elseif (!empty($r['sa_name'])) $accLabel = (string)$r['sa_name'];
-              else $accLabel = 'Hesap #' . (int)($r['account_id'] ?? 0);
+              // Hesap label: platforma göre daha doğru
+              if ($platformRaw === 'instagram') {
+                if (!empty($r['sa_username'])) $accLabel = '@' . $r['sa_username'];
+                elseif (!empty($r['sa_name'])) $accLabel = (string)$r['sa_name'];
+                else $accLabel = 'Hesap #' . (int)($r['account_id'] ?? 0);
+              } else { // facebook ve diğerleri
+                if (!empty($r['sa_name'])) $accLabel = (string)$r['sa_name'];
+                elseif (!empty($r['sa_username'])) $accLabel = (string)$r['sa_username'];
+                else $accLabel = 'Hesap #' . (int)($r['account_id'] ?? 0);
+              }
 
               $contentLabel = !empty($r['content_title'])
                 ? ('#' . (int)$r['content_id'] . ' — ' . $r['content_title'])
@@ -124,6 +132,16 @@
               }
 
               $jobId = (int)($r['job_id'] ?? 0);
+
+              // permalink / remote_id mini bilgi
+              $permalink = '';
+              if (!empty($r['meta_json'])) {
+                $tmp = json_decode((string)$r['meta_json'], true);
+                if (is_array($tmp)) {
+                  $permalink = (string)($tmp['meta']['permalink'] ?? '');
+                }
+              }
+              $remoteId = (string)($r['remote_id'] ?? '');
             ?>
 
             <tr class="row-link"
@@ -133,7 +151,25 @@
 
               <td><?= (int)$r['id'] ?></td>
               <td><?= esc(strtoupper($platform)) ?></td>
-              <td><?= esc($accLabel) ?></td>
+
+              <td>
+                <?= esc($accLabel) ?>
+
+                <?php if ($permalink): ?>
+                  <div class="small mt-1">
+                    <a onclick="event.stopPropagation()"
+                       href="<?= esc($permalink) ?>" target="_blank" rel="noreferrer"
+                       class="text-decoration-none">
+                      <?= ($platformRaw === 'facebook') ? 'Facebook’ta Aç' : 'Instagram’da Aç' ?>
+                    </a>
+                  </div>
+                <?php elseif ($remoteId !== ''): ?>
+                  <div class="small text-muted mt-1">
+                    Post ID: <code><?= esc($remoteId) ?></code>
+                  </div>
+                <?php endif; ?>
+              </td>
+
               <td><?= esc($contentLabel) ?></td>
               <td><span class="<?= esc($badgeClass) ?>"><?= esc($badgeText) ?></span></td>
               <td><?= esc(ui_dt($r['schedule_at'] ?? null)) ?></td>
