@@ -41,6 +41,8 @@ $routes->group('panel', ['filter' => 'auth'], static function ($routes) {
     $routes->post('social-accounts/meta/disconnect',                'Panel\MetaOAuthController::disconnect');
     $routes->get('social-accounts/meta/health',                     'Panel\MetaOAuthController::health');
     $routes->get('help/account-linking',                            'Panel\HelpController::accountLinking');
+    $routes->get('social-accounts/youtube/connect',   'Panel\YouTubeOAuthController::connect');
+    $routes->get('social-accounts/youtube/callback',  'Panel\YouTubeOAuthController::callback');
     
     $routes->get('social-accounts/meta/publish-test',               'Panel\MetaOAuthController::publishTestForm');
     $routes->post('social-accounts/meta/test-publish',              'Panel\MetaOAuthController::testPublish');

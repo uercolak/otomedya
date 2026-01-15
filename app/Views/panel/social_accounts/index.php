@@ -50,6 +50,27 @@
       </a>
     </div>
 
+    <div class="card-soft p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="metric-label">YouTube Bağla</div>
+        <span class="metric-tag"><i class="bi bi-youtube me-1"></i>Google</span>
+      </div>
+
+      <div class="text-muted small mb-2">
+        YouTube kanalını bağla. Böylece videoları panelden planlayıp yayınlayabilirsin.
+      </div>
+
+      <a href="<?= site_url('panel/social-accounts/youtube/connect') ?>"
+         class="btn btn-outline-danger w-100 btn-sm"
+         style="border-radius:999px;">
+        <i class="bi bi-youtube me-1"></i> YouTube’u Bağla
+      </a>
+
+      <div class="text-muted small mt-2">
+        Not: İlk bağlantıda Google “izin ver” ekranı açılır.
+      </div>
+    </div>
+
     <div class="card-soft p-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="metric-label">Hesap Ekle</div>
