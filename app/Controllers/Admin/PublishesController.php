@@ -84,10 +84,12 @@ class PublishesController extends BaseController
             ->select('u.name as user_name, u.email as user_email')
             ->select('sa.platform as sa_platform, sa.name as sa_name, sa.username as sa_username')
             ->select('c.title as content_title')
+            ->select('j.status as job_status, j.attempts as job_attempts, j.max_attempts as job_max_attempts, j.last_error as job_last_error, j.run_at as job_run_at, j.locked_at as job_locked_at')
             ->select('mmj.id as mmj_id, mmj.creation_id as mmj_creation_id, mmj.status as mmj_status, mmj.status_code as mmj_status_code, mmj.attempts as mmj_attempts, mmj.next_retry_at as mmj_next_retry_at, mmj.published_media_id as mmj_published_media_id')
             ->join('users u', 'u.id = p.user_id', 'left')
             ->join('social_accounts sa', 'sa.id = p.account_id', 'left')
             ->join('contents c', 'c.id = p.content_id', 'left')
+            ->join('jobs j', 'j.id = p.job_id', 'left')
             ->join('meta_media_jobs mmj', 'mmj.publish_id = p.id', 'left');
 
         if ($q !== '') {

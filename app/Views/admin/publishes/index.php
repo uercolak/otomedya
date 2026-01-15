@@ -186,15 +186,44 @@
               <td><?= $userLabel ?></td>
             </tr>
 
-            <?php if (!empty($r['error'])): ?>
-              <tr class="bg-light">
-                <td colspan="9">
-                  <div class="text-danger">
-                    <strong>Hata:</strong> <?= esc((string)$r['error']) ?>
-                  </div>
-                </td>
-              </tr>
-            <?php endif; ?>
+            <?php
+                $jobLastError = (string)($r['job_last_error'] ?? '');
+                $jobAttempts  = (int)($r['job_attempts'] ?? 0);
+                $jobMax       = (int)($r['job_max_attempts'] ?? 0);
+
+                // job last_error çok uzunsa kırp
+                $jobLastErrorShort = $jobLastError;
+                if ($jobLastErrorShort !== '' && mb_strlen($jobLastErrorShort) > 220) {
+                    $jobLastErrorShort = mb_substr($jobLastErrorShort, 0, 220) . '…';
+                }
+                ?>
+
+                <?php if (!empty($r['error']) || $jobLastError !== ''): ?>
+                <tr class="bg-light">
+                    <td colspan="9">
+                    <?php if (!empty($r['error'])): ?>
+                        <div class="text-danger mb-2">
+                        <strong>Publish Hatası:</strong> <?= esc((string)$r['error']) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($jobLastError !== ''): ?>
+                        <div class="text-muted">
+                        <strong>Job:</strong>
+                        <?= esc((string)($r['job_status'] ?? '')) ?>
+                        · Deneme: <?= $jobAttempts ?><?= $jobMax ? ('/' . $jobMax) : '' ?>
+                        </div>
+
+                        <div class="text-danger mt-1">
+                        <strong>Job Hatası:</strong> <?= esc($jobLastErrorShort) ?>
+                        <?php if (mb_strlen($jobLastError) > 220): ?>
+                            <span class="text-muted">(detay için iş ekranına gir)</span>
+                        <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                    </td>
+                </tr>
+                <?php endif; ?>
 
           <?php endforeach; ?>
         <?php endif; ?>
