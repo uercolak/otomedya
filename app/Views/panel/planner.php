@@ -27,18 +27,24 @@
           <div class="mb-3">
             <label class="form-label">Başlık</label>
             <input type="text" name="title" class="form-control" placeholder="Örn: Kampanya duyurusu">
+            <div class="form-text">YouTube’da bu alan video başlığı olarak kullanılacak.</div>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Metin</label>
             <textarea name="base_text" class="form-control" rows="6" placeholder="Caption / açıklama..."></textarea>
-            <div class="form-text">Instagram/TikTok/Facebook açıklaması buradan gider. YouTube için sonra ayrı alan ekleyeceğiz.</div>
+            <div class="form-text">
+              Instagram/Facebook açıklaması buradan gider. YouTube için açıklama olarak kullanılacak.
+            </div>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Medya (opsiyonel)</label>
             <input type="file" name="media" class="form-control" accept="image/*,video/*">
-            <div class="form-text">Şimdilik tek dosya. Sonra çoklu medya (carousel) ekleriz.</div>
+            <div class="form-text">
+              Şimdilik tek dosya. (Video seçersen IG/FB/YT aynı videoyu kullanabilir.)
+              YouTube seçiliyse video zorunlu.
+            </div>
           </div>
         </div>
       </div>
@@ -68,7 +74,10 @@
                 </label>
               <?php endforeach; ?>
             </div>
-            <div class="form-text mt-2">Birden fazla seçersen aynı içerik tüm seçilen hesaplarda planlanır.</div>
+            <div class="form-text mt-2">
+              Birden fazla seçersen aynı içerik tüm seçilen hesaplarda planlanır.
+              (AUTO seçersen her platform kendi doğru tipini seçer.)
+            </div>
           <?php endif; ?>
         </div>
       </div>
@@ -80,13 +89,17 @@
           <div class="mb-3">
             <label class="form-label">Paylaşım Tipi</label>
             <select name="post_type" class="form-select" required>
-                <option value="post" selected>Post</option>
+                <option value="auto" selected>Auto (Platforma göre seç)</option>
+                <option value="post">Post</option>
                 <option value="reels">Reels</option>
                 <option value="story">Story</option>
             </select>
             <div class="form-text">
-                Instagram için: Reels=video, Story=image/video, Post=image/video.
-                (Video feed için Meta artık reels istiyor.)
+              <strong>Auto</strong>: video ise IG=Reels, FB=Video, YT=Video; görsel ise IG/FB=Post.
+              <br>
+              <strong>YouTube</strong> için “Reels/Post/Story” yoktur → sistem otomatik “Video” olarak ele alır.
+              <br>
+              <strong>Facebook</strong> tarafında “Reels” seçilse bile video varsa “Video” akışına düşürürüz.
             </div>
           </div>
 
