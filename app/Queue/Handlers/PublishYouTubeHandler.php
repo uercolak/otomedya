@@ -104,7 +104,13 @@ class PublishYouTubeHandler implements JobHandlerInterface
         ]);
 
         // Access token gerekiyorsa refresh et
-        $accessToken = $this->ensureAccessToken($db, (int)$row['sa_id'], $accessToken, $refreshToken);
+        $accessToken = $this->ensureAccessToken(
+            $db,
+            (int)$row['sa_id'],
+            $accessToken,
+            $refreshToken,
+            $row['expires_at'] ?? null
+        );
 
         // 1) Resumable session başlat
         $initUrl = 'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status';
@@ -152,24 +158,28 @@ class PublishYouTubeHandler implements JobHandlerInterface
         return true;
     }
 
-    private function ensureAccessToken($db, int $socialAccountId, string $accessToken, string $refreshToken): string
+    private function ensureAccessToken($db, int $socialAccountId, string $accessToken, string $refreshToken, ?string $expiresAt): string
     {
-        // expires_at kullanıyorsan burada kontrol edebilirsin.
-        // Biz güvenli olsun diye access_token yoksa refresh yapıyoruz.
-        if ($accessToken !== '') return $accessToken;
+        $now = time();
+        $exp = $expiresAt ? strtotime($expiresAt) : 0;
 
-        $clientId = (string)(getenv('GOOGLE_CLIENT_ID') ?: '');
+        // access_token var ve daha süresi bitmemişse kullan
+        if ($accessToken !== '' && $exp && $exp > ($now + 60)) {
+            return $accessToken;
+        }
+
+        // refresh şart
+        $clientId     = (string)(getenv('GOOGLE_CLIENT_ID') ?: '');
         $clientSecret = (string)(getenv('GOOGLE_CLIENT_SECRET') ?: '');
 
         if ($refreshToken === '') {
-            throw new \RuntimeException('YouTube access_token yok ve refresh_token da yok.');
+            throw new \RuntimeException('YouTube refresh_token yok. Hesabı yeniden bağlamak gerekir.');
         }
         if ($clientId === '' || $clientSecret === '') {
             throw new \RuntimeException('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env eksik.');
         }
 
         $tokenUrl = 'https://oauth2.googleapis.com/token';
-
         $postFields = http_build_query([
             'client_id'     => $clientId,
             'client_secret' => $clientSecret,
@@ -201,20 +211,20 @@ class PublishYouTubeHandler implements JobHandlerInterface
             throw new \RuntimeException('YT TOKEN refresh: access_token boş. BODY=' . (string)$body);
         }
 
-        // DB'ye yaz (provider='google')
-        $expiresAt = $expiresIn > 0 ? date('Y-m-d H:i:s', time() + $expiresIn - 30) : null;
+        $newExpiresAt = $expiresIn > 0 ? date('Y-m-d H:i:s', $now + $expiresIn - 60) : null;
 
         $db->table('social_account_tokens')
             ->where('social_account_id', $socialAccountId)
             ->where('provider', 'google')
             ->update([
                 'access_token' => $newAccess,
-                'expires_at'   => $expiresAt,
+                'expires_at'   => $newExpiresAt,
                 'updated_at'   => date('Y-m-d H:i:s'),
             ]);
 
         return $newAccess;
     }
+
 
     private function startResumableSession(string $url, string $accessToken, string $jsonBody): array
     {
