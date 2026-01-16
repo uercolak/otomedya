@@ -41,8 +41,7 @@ class YouTubePublishService
         }
 
         if ($refresh === '') {
-            // refresh yoksa eldekini döndürmeye çalış (bazı durumlarda works)
-            return $access;
+            throw new \RuntimeException('YouTube refresh_token yok. Hesabı yeniden bağlamak gerekir.');
         }
 
         $clientId     = (string)(getenv('GOOGLE_CLIENT_ID') ?: '');
