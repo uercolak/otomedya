@@ -163,9 +163,12 @@ class PublishYouTubeHandler implements JobHandlerInterface
         $now = time();
         $exp = $expiresAt ? strtotime($expiresAt) : 0;
 
-        // access_token var ve daha süresi bitmemişse kullan
         if ($accessToken !== '' && $exp && $exp > ($now + 60)) {
             return $accessToken;
+        }
+
+        if ($refreshToken === '') {
+            throw new \RuntimeException('YouTube refresh_token yok. Hesabı yeniden bağlamak gerekir.');
         }
 
         // refresh şart
@@ -241,6 +244,7 @@ class PublishYouTubeHandler implements JobHandlerInterface
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER => true,
             CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
         ]);
 
         $resp = curl_exec($ch);
@@ -278,6 +282,7 @@ class PublishYouTubeHandler implements JobHandlerInterface
         $headers = [
             'Content-Type: video/*',
             'Content-Length: ' . $size,
+            'Expect:',
         ];
 
         $ch = curl_init($uploadUrl);
@@ -287,6 +292,10 @@ class PublishYouTubeHandler implements JobHandlerInterface
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_INFILE => $fp,
             CURLOPT_INFILESIZE => $size,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_CONNECTTIMEOUT => 30,
+            CURLOPT_TCP_KEEPALIVE => 1,
         ]);
 
         $resp = curl_exec($ch);
