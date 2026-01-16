@@ -204,8 +204,23 @@ class PublishPostHandler implements JobHandlerInterface
                 throw new \RuntimeException('Instagram için medya zorunlu. content.media_path boş.');
             }
 
-            // ✅ post_type’ı job payload’dan oku (Planner artık platforma göre normalize ediyor)
-            $postType = in_array($jobPostType, ['post','reels','story'], true) ? $jobPostType : 'post';
+            $postType = $jobPostType;
+            if ($postType === 'auto') {
+                $postType = ($mediaType === 'video') ? 'reels' : 'post';
+            }
+
+            if ($postType === 'reels' && $mediaType !== 'video') {
+                // istersen throw da yapabilirsin ama daha user-friendly olsun:
+                $postType = 'post';
+            }
+
+            if ($postType === 'story' && $mediaUrl === '') {
+                throw new \RuntimeException('Instagram Story için medya zorunlu.');
+            }
+
+            if (!in_array($postType, ['post','reels','story'], true)) {
+                $postType = 'post';
+            }
 
             $this->logger->event('info', 'queue', 'publish.started', [
                 'publish_id' => $publishId,
