@@ -34,22 +34,19 @@
           <div class="mb-3">
             <label class="form-label">Metin</label>
             <textarea name="base_text" class="form-control" rows="6" placeholder="Caption / açıklama..."></textarea>
-            <div class="form-text">
-              Instagram/Facebook açıklaması buradan gider. YouTube açıklaması da buradan gidebilir.
-            </div>
+            <div class="form-text">Instagram/Facebook açıklaması buradan gider. YouTube açıklaması da buradan gidebilir.</div>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Medya</label>
             <input type="file" name="media" class="form-control" accept="image/*,video/*">
             <div class="form-text">
-              Instagram için medya zorunlu. YouTube seçersen video zorunlu.
+              Instagram Post/Story ve YouTube için medya gerekir. YouTube seçersen video zorunlu.
             </div>
           </div>
 
-          <!-- YouTube Settings (YouTube seçilince açılır) -->
-          <div id="ytBox" class="mt-4" style="display:none;">
-            <div class="d-flex justify-content-between align-items-center">
+          <div id="ytSettings" class="mt-4" style="display:none;">
+            <div class="d-flex align-items-center justify-content-between">
               <h5 class="mb-2">YouTube Ayarları</h5>
               <span class="badge bg-light text-dark">YouTube seçilince açılır</span>
             </div>
@@ -87,16 +84,21 @@
             <div class="vstack gap-2">
               <?php foreach ($accounts as $a): ?>
                 <?php
-                  $label = strtoupper($a['platform']) . ' — ';
+                  $plat = strtoupper((string)$a['platform']);
+                  $label = $plat . ' — ';
                   if (!empty($a['username'])) $label .= '@' . $a['username'];
                   elseif (!empty($a['name'])) $label .= $a['name'];
                   else $label .= 'Hesap #' . (int)$a['id'];
                 ?>
                 <label class="border rounded p-2 d-flex align-items-center justify-content-between">
                   <span><?= esc($label) ?> <span class="text-muted">(ID: <?= (int)$a['id'] ?>)</span></span>
-                  <input class="form-check-input acc-check" type="checkbox"
-                         name="account_ids[]" value="<?= (int)$a['id'] ?>"
-                         data-platform="<?= esc(strtolower((string)$a['platform'])) ?>">
+                  <input
+                    class="form-check-input account-check"
+                    type="checkbox"
+                    name="account_ids[]"
+                    value="<?= (int)$a['id'] ?>"
+                    data-platform="<?= esc(strtolower((string)$a['platform'])) ?>"
+                  >
                 </label>
               <?php endforeach; ?>
             </div>
@@ -110,16 +112,15 @@
           <h5 class="card-title mb-3">Zamanlama</h5>
 
           <div class="mb-3">
-            <label class="form-label">Paylaşım Tipi</label>
+            <label class="form-label">Instagram Paylaşım Tipi</label>
             <select name="post_type" class="form-select" required>
-              <option value="auto" selected>Auto (Önerilen)</option>
-              <option value="post">Instagram: Post</option>
-              <option value="reels">Instagram: Reels</option>
-              <option value="story">Instagram: Story</option>
+              <option value="auto" selected>AUTO (video→reels, görsel→post)</option>
+              <option value="post">Post</option>
+              <option value="reels">Reels</option>
+              <option value="story">Story</option>
             </select>
             <div class="form-text">
-              Auto: platformlara göre en uygun tip seçilir.
-              (IG video→Reels, IG görsel→Post; FB medya tipine göre; YouTube video+başlık zorunlu)
+              AUTO önerilir. (Video feed için Meta çoğu zaman reels ister.)
             </div>
           </div>
 
@@ -138,20 +139,16 @@
 
 <script>
 (function(){
-  function refreshYouTubeBox(){
-    const checks = document.querySelectorAll('.acc-check');
-    let hasYT = false;
-    checks.forEach(ch => {
-      if (ch.checked && (ch.dataset.platform || '') === 'youtube') hasYT = true;
-    });
-    document.getElementById('ytBox').style.display = hasYT ? '' : 'none';
+  const checks = Array.from(document.querySelectorAll('.account-check'));
+  const ytBox = document.getElementById('ytSettings');
+
+  function refresh() {
+    const hasYT = checks.some(ch => ch.checked && (ch.dataset.platform === 'youtube'));
+    if (ytBox) ytBox.style.display = hasYT ? 'block' : 'none';
   }
 
-  document.querySelectorAll('.acc-check').forEach(ch => {
-    ch.addEventListener('change', refreshYouTubeBox);
-  });
-
-  refreshYouTubeBox();
+  checks.forEach(ch => ch.addEventListener('change', refresh));
+  refresh();
 })();
 </script>
 

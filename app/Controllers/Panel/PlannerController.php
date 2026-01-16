@@ -8,7 +8,7 @@ class PlannerController extends BaseController
 {
     protected function ensureUser()
     {
-        if (!session('is_logged_in')) {
+        if (! session('is_logged_in')) {
             return redirect()->to(base_url('auth/login'));
         }
         return null;
@@ -29,9 +29,9 @@ class PlannerController extends BaseController
             ->get()->getResultArray();
 
         return view('panel/planner', [
-            'pageTitle'      => 'Yeni Gönderi Planla',
-            'headerVariant'  => 'compact',
-            'accounts'       => $accounts,
+            'pageTitle' => 'Yeni Gönderi Planla',
+            'headerVariant' => 'compact',
+            'accounts' => $accounts,
         ]);
     }
 
@@ -47,21 +47,15 @@ class PlannerController extends BaseController
         $db = \Config\Database::connect();
         $now = date('Y-m-d H:i:s');
 
-        $title         = trim((string)$this->request->getPost('title'));        // genel başlık
-        $baseText      = trim((string)$this->request->getPost('base_text'));
-        $scheduleAtRaw = trim((string)$this->request->getPost('schedule_at'));
+        $title        = trim((string)$this->request->getPost('title'));
+        $baseText     = trim((string)$this->request->getPost('base_text'));
+        $scheduleAtRaw= trim((string)$this->request->getPost('schedule_at'));
 
+        // Instagram post type (AUTO dahil)
         $postType = strtolower(trim((string)$this->request->getPost('post_type')));
         if (!in_array($postType, ['auto','post','reels','story'], true)) {
             return redirect()->to(site_url('panel/planner'))
                 ->with('error', 'Paylaşım tipi geçersiz.');
-        }
-
-        // YouTube alanları (YouTube seçiliyse zorunlu)
-        $ytTitle   = trim((string)$this->request->getPost('youtube_title'));
-        $ytPrivacy = strtolower(trim((string)$this->request->getPost('youtube_privacy')));
-        if (!in_array($ytPrivacy, ['public','unlisted','private'], true)) {
-            $ytPrivacy = 'public';
         }
 
         $accountIds = $this->request->getPost('account_ids');
@@ -90,35 +84,6 @@ class PlannerController extends BaseController
                 ->with('error', 'Seçilen hesaplardan bazıları bulunamadı.');
         }
 
-        // ==============
-        // Upload (opsiyonel)
-        // ==============
-        $mediaType = null; // image|video
-        $mediaPath = null;
-
-        $file = $this->request->getFile('media');
-        if ($file && $file->isValid() && !$file->hasMoved()) {
-            $mime = (string)$file->getMimeType();
-
-            if (str_starts_with($mime, 'image/')) $mediaType = 'image';
-            elseif (str_starts_with($mime, 'video/')) $mediaType = 'video';
-            else {
-                return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'Desteklenmeyen dosya tipi: ' . $mime);
-            }
-
-            $subdir = date('Y') . '/' . date('m');
-            $targetDir = FCPATH . 'uploads/' . $subdir;
-
-            if (!is_dir($targetDir)) {
-                @mkdir($targetDir, 0775, true);
-            }
-
-            $newName = $file->getRandomName();
-            $file->move($targetDir, $newName);
-            $mediaPath = 'uploads/' . $subdir . '/' . $newName;
-        }
-
         $selectedPlatforms = array_map(
             fn($r) => strtolower((string)($r['platform'] ?? '')),
             $rows
@@ -128,49 +93,86 @@ class PlannerController extends BaseController
         $hasFacebook  = in_array('facebook',  $selectedPlatforms, true);
         $hasYouTube   = in_array('youtube',   $selectedPlatforms, true);
 
-        // ==============
-        // Validasyon kuralları
-        // ==============
-        if ($hasYouTube) {
-            if ($mediaType !== 'video' || !$mediaPath) {
+        // upload (opsiyonel)
+        $mediaType = null;
+        $mediaPath = null;
+
+        $file = $this->request->getFile('media');
+        if ($file && $file->isValid() && !$file->hasMoved()) {
+            $mime = (string)$file->getMimeType();
+            if (str_starts_with($mime, 'image/')) $mediaType = 'image';
+            elseif (str_starts_with($mime, 'video/')) $mediaType = 'video';
+            else {
                 return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'YouTube için video yüklemek zorunlu.');
+                    ->with('error', 'Desteklenmeyen dosya tipi: ' . $mime);
             }
-            if ($ytTitle === '') {
-                return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'YouTube seçiliyse "YouTube Başlık" zorunlu.');
+
+            $subdir = date('Y') . '/' . date('m');
+            $targetDir = FCPATH . 'uploads/' . $subdir;
+            if (!is_dir($targetDir)) {
+                @mkdir($targetDir, 0775, true);
             }
+
+            $newName = $file->getRandomName();
+            $file->move($targetDir, $newName);
+            $mediaPath = 'uploads/' . $subdir . '/' . $newName;
         }
 
+        // =========================
+        // VALIDASYONLAR
+        // =========================
+
+        // Instagram seçiliyse:
         if ($hasInstagram) {
-            // Instagram her durumda medya ister (post/story/reels)
-            if ($mediaType === null || !$mediaPath) {
+            // Story her zaman medya ister
+            if ($postType === 'story' && $mediaType === null) {
                 return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'Instagram için en az 1 medya yüklemelisin.');
+                    ->with('error', 'Instagram Story için en az 1 medya yüklemelisin.');
             }
 
+            // Reels video ister
             if ($postType === 'reels' && $mediaType !== 'video') {
                 return redirect()->to(site_url('panel/planner'))
                     ->with('error', 'Instagram Reels için video yüklemelisin.');
             }
 
-            // story/post için image veya video kabul
-            if (in_array($postType, ['post','story'], true) && !in_array($mediaType, ['image','video'], true)) {
+            // Post için medya zorunlu değil (istersen text-only’a izin verebilirsin)
+            // ama senin sistemde genelde medya ile çalışıyoruz:
+            if ($postType === 'post' && $mediaType === null) {
                 return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'Instagram Post/Story için medya tipi geçersiz.');
+                    ->with('error', 'Instagram Post için en az 1 medya yüklemelisin.');
+            }
+
+            // AUTO ise: video => reels, image => post, medya yoksa hata
+            if ($postType === 'auto' && $mediaType === null) {
+                return redirect()->to(site_url('panel/planner'))
+                    ->with('error', 'AUTO için medya yüklemelisin (image/video).');
             }
         }
 
-        // Facebook: medya opsiyonel. Eğer video yüklendiyse video post atacağız, görselse foto post.
-        // postType facebook’u zorlamasın (auto mantığıyla ilerleyeceğiz).
+        // YouTube seçiliyse: video + youtube_title zorunlu
+        $ytTitle   = trim((string)$this->request->getPost('youtube_title'));
+        $ytPrivacy = strtolower(trim((string)$this->request->getPost('youtube_privacy')));
+        if ($ytPrivacy === '') $ytPrivacy = 'public';
+        if (!in_array($ytPrivacy, ['public','unlisted','private'], true)) $ytPrivacy = 'public';
 
-        // ==============
-        // content meta_json (post_type + youtube ayarları)
-        // ==============
+        if ($hasYouTube) {
+            if ($ytTitle === '') {
+                return redirect()->to(site_url('panel/planner'))
+                    ->with('error', 'YouTube için başlık zorunlu.');
+            }
+            if ($mediaType !== 'video') {
+                return redirect()->to(site_url('panel/planner'))
+                    ->with('error', 'YouTube için video zorunlu (mp4).');
+            }
+        }
+
+        // Facebook: video/görsel opsiyonel (sende çalışıyor)
+
+        // İçerik meta_json: post_type + youtube ayarları
         $contentMeta = [
-            'post_type' => $postType, // auto|post|reels|story (instagram için)
+            'post_type' => $postType, // instagram handler AUTO'yu kendi çözer
         ];
-
         if ($hasYouTube) {
             $contentMeta['youtube'] = [
                 'title'   => $ytTitle,
@@ -180,7 +182,7 @@ class PlannerController extends BaseController
 
         $db->transStart();
 
-        // 1) contents
+        // 1) content
         $db->table('contents')->insert([
             'user_id'     => $userId,
             'title'       => ($title !== '' ? $title : null),
@@ -196,10 +198,13 @@ class PlannerController extends BaseController
 
         $createdPublishes = 0;
 
-        // 2) publishes + jobs
+        // 2) publish + job
         foreach ($rows as $acc) {
             $accountId = (int)$acc['id'];
             $platform  = strtolower((string)$acc['platform']);
+
+            // platforma göre job type
+            $jobType = ($platform === 'youtube') ? 'publish_youtube' : 'publish_post';
 
             $idempotencyKey = $this->makeIdempotencyKey($userId, $platform, $accountId, $contentId, $scheduleAt, $postType);
 
@@ -209,9 +214,7 @@ class PlannerController extends BaseController
                 ->where('idempotency_key', $idempotencyKey)
                 ->get()->getRowArray();
 
-            if ($existing) {
-                continue;
-            }
+            if ($existing) continue;
 
             $db->table('publishes')->insert([
                 'user_id'         => $userId,
@@ -226,17 +229,22 @@ class PlannerController extends BaseController
             ]);
             $publishId = (int) $db->insertID();
 
-            // ✅ Job type platforma göre
-            $jobType = ($platform === 'youtube') ? 'publish_youtube' : 'publish_post';
+            // payload: publish_id yeterli
+            $payload = [
+                'publish_id' => $publishId,
+                'platform'   => $platform,
+                'account_id' => $accountId,
+                'content_id' => $contentId,
+            ];
+
+            // instagram için post_type taşıyalım (AUTO dahil)
+            if ($platform === 'instagram') {
+                $payload['post_type'] = $postType;
+            }
 
             $db->table('jobs')->insert([
                 'type'         => $jobType,
-                'payload_json' => json_encode([
-                    'publish_id' => $publishId,
-                    'platform'   => $platform,
-                    'account_id' => $accountId,
-                    'content_id' => $contentId,
-                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'payload_json' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'status'       => 'queued',
                 'priority'     => 100,
                 'run_at'       => $scheduleAt,
