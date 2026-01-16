@@ -167,11 +167,6 @@ class PublishYouTubeHandler implements JobHandlerInterface
             return $accessToken;
         }
 
-        if ($refreshToken === '') {
-            throw new \RuntimeException('YouTube refresh_token yok. Hesabı yeniden bağlamak gerekir.');
-        }
-
-        // refresh şart
         $clientId     = (string)(getenv('GOOGLE_CLIENT_ID') ?: '');
         $clientSecret = (string)(getenv('GOOGLE_CLIENT_SECRET') ?: '');
 

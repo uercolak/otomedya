@@ -46,6 +46,20 @@ class YouTubeOAuthController extends BaseController
         ]);
     }
 
+    private function redact(string $s): string
+    {
+        // Token/log sızıntısını engelle: access_token / refresh_token / Authorization
+        $s = preg_replace('~("access_token"\s*:\s*")[^"]+(")~i', '$1***REDACTED***$2', $s);
+        $s = preg_replace('~("refresh_token"\s*:\s*")[^"]+(")~i', '$1***REDACTED***$2', $s);
+        $s = preg_replace('~(Authorization:\s*Bearer\s+)[A-Za-z0-9\-\._]+~i', '$1***REDACTED***', $s);
+        return $s;
+    }
+
+    private function base64url(string $bin): string
+    {
+        return rtrim(strtr(base64_encode($bin), '+/', '-_'), '=');
+    }
+
     public function wizard()
     {
         if ($r = $this->ensureUser()) return $r;
@@ -88,9 +102,15 @@ class YouTubeOAuthController extends BaseController
                 ->with('error', 'YouTube bağlantısı için GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET eksik.');
         }
 
+        // ✅ PKCE
+        $codeVerifier  = $this->base64url(random_bytes(32));
+        $codeChallenge = $this->base64url(hash('sha256', $codeVerifier, true));
+
         $state = bin2hex(random_bytes(16));
         session()->set('yt_oauth_state', $state);
+        session()->set('yt_code_verifier', $codeVerifier);
 
+        // ✅ Refresh token almak için offline + consent
         $authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
             'client_id'     => $cfg['client_id'],
             'redirect_uri'  => $cfg['redirect_uri'],
@@ -100,6 +120,10 @@ class YouTubeOAuthController extends BaseController
             'prompt'        => 'consent',
             'include_granted_scopes' => 'true',
             'state'         => $state,
+
+            // PKCE params
+            'code_challenge'        => $codeChallenge,
+            'code_challenge_method' => 'S256',
         ]);
 
         return redirect()->to($authUrl);
@@ -113,6 +137,12 @@ class YouTubeOAuthController extends BaseController
 
         $state = (string)$this->request->getGet('state');
         $expected = (string)session('yt_oauth_state');
+        $codeVerifier = (string)session('yt_code_verifier');
+
+        // ✅ tek kullanımlık yap
+        session()->remove('yt_oauth_state');
+        session()->remove('yt_code_verifier');
+
         if (!$expected || !$state || !hash_equals($expected, $state)) {
             return redirect()->to(site_url('panel/social-accounts/youtube/wizard'))
                 ->with('error', 'YouTube OAuth doğrulanamadı. Tekrar dene.');
@@ -127,7 +157,7 @@ class YouTubeOAuthController extends BaseController
 
         $client = $this->httpClient();
 
-        // code -> token
+        // code -> token (PKCE ile)
         $resp = $client->post('https://oauth2.googleapis.com/token', [
             'form_params' => [
                 'code'          => $code,
@@ -135,15 +165,16 @@ class YouTubeOAuthController extends BaseController
                 'client_secret' => $cfg['client_secret'],
                 'redirect_uri'  => $cfg['redirect_uri'],
                 'grant_type'    => 'authorization_code',
+                'code_verifier' => $codeVerifier, // ✅ PKCE
             ],
         ]);
 
         $body = (string)$resp->getBody();
-        log_message('error', 'YT TOKEN HTTP='.$resp->getStatusCode().' BODY='.$body);
+        log_message('info', 'YT TOKEN HTTP='.$resp->getStatusCode().' BODY='.$this->redact($body));
 
         $tok  = json_decode($body, true);
         if (!is_array($tok)) $tok = ['raw' => $body];
-        
+
         if (empty($tok['access_token'])) {
             return redirect()->to(site_url('panel/social-accounts/youtube/wizard'))
                 ->with('error', 'YouTube token alınamadı: ' . ($tok['error_description'] ?? $tok['error'] ?? 'Bilinmeyen hata'));
@@ -152,7 +183,7 @@ class YouTubeOAuthController extends BaseController
         $accessToken  = (string)$tok['access_token'];
         $refreshToken = (string)($tok['refresh_token'] ?? '');
         $expiresIn    = (int)($tok['expires_in'] ?? 0);
-        $expiresAt    = $expiresIn ? date('Y-m-d H:i:s', time() + $expiresIn) : null;
+        $expiresAt    = $expiresIn ? date('Y-m-d H:i:s', time() + $expiresIn - 60) : null;
         $scope        = (string)($tok['scope'] ?? '');
 
         // channel info
@@ -166,7 +197,8 @@ class YouTubeOAuthController extends BaseController
         ]);
 
         $ytBody = (string)$yt->getBody();
-        log_message('error', 'YT CHANNELS HTTP='.$yt->getStatusCode().' BODY='.$ytBody);
+        log_message('info', 'YT CHANNELS HTTP='.$yt->getStatusCode().' BODY='.$this->redact($ytBody));
+
         $ytJson = json_decode($ytBody, true);
         if (!is_array($ytJson)) $ytJson = ['raw' => $ytBody];
 
@@ -220,18 +252,34 @@ class YouTubeOAuthController extends BaseController
             ->where('provider', 'google')
             ->get()->getRowArray();
 
+        // ✅ refresh token response'da gelmeyebilir:
+        // - varsa onu kaydet
+        // - yoksa eskisini koru
+        $finalRefresh = $refreshToken !== ''
+            ? $refreshToken
+            : (string)($existingTok['refresh_token'] ?? '');
+
+        // ✅ refresh hala yoksa: user tekrar bağlamalı (consent + revoke gerekebilir)
+        if ($finalRefresh === '') {
+            return redirect()->to(site_url('panel/social-accounts/youtube/wizard'))
+                ->with('error', 'Google refresh_token gelmedi. YouTube bağlantısını sıfırlayıp tekrar bağla (consent ekranı gelmeli).');
+        }
+
         $payload = [
             'social_account_id' => $socialAccountId,
             'provider'          => 'google',
             'access_token'      => $accessToken,
-            'refresh_token'     => ($refreshToken !== '' ? $refreshToken : ($existingTok['refresh_token'] ?? null)),
+            'refresh_token'     => $finalRefresh,
             'token_type'        => (string)($tok['token_type'] ?? 'Bearer'),
             'expires_at'        => $expiresAt,
             'scope'             => ($scope !== '' ? $scope : null),
+
+            // ✅ raw_token saklama (token sızıntısı)
             'meta_json'         => json_encode([
                 'channel_id' => $channelId,
-                'raw_token'  => $tok,
-            ], JSON_UNESCAPED_UNICODE),
+                'scopes'     => $scope,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+
             'updated_at'        => $now,
         ];
 
