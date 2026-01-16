@@ -4,18 +4,15 @@ namespace App\Queue\Handlers;
 
 use App\Queue\JobHandlerInterface;
 use App\Models\PublishModel;
-use App\Services\LogService;
 use Config\Database;
 
 class PublishYouTubeHandler implements JobHandlerInterface
 {
     private PublishModel $publishes;
-    private LogService $logger;
 
     public function __construct()
     {
         $this->publishes = new PublishModel();
-        $this->logger    = new LogService();
     }
 
     public function handle(array $payload): bool
@@ -26,9 +23,6 @@ class PublishYouTubeHandler implements JobHandlerInterface
         }
 
         $db = Database::connect();
-
-        // Not: provider adı sende farklıysa (google/youtube) aşağıdan değiştir.
-        $tokenProvider = 'google';
 
         $row = $db->table('publishes p')
             ->select('
@@ -47,14 +41,12 @@ class PublishYouTubeHandler implements JobHandlerInterface
             ')
             ->join('contents c', 'c.id = p.content_id', 'left')
             ->join('social_accounts sa', 'sa.id = p.account_id', 'left')
-            ->join('social_account_tokens sat', "sat.social_account_id = sa.id AND sat.provider='{$tokenProvider}'", 'left')
+            // provider adın sende farklıysa: 'google' yerine 'youtube' yazabilirsin.
+            ->join('social_account_tokens sat', "sat.social_account_id = sa.id AND sat.provider='google'", 'left')
             ->where('p.id', $publishId)
-            ->get()
-            ->getRowArray();
+            ->get()->getRowArray();
 
-        if (!$row) {
-            throw new \RuntimeException('Publish kaydı bulunamadı: #' . $publishId);
-        }
+        if (!$row) throw new \RuntimeException('Publish kaydı bulunamadı: #' . $publishId);
 
         $status = (string)($row['status'] ?? '');
         if ($status === PublishModel::STATUS_PUBLISHED) return true;
@@ -62,33 +54,23 @@ class PublishYouTubeHandler implements JobHandlerInterface
 
         $platform = strtolower(trim((string)($row['platform'] ?? '')));
         if ($platform !== 'youtube') {
-            throw new \RuntimeException('Yanlış handler: platform=' . $platform);
+            throw new \RuntimeException('Desteklenmeyen platform (youtube handler): ' . $platform);
         }
 
-        // Zorunlular
-        $accessToken  = trim((string)($row['access_token'] ?? ''));
-        $refreshToken = trim((string)($row['refresh_token'] ?? ''));
-        $expiresAt    = trim((string)($row['expires_at'] ?? ''));
-
-        if ($accessToken === '' && $refreshToken === '') {
-            throw new \RuntimeException('YouTube token eksik. social_account_tokens kontrol et.');
-        }
-
-        // içerik
-        $desc     = trim((string)($row['content_text'] ?? ''));
         $mediaType = strtolower(trim((string)($row['content_media_type'] ?? '')));
         $mediaPath = trim((string)($row['content_media_path'] ?? ''));
-
-        if ($mediaType !== 'video' || $mediaPath === '') {
-            throw new \RuntimeException('YouTube için video zorunlu. content.media_path boş ya da video değil.');
+        if ($mediaType !== 'video') {
+            throw new \RuntimeException('YouTube için video zorunlu. content.media_type=' . ($mediaType ?: 'null'));
+        }
+        if ($mediaPath === '') {
+            throw new \RuntimeException('YouTube için media_path boş.');
         }
 
-        $absPath = FCPATH . ltrim($mediaPath, '/');
+        $absPath = rtrim(FCPATH, '/\\') . DIRECTORY_SEPARATOR . ltrim($mediaPath, '/\\');
         if (!is_file($absPath)) {
             throw new \RuntimeException('Video dosyası bulunamadı: ' . $absPath);
         }
 
-        // content_meta_json içinden youtube ayarları
         $contentMeta = [];
         if (!empty($row['content_meta_json'])) {
             $tmp = json_decode((string)$row['content_meta_json'], true);
@@ -97,48 +79,65 @@ class PublishYouTubeHandler implements JobHandlerInterface
 
         $ytTitle = trim((string)($contentMeta['youtube']['title'] ?? ''));
         $privacy = strtolower(trim((string)($contentMeta['youtube']['privacy'] ?? 'public')));
-        if (!in_array($privacy, ['public','unlisted','private'], true)) $privacy = 'public';
-
         if ($ytTitle === '') {
             // fallback: content title
             $ytTitle = trim((string)($row['content_title'] ?? ''));
         }
         if ($ytTitle === '') {
-            throw new \RuntimeException('YouTube başlık boş. Planner youtube_title zorunlu olmalı.');
+            throw new \RuntimeException('YouTube başlığı boş. (planner youtube_title gerekli)');
+        }
+        if (!in_array($privacy, ['public','unlisted','private'], true)) $privacy = 'public';
+
+        $desc = trim((string)($row['content_text'] ?? ''));
+
+        $accessToken  = trim((string)($row['access_token'] ?? ''));
+        $refreshToken = trim((string)($row['refresh_token'] ?? ''));
+
+        if ($accessToken === '' && $refreshToken === '') {
+            throw new \RuntimeException('YouTube token yok. social_account_tokens(provider=google) kontrol et.');
         }
 
-        // publish "publishing"
+        // publishing
         $this->publishes->update($publishId, [
             'status' => PublishModel::STATUS_PUBLISHING,
             'error'  => null,
         ]);
 
-        // Token yenile (expires_at varsa ve geçmişse)
-        $accessToken = $this->ensureAccessToken($db, (int)$row['sa_id'], $accessToken, $refreshToken, $expiresAt, $tokenProvider);
+        // Access token gerekiyorsa refresh et
+        $accessToken = $this->ensureAccessToken($db, (int)$row['sa_id'], $accessToken, $refreshToken);
 
-        $this->logger->event('info', 'queue', 'youtube.publish.started', [
-            'publish_id' => $publishId,
-            'title'      => $ytTitle,
-            'privacy'    => $privacy,
-        ], $row['user_id'] ?? null);
+        // 1) Resumable session başlat
+        $initUrl = 'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status';
 
-        // Upload
-        $videoId = $this->uploadMultipartVideo($accessToken, $absPath, [
-            'title'       => $ytTitle,
-            'description' => $desc,
-            'privacy'     => $privacy,
-        ]);
+        $initBody = json_encode([
+            'snippet' => [
+                'title'       => $ytTitle,
+                'description' => $desc,
+            ],
+            'status' => [
+                'privacyStatus' => $privacy,
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        if ($videoId === '') {
-            throw new \RuntimeException('YouTube upload başarısız: videoId dönmedi.');
+        [$location, $initResp] = $this->startResumableSession($initUrl, $accessToken, $initBody);
+        if ($location === '') {
+            throw new \RuntimeException('YouTube resumable session açılamadı: ' . $initResp);
         }
 
-        $permalink = 'https://www.youtube.com/watch?v=' . $videoId;
+        // 2) Upload (PUT)
+        $videoId = $this->uploadResumable($location, $absPath);
+
+        if ($videoId === '') {
+            throw new \RuntimeException('YouTube upload başarısız: video id dönmedi.');
+        }
+
+        $permalink = 'https://youtu.be/' . $videoId;
 
         $metaJson = [
             'meta' => [
                 'published_id' => $videoId,
                 'permalink'    => $permalink,
+                'privacy'      => $privacy,
             ],
         ];
 
@@ -150,143 +149,147 @@ class PublishYouTubeHandler implements JobHandlerInterface
             'meta_json'    => json_encode($metaJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         ]);
 
-        $this->logger->event('info', 'queue', 'youtube.publish.succeeded', [
-            'publish_id' => $publishId,
-            'video_id'   => $videoId,
-        ], $row['user_id'] ?? null);
-
         return true;
     }
 
-    private function ensureAccessToken($db, int $socialAccountId, string $accessToken, string $refreshToken, string $expiresAt, string $provider): string
+    private function ensureAccessToken($db, int $socialAccountId, string $accessToken, string $refreshToken): string
     {
-        // expires_at boşsa dokunma (bazı projelerde kullanılmıyor)
-        if ($refreshToken === '' || $expiresAt === '') {
-            return $accessToken;
-        }
+        // expires_at kullanıyorsan burada kontrol edebilirsin.
+        // Biz güvenli olsun diye access_token yoksa refresh yapıyoruz.
+        if ($accessToken !== '') return $accessToken;
 
-        $expTs = strtotime($expiresAt);
-        if ($expTs !== false && $expTs > time() + 60) {
-            return $accessToken; // hala geçerli
-        }
-
-        // refresh
-        $clientId     = (string)(getenv('GOOGLE_CLIENT_ID') ?: '');
+        $clientId = (string)(getenv('GOOGLE_CLIENT_ID') ?: '');
         $clientSecret = (string)(getenv('GOOGLE_CLIENT_SECRET') ?: '');
 
+        if ($refreshToken === '') {
+            throw new \RuntimeException('YouTube access_token yok ve refresh_token da yok.');
+        }
         if ($clientId === '' || $clientSecret === '') {
-            // .env'de var diye varsayıyoruz, yoksa hata verelim
-            throw new \RuntimeException('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET .env eksik.');
+            throw new \RuntimeException('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env eksik.');
         }
 
-        $post = http_build_query([
+        $tokenUrl = 'https://oauth2.googleapis.com/token';
+
+        $postFields = http_build_query([
             'client_id'     => $clientId,
             'client_secret' => $clientSecret,
             'refresh_token' => $refreshToken,
             'grant_type'    => 'refresh_token',
         ]);
 
-        $ch = curl_init('https://oauth2.googleapis.com/token');
+        $ch = curl_init($tokenUrl);
         curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $postFields,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $post,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded'],
-            CURLOPT_TIMEOUT        => 60,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
         ]);
-
         $body = curl_exec($ch);
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = curl_error($ch);
         curl_close($ch);
 
         if ($body === false || $http < 200 || $http >= 300) {
-            throw new \RuntimeException('Token refresh başarısız. HTTP=' . $http . ' ERR=' . $err . ' BODY=' . (string)$body);
+            throw new \RuntimeException('YT TOKEN refresh failed HTTP=' . $http . ' ERR=' . $err . ' BODY=' . (string)$body);
         }
 
         $json = json_decode((string)$body, true);
-        if (!is_array($json) || empty($json['access_token'])) {
-            throw new \RuntimeException('Token refresh parse başarısız: ' . (string)$body);
+        $newAccess = trim((string)($json['access_token'] ?? ''));
+        $expiresIn = (int)($json['expires_in'] ?? 0);
+
+        if ($newAccess === '') {
+            throw new \RuntimeException('YT TOKEN refresh: access_token boş. BODY=' . (string)$body);
         }
 
-        $newToken = (string)$json['access_token'];
-        $expiresIn = (int)($json['expires_in'] ?? 3600);
-        $newExp = date('Y-m-d H:i:s', time() + max(60, $expiresIn - 30));
+        // DB'ye yaz (provider='google')
+        $expiresAt = $expiresIn > 0 ? date('Y-m-d H:i:s', time() + $expiresIn - 30) : null;
 
-        // DB güncelle
         $db->table('social_account_tokens')
             ->where('social_account_id', $socialAccountId)
-            ->where('provider', $provider)
+            ->where('provider', 'google')
             ->update([
-                'access_token' => $newToken,
-                'expires_at'   => $newExp,
+                'access_token' => $newAccess,
+                'expires_at'   => $expiresAt,
                 'updated_at'   => date('Y-m-d H:i:s'),
             ]);
 
-        return $newToken;
+        return $newAccess;
     }
 
-    private function uploadMultipartVideo(string $accessToken, string $absPath, array $meta): string
+    private function startResumableSession(string $url, string $accessToken, string $jsonBody): array
     {
-        $boundary = '----otomedya_' . bin2hex(random_bytes(12));
-        $snippet = [
-            'title'       => (string)($meta['title'] ?? ''),
-            'description' => (string)($meta['description'] ?? ''),
+        $headers = [
+            'Authorization: Bearer ' . $accessToken,
+            'Content-Type: application/json; charset=UTF-8',
+            'X-Upload-Content-Type: video/*',
         ];
-        $status = [
-            'privacyStatus' => (string)($meta['privacy'] ?? 'public'),
-        ];
-
-        $metaJson = json_encode([
-            'snippet' => $snippet,
-            'status'  => $status,
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-        $videoBin = file_get_contents($absPath);
-        if ($videoBin === false) {
-            throw new \RuntimeException('Video okunamadı: ' . $absPath);
-        }
-
-        $eol = "\r\n";
-        $body =
-            '--' . $boundary . $eol .
-            'Content-Type: application/json; charset=UTF-8' . $eol . $eol .
-            $metaJson . $eol .
-            '--' . $boundary . $eol .
-            'Content-Type: video/*' . $eol .
-            'Content-Transfer-Encoding: binary' . $eol . $eol .
-            $videoBin . $eol .
-            '--' . $boundary . '--' . $eol;
-
-        $url = 'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status';
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $jsonBody,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $body,
-            CURLOPT_HTTPHEADER     => [
-                'Authorization: Bearer ' . $accessToken,
-                'Content-Type: multipart/related; boundary=' . $boundary,
-                'Content-Length: ' . strlen($body),
-            ],
-            CURLOPT_TIMEOUT        => 300,
+            CURLOPT_HEADER => true,
+            CURLOPT_HTTPHEADER => $headers,
+        ]);
+
+        $resp = curl_exec($ch);
+        $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $hdrSize = (int)curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+
+        if ($resp === false || $http < 200 || $http >= 300) {
+            throw new \RuntimeException('YT INIT failed HTTP=' . $http . ' ERR=' . $err . ' RESP=' . (string)$resp);
+        }
+
+        $rawHeaders = substr((string)$resp, 0, $hdrSize);
+        $body = substr((string)$resp, $hdrSize);
+
+        $location = '';
+        foreach (explode("\n", $rawHeaders) as $line) {
+            if (stripos($line, 'Location:') === 0) {
+                $location = trim(substr($line, strlen('Location:')));
+                break;
+            }
+        }
+
+        return [$location, $body];
+    }
+
+    private function uploadResumable(string $uploadUrl, string $filePath): string
+    {
+        $fp = fopen($filePath, 'rb');
+        if (!$fp) throw new \RuntimeException('Video açılamadı: ' . $filePath);
+
+        $size = filesize($filePath);
+        if ($size === false) $size = 0;
+
+        $headers = [
+            'Content-Type: video/*',
+            'Content-Length: ' . $size,
+        ];
+
+        $ch = curl_init($uploadUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_CUSTOMREQUEST => 'PUT',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_INFILE => $fp,
+            CURLOPT_INFILESIZE => $size,
         ]);
 
         $resp = curl_exec($ch);
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = curl_error($ch);
         curl_close($ch);
+        fclose($fp);
 
         if ($resp === false || $http < 200 || $http >= 300) {
-            throw new \RuntimeException('YouTube upload failed. HTTP=' . $http . ' ERR=' . $err . ' BODY=' . (string)$resp);
+            throw new \RuntimeException('YT UPLOAD failed HTTP=' . $http . ' ERR=' . $err . ' RESP=' . (string)$resp);
         }
 
         $json = json_decode((string)$resp, true);
-        if (!is_array($json)) {
-            throw new \RuntimeException('YouTube upload response parse failed: ' . (string)$resp);
-        }
-
-        return (string)($json['id'] ?? '');
+        return trim((string)($json['id'] ?? ''));
     }
 }
