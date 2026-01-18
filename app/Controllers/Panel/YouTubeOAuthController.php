@@ -41,20 +41,12 @@ class YouTubeOAuthController extends BaseController
     private function httpClient()
     {
         return \Config\Services::curlrequest([
-            'timeout' => 30,
+            'timeout' => 60,
             'http_errors' => false,
         ]);
     }
 
-    /** Token encrypt/decrypt (DB’de şifreli tutmak için) */
-    private function enc(string $plain): string
-    {
-        if ($plain === '') return '';
-        $encrypter = service('encrypter');
-        return 'enc:' . base64_encode($encrypter->encrypt($plain));
-    }
-
-    private function wizard()
+    public function wizard()
     {
         if ($r = $this->ensureUser()) return $r;
 
@@ -151,10 +143,8 @@ class YouTubeOAuthController extends BaseController
         if (!is_array($tok)) $tok = [];
 
         if (empty($tok['access_token'])) {
-            // ⚠️ TOKEN BODY’yi LOG’LAMA (güvenlik)
-            $msg = $tok['error_description'] ?? $tok['error'] ?? ('HTTP=' . $resp->getStatusCode());
             return redirect()->to(site_url('panel/social-accounts/youtube/wizard'))
-                ->with('error', 'YouTube token alınamadı: ' . $msg);
+                ->with('error', 'YouTube token alınamadı: ' . ($tok['error_description'] ?? $tok['error'] ?? 'Bilinmeyen hata'));
         }
 
         $accessToken  = (string)$tok['access_token'];
@@ -220,7 +210,7 @@ class YouTubeOAuthController extends BaseController
             $socialAccountId = (int)$db->insertID();
         }
 
-        // upsert token
+        // upsert token (provider=google)
         $tokens = new SocialAccountTokenModel();
         $existingTok = $db->table('social_account_tokens')
             ->where('social_account_id', $socialAccountId)
@@ -230,14 +220,13 @@ class YouTubeOAuthController extends BaseController
         $payload = [
             'social_account_id' => $socialAccountId,
             'provider'          => 'google',
-            // ✅ DB’de şifreli tut
-            'access_token'      => $this->enc($accessToken),
-            // refresh_token ilk bağlamada gelmeyebilir; eskiyi koru
-            'refresh_token'     => ($refreshToken !== '' ? $this->enc($refreshToken) : ($existingTok['refresh_token'] ?? null)),
+            'access_token'      => $accessToken,
+            // refresh_token bazı durumlarda gelmeyebilir -> eskisini koru
+            'refresh_token'     => ($refreshToken !== '' ? $refreshToken : ($existingTok['refresh_token'] ?? null)),
             'token_type'        => (string)($tok['token_type'] ?? 'Bearer'),
             'expires_at'        => $expiresAt,
             'scope'             => ($scope !== '' ? $scope : null),
-            // ✅ raw token saklama (risk)
+            // token dump saklama! sadece kanal bilgisi
             'meta_json'         => json_encode([
                 'channel_id' => $channelId,
             ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
