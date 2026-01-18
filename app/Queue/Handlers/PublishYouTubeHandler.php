@@ -50,6 +50,16 @@ class PublishYouTubeHandler implements JobHandlerInterface
         if ($status === PublishModel::STATUS_PUBLISHED) return true;
         if ($status === PublishModel::STATUS_CANCELED)  return true;
 
+        $remoteId = trim((string)($row['remote_id'] ?? ''));
+        if ($remoteId !== '') {
+            $this->publishes->update($publishId, [
+                'status'       => PublishModel::STATUS_PUBLISHED,
+                'published_at' => date('Y-m-d H:i:s'),
+                'error'        => null,
+            ]);
+            return true;
+        }
+
         $platform = strtolower(trim((string)($row['platform'] ?? '')));
         if ($platform !== 'youtube') {
             throw new \RuntimeException('Desteklenmeyen platform (youtube handler): ' . $platform);
