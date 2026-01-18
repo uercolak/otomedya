@@ -4,15 +4,18 @@ namespace App\Queue\Handlers;
 
 use App\Queue\JobHandlerInterface;
 use App\Models\PublishModel;
+use App\Services\YouTubePublishService;
 use Config\Database;
 
 class PublishYouTubeHandler implements JobHandlerInterface
 {
     private PublishModel $publishes;
+    private YouTubePublishService $yt;
 
     public function __construct()
     {
         $this->publishes = new PublishModel();
+        $this->yt = new YouTubePublishService();
     }
 
     public function handle(array $payload): bool
@@ -32,18 +35,16 @@ class PublishYouTubeHandler implements JobHandlerInterface
                 c.media_type as content_media_type,
                 c.media_path as content_media_path,
                 c.meta_json as content_meta_json,
-                sa.id as sa_id,
-                sat.access_token as access_token,
-                sat.refresh_token as refresh_token,
-                sat.expires_at as expires_at
+                sa.id as sa_id
             ')
             ->join('contents c', 'c.id = p.content_id', 'left')
             ->join('social_accounts sa', 'sa.id = p.account_id', 'left')
-            ->join('social_account_tokens sat', "sat.social_account_id = sa.id AND sat.provider='google'", 'left')
             ->where('p.id', $publishId)
             ->get()->getRowArray();
 
-        if (!$row) throw new \RuntimeException('Publish kaydı bulunamadı: #' . $publishId);
+        if (!$row) {
+            throw new \RuntimeException('Publish kaydı bulunamadı: #' . $publishId);
+        }
 
         $status = (string)($row['status'] ?? '');
         if ($status === PublishModel::STATUS_PUBLISHED) return true;
@@ -56,6 +57,7 @@ class PublishYouTubeHandler implements JobHandlerInterface
 
         $mediaType = strtolower(trim((string)($row['content_media_type'] ?? '')));
         $mediaPath = trim((string)($row['content_media_path'] ?? ''));
+
         if ($mediaType !== 'video') {
             throw new \RuntimeException('YouTube için video zorunlu. content.media_type=' . ($mediaType ?: 'null'));
         }
@@ -80,14 +82,15 @@ class PublishYouTubeHandler implements JobHandlerInterface
         if ($ytTitle === '') $ytTitle = trim((string)($row['content_title'] ?? ''));
         if ($ytTitle === '') throw new \RuntimeException('YouTube başlığı boş.');
 
-        if (!in_array($privacy, ['public','unlisted','private'], true)) $privacy = 'public';
+        if (!in_array($privacy, ['public', 'unlisted', 'private'], true)) {
+            $privacy = 'public';
+        }
+
         $desc = trim((string)($row['content_text'] ?? ''));
 
-        $accessToken  = trim((string)($row['access_token'] ?? ''));
-        $refreshToken = trim((string)($row['refresh_token'] ?? ''));
-
-        if ($accessToken === '' && $refreshToken === '') {
-            throw new \RuntimeException('YouTube token yok. social_account_tokens(provider=google) kontrol et.');
+        $saId = (int)($row['sa_id'] ?? 0);
+        if ($saId <= 0) {
+            throw new \RuntimeException('YouTube social account bulunamadı (sa_id boş). Hesap bağlı mı?');
         }
 
         // publishing
@@ -96,14 +99,11 @@ class PublishYouTubeHandler implements JobHandlerInterface
             'error'  => null,
         ]);
 
-        // token refresh (gerekiyorsa)
-        $accessToken = $this->ensureAccessToken(
-            $db,
-            (int)$row['sa_id'],
-            $accessToken,
-            $refreshToken,
-            $row['expires_at'] ?? null
-        );
+        // ✅ Tokeni servis ile al (decrypt + refresh + db update)
+        $accessToken = $this->yt->getValidAccessToken($db, $saId);
+        if (trim($accessToken) === '') {
+            throw new \RuntimeException('YouTube access token alınamadı (decrypt/refresh başarısız). Hesabı yeniden bağla.');
+        }
 
         // 1) Resumable session
         $initUrl = 'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status';
@@ -118,7 +118,17 @@ class PublishYouTubeHandler implements JobHandlerInterface
             ],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        [$location, $initRespBody] = $this->startResumableSession($initUrl, $accessToken, $initBody);
+        try {
+            [$location, $initRespBody] = $this->startResumableSession($initUrl, $accessToken, $initBody);
+        } catch (\Throwable $e) {
+            if (str_contains($e->getMessage(), 'HTTP=401')) {
+                $accessToken = $this->yt->getValidAccessToken($db, $saId); 
+                [$location, $initRespBody] = $this->startResumableSession($initUrl, $accessToken, $initBody);
+            } else {
+                throw $e;
+            }
+        }
+
         if ($location === '') {
             throw new \RuntimeException('YouTube resumable session açılamadı. RESP=' . $initRespBody);
         }
@@ -150,72 +160,6 @@ class PublishYouTubeHandler implements JobHandlerInterface
         return true;
     }
 
-    private function ensureAccessToken($db, int $socialAccountId, string $accessToken, string $refreshToken, ?string $expiresAt): string
-    {
-        $now = time();
-        $exp = $expiresAt ? strtotime($expiresAt) : 0;
-
-        // access_token geçerliyse kullan
-        if ($accessToken !== '' && $exp && $exp > ($now + 60)) {
-            return $accessToken;
-        }
-
-        if ($refreshToken === '') {
-            throw new \RuntimeException('YouTube refresh_token yok. Hesabı yeniden bağlamak gerekir.');
-        }
-
-        $clientId     = (string)(getenv('GOOGLE_CLIENT_ID') ?: '');
-        $clientSecret = (string)(getenv('GOOGLE_CLIENT_SECRET') ?: '');
-        if ($clientId === '' || $clientSecret === '') {
-            throw new \RuntimeException('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env eksik.');
-        }
-
-        $tokenUrl = 'https://oauth2.googleapis.com/token';
-        $postFields = http_build_query([
-            'client_id'     => $clientId,
-            'client_secret' => $clientSecret,
-            'refresh_token' => $refreshToken,
-            'grant_type'    => 'refresh_token',
-        ]);
-
-        $ch = curl_init($tokenUrl);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $postFields,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
-        ]);
-        $body = curl_exec($ch);
-        $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err  = curl_error($ch);
-        curl_close($ch);
-
-        if ($body === false || $http < 200 || $http >= 300) {
-            throw new \RuntimeException('YT TOKEN refresh failed HTTP=' . $http . ' ERR=' . $err);
-        }
-
-        $json = json_decode((string)$body, true);
-        $newAccess = trim((string)($json['access_token'] ?? ''));
-        $expiresIn = (int)($json['expires_in'] ?? 0);
-
-        if ($newAccess === '') {
-            throw new \RuntimeException('YT TOKEN refresh: access_token boş.');
-        }
-
-        $newExpiresAt = $expiresIn > 0 ? date('Y-m-d H:i:s', $now + $expiresIn - 60) : null;
-
-        $db->table('social_account_tokens')
-            ->where('social_account_id', $socialAccountId)
-            ->where('provider', 'google')
-            ->update([
-                'access_token' => $newAccess,
-                'expires_at'   => $newExpiresAt,
-                'updated_at'   => date('Y-m-d H:i:s'),
-            ]);
-
-        return $newAccess;
-    }
-
     private function startResumableSession(string $url, string $accessToken, string $jsonBody): array
     {
         $headers = [
@@ -226,26 +170,30 @@ class PublishYouTubeHandler implements JobHandlerInterface
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $jsonBody,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $jsonBody,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HEADER => true,
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_HEADER         => true,
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
         ]);
 
-        $resp = curl_exec($ch);
-        $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $resp    = curl_exec($ch);
+        $http    = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $hdrSize = (int)curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-        $err  = curl_error($ch);
+        $err     = curl_error($ch);
         curl_close($ch);
 
         if ($resp === false || $http < 200 || $http >= 300) {
-            throw new \RuntimeException('YT INIT failed HTTP=' . $http . ' ERR=' . $err);
+            $snippet = '';
+            if (is_string($resp)) {
+                $snippet = substr($resp, 0, 800); 
+            }
+            throw new \RuntimeException('YT INIT failed HTTP=' . $http . ' ERR=' . $err . ' RESP=' . $snippet);
         }
 
         $rawHeaders = substr((string)$resp, 0, $hdrSize);
-        $body = substr((string)$resp, $hdrSize);
+        $body       = substr((string)$resp, $hdrSize);
 
         $location = '';
         foreach (explode("\n", $rawHeaders) as $line) {
@@ -274,15 +222,15 @@ class PublishYouTubeHandler implements JobHandlerInterface
 
         $ch = curl_init($uploadUrl);
         curl_setopt_array($ch, [
-            CURLOPT_CUSTOMREQUEST => 'PUT',
+            CURLOPT_CUSTOMREQUEST  => 'PUT',
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_INFILE => $fp,
-            CURLOPT_INFILESIZE => $size,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_TIMEOUT => 0,
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_INFILE         => $fp,
+            CURLOPT_INFILESIZE     => $size,
+            CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+            CURLOPT_TIMEOUT        => 0,
             CURLOPT_CONNECTTIMEOUT => 30,
-            CURLOPT_TCP_KEEPALIVE => 1,
+            CURLOPT_TCP_KEEPALIVE  => 1,
         ]);
 
         $resp = curl_exec($ch);
@@ -292,7 +240,6 @@ class PublishYouTubeHandler implements JobHandlerInterface
         fclose($fp);
 
         if ($resp === false || $http < 200 || $http >= 300) {
-            // RESP HTML bile dönebilir (408 vb) -> kısa keselim
             throw new \RuntimeException('YT UPLOAD failed HTTP=' . $http . ' ERR=' . $err);
         }
 

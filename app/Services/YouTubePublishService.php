@@ -47,14 +47,18 @@ class YouTubePublishService
         $refresh = $this->dec($row['refresh_token'] ?? null);
         $expiresAtRaw = (string)($row['expires_at'] ?? '');
 
-        $isExpired = false;
+        $isExpired = true;
+
         if ($expiresAtRaw !== '') {
             $ts = strtotime($expiresAtRaw);
-            if ($ts !== false) $isExpired = ($ts - 60) <= time();
+            if ($ts !== false) {
+                $isExpired = ($ts - 60) <= time();
+            }
         }
 
         if ($access !== '' && !$isExpired) return $access;
-        if ($refresh === '') return $access; // eldekiyle şansını dene
+
+        if ($refresh === '') return $access;
 
         $clientId     = (string)(getenv('GOOGLE_CLIENT_ID') ?: '');
         $clientSecret = (string)(getenv('GOOGLE_CLIENT_SECRET') ?: '');
