@@ -7,19 +7,21 @@ use RuntimeException;
 class HandlerRegistry
 {
     /** @var array<string, class-string<JobHandlerInterface>> */
-    private array $map;
+    private array $map = [];
 
     public function __construct(?array $map = null)
     {
-        // Dışarıdan map verilirse onu kullan (test için çok iyi)
+        // Test/override
         if (is_array($map)) {
             $this->map = $map;
             return;
         }
 
-        // Normal kullanım: Config\Queue içinden oku
-        $cfg = config('Queue'); // => \Config\Queue
-        $this->map = $cfg->handlers ?? [];
+        // ✅ En sağlam: class ile config çek
+        $cfg = config(\Config\Queue::class); // => \Config\Queue (bizim dosya)
+
+        $handlers = $cfg->handlers ?? [];
+        $this->map = is_array($handlers) ? $handlers : [];
     }
 
     public function resolve(string $type): JobHandlerInterface

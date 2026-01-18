@@ -41,9 +41,33 @@ class YouTubeOAuthController extends BaseController
     private function httpClient()
     {
         return \Config\Services::curlrequest([
-            'timeout' => 60,
+            'timeout' => 30,
             'http_errors' => false,
         ]);
+    }
+
+    private function enc(): \CodeIgniter\Encryption\EncrypterInterface
+    {
+        return \Config\Services::encrypter();
+    }
+
+    private function encryptStr(string $plain): ?string
+    {
+        if ($plain === '') return null;
+        $bin = $this->enc()->encrypt($plain);
+        return base64_encode($bin);
+    }
+
+    private function decryptStr(?string $cipherB64): string
+    {
+        if (!$cipherB64) return '';
+        $bin = base64_decode($cipherB64, true);
+        if ($bin === false) return '';
+        try {
+            return (string)$this->enc()->decrypt($bin);
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     public function wizard()
@@ -143,6 +167,7 @@ class YouTubeOAuthController extends BaseController
         if (!is_array($tok)) $tok = [];
 
         if (empty($tok['access_token'])) {
+            // ✅ Token body loglama yok
             return redirect()->to(site_url('panel/social-accounts/youtube/wizard'))
                 ->with('error', 'YouTube token alınamadı: ' . ($tok['error_description'] ?? $tok['error'] ?? 'Bilinmeyen hata'));
         }
@@ -150,7 +175,7 @@ class YouTubeOAuthController extends BaseController
         $accessToken  = (string)$tok['access_token'];
         $refreshToken = (string)($tok['refresh_token'] ?? '');
         $expiresIn    = (int)($tok['expires_in'] ?? 0);
-        $expiresAt    = $expiresIn ? date('Y-m-d H:i:s', time() + $expiresIn - 60) : null; // 60sn buffer
+        $expiresAt    = $expiresIn ? date('Y-m-d H:i:s', time() + $expiresIn) : null;
         $scope        = (string)($tok['scope'] ?? '');
 
         // channel info
@@ -210,26 +235,33 @@ class YouTubeOAuthController extends BaseController
             $socialAccountId = (int)$db->insertID();
         }
 
-        // upsert token (provider=google)
+        // upsert token (✅ encrypted)
         $tokens = new SocialAccountTokenModel();
         $existingTok = $db->table('social_account_tokens')
             ->where('social_account_id', $socialAccountId)
             ->where('provider', 'google')
             ->get()->getRowArray();
 
+        $encAccess  = $this->encryptStr($accessToken);
+        $encRefresh = $this->encryptStr($refreshToken);
+
+        // refresh_token bazen ilk bağlamadan sonra gelmez -> eskisini koru
+        $refreshToStore = $encRefresh ?: ($existingTok['refresh_token'] ?? null);
+
         $payload = [
             'social_account_id' => $socialAccountId,
             'provider'          => 'google',
-            'access_token'      => $accessToken,
-            // refresh_token bazı durumlarda gelmeyebilir -> eskisini koru
-            'refresh_token'     => ($refreshToken !== '' ? $refreshToken : ($existingTok['refresh_token'] ?? null)),
+            'access_token'      => $encAccess,
+            'refresh_token'     => $refreshToStore,
             'token_type'        => (string)($tok['token_type'] ?? 'Bearer'),
             'expires_at'        => $expiresAt,
             'scope'             => ($scope !== '' ? $scope : null),
-            // token dump saklama! sadece kanal bilgisi
+
+            // ✅ raw token yok. sadece kanal id gibi zararsız meta.
             'meta_json'         => json_encode([
                 'channel_id' => $channelId,
-            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ], JSON_UNESCAPED_UNICODE),
+
             'updated_at'        => $now,
         ];
 
