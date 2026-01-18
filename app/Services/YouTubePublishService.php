@@ -12,27 +12,24 @@ class YouTubePublishService
         ]);
     }
 
-    private function enc(): \CodeIgniter\Encryption\EncrypterInterface
+    private function dec(?string $cipher): string
     {
-        return \Config\Services::encrypter();
-    }
-
-    private function decryptStr(?string $cipherB64): string
-    {
-        if (!$cipherB64) return '';
-        $bin = base64_decode($cipherB64, true);
-        if ($bin === false) return '';
+        $cipher = ($cipher ?? '');
+        if ($cipher === '') return '';
+        $enc = \Config\Services::encrypter();
         try {
-            return (string)$this->enc()->decrypt($bin);
+            return (string)$enc->decrypt(base64_decode($cipher, true) ?: '');
         } catch (\Throwable $e) {
             return '';
         }
     }
 
-    private function encryptStr(string $plain): ?string
+    private function enc(?string $plain): ?string
     {
+        $plain = ($plain ?? '');
         if ($plain === '') return null;
-        return base64_encode($this->enc()->encrypt($plain));
+        $enc = \Config\Services::encrypter();
+        return base64_encode($enc->encrypt($plain));
     }
 
     public function getValidAccessToken($db, int $socialAccountId): string
@@ -43,12 +40,11 @@ class YouTubePublishService
             ->where('provider', 'google')
             ->get()->getRowArray();
 
-        $tokenId = (int)($row['id'] ?? 0);
+        if (!$row) throw new \RuntimeException('YouTube token kaydı bulunamadı.');
 
-        // ✅ decrypt
-        $access  = $this->decryptStr($row['access_token'] ?? null);
-        $refresh = $this->decryptStr($row['refresh_token'] ?? null);
-
+        $tokenId = (int)$row['id'];
+        $access  = $this->dec($row['access_token'] ?? null);
+        $refresh = $this->dec($row['refresh_token'] ?? null);
         $expiresAtRaw = (string)($row['expires_at'] ?? '');
 
         $isExpired = false;
@@ -58,12 +54,12 @@ class YouTubePublishService
         }
 
         if ($access !== '' && !$isExpired) return $access;
-        if ($refresh === '') return $access;
+        if ($refresh === '') return $access; // eldekiyle şansını dene
 
         $clientId     = (string)(getenv('GOOGLE_CLIENT_ID') ?: '');
         $clientSecret = (string)(getenv('GOOGLE_CLIENT_SECRET') ?: '');
         if ($clientId === '' || $clientSecret === '') {
-            throw new \RuntimeException('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET eksik (YouTube refresh için gerekli).');
+            throw new \RuntimeException('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET eksik (refresh için gerekli).');
         }
 
         $client = $this->httpClient();
@@ -76,8 +72,7 @@ class YouTubePublishService
             ],
         ]);
 
-        $body = (string)$resp->getBody();
-        $json = json_decode($body, true);
+        $json = json_decode((string)$resp->getBody(), true);
         if (!is_array($json)) $json = [];
 
         if (empty($json['access_token'])) {
@@ -89,11 +84,10 @@ class YouTubePublishService
         $expiresIn = (int)($json['expires_in'] ?? 0);
         $newExpiresAt = $expiresIn ? date('Y-m-d H:i:s', time() + $expiresIn) : null;
 
-        // ✅ encrypt + update
         $db->table('social_account_tokens')
             ->where('id', $tokenId)
             ->update([
-                'access_token' => $this->encryptStr($newAccess),
+                'access_token' => $this->enc($newAccess),
                 'expires_at'   => $newExpiresAt,
                 'updated_at'   => date('Y-m-d H:i:s'),
             ]);

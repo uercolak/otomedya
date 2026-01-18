@@ -46,25 +46,22 @@ class YouTubeOAuthController extends BaseController
         ]);
     }
 
-    private function enc(): \CodeIgniter\Encryption\EncrypterInterface
+    // 🔒 encrypt/decrypt helpers (DB’de token şifreli dursun)
+    private function enc(?string $plain): ?string
     {
-        return \Config\Services::encrypter();
-    }
-
-    private function encryptStr(string $plain): ?string
-    {
+        $plain = ($plain ?? '');
         if ($plain === '') return null;
-        $bin = $this->enc()->encrypt($plain);
-        return base64_encode($bin);
+        $enc = \Config\Services::encrypter();
+        return base64_encode($enc->encrypt($plain));
     }
 
-    private function decryptStr(?string $cipherB64): string
+    private function dec(?string $cipher): string
     {
-        if (!$cipherB64) return '';
-        $bin = base64_decode($cipherB64, true);
-        if ($bin === false) return '';
+        $cipher = ($cipher ?? '');
+        if ($cipher === '') return '';
+        $enc = \Config\Services::encrypter();
         try {
-            return (string)$this->enc()->decrypt($bin);
+            return (string)$enc->decrypt(base64_decode($cipher, true) ?: '');
         } catch (\Throwable $e) {
             return '';
         }
@@ -113,6 +110,8 @@ class YouTubeOAuthController extends BaseController
         }
 
         $state = bin2hex(random_bytes(16));
+
+        // ✅ state’i sadece session’a değil, flash’a da bas (bazı proxy/cookie durumlarında yardımcı)
         session()->set('yt_oauth_state', $state);
 
         $authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
@@ -137,9 +136,13 @@ class YouTubeOAuthController extends BaseController
 
         $state = (string)$this->request->getGet('state');
         $expected = (string)session('yt_oauth_state');
+
+        // state tek kullanımlık
+        session()->remove('yt_oauth_state');
+
         if (!$expected || !$state || !hash_equals($expected, $state)) {
             return redirect()->to(site_url('panel/social-accounts/youtube/wizard'))
-                ->with('error', 'YouTube OAuth doğrulanamadı. Tekrar dene.');
+                ->with('error', 'YouTube OAuth doğrulanamadı. (Session/state kaybı) Tekrar dene.');
         }
 
         $code = (string)$this->request->getGet('code');
@@ -162,12 +165,10 @@ class YouTubeOAuthController extends BaseController
             ],
         ]);
 
-        $body = (string)$resp->getBody();
-        $tok  = json_decode($body, true);
+        $tok = json_decode((string)$resp->getBody(), true);
         if (!is_array($tok)) $tok = [];
 
         if (empty($tok['access_token'])) {
-            // ✅ Token body loglama yok
             return redirect()->to(site_url('panel/social-accounts/youtube/wizard'))
                 ->with('error', 'YouTube token alınamadı: ' . ($tok['error_description'] ?? $tok['error'] ?? 'Bilinmeyen hata'));
         }
@@ -188,14 +189,13 @@ class YouTubeOAuthController extends BaseController
             ],
         ]);
 
-        $ytBody = (string)$yt->getBody();
-        $ytJson = json_decode($ytBody, true);
+        $ytJson = json_decode((string)$yt->getBody(), true);
         if (!is_array($ytJson)) $ytJson = [];
 
         $items = $ytJson['items'] ?? [];
         if (empty($items) || empty($items[0]['id'])) {
             return redirect()->to(site_url('panel/social-accounts/youtube/wizard'))
-                ->with('error', 'YouTube kanal bilgisi alınamadı. (İzin/Scope ayarlarını kontrol et)');
+                ->with('error', 'YouTube kanal bilgisi alınamadı. (Scope/izinleri kontrol et)');
         }
 
         $channelId = (string)$items[0]['id'];
@@ -235,33 +235,25 @@ class YouTubeOAuthController extends BaseController
             $socialAccountId = (int)$db->insertID();
         }
 
-        // upsert token (✅ encrypted)
+        // upsert token (🔒 encrypted)
         $tokens = new SocialAccountTokenModel();
         $existingTok = $db->table('social_account_tokens')
             ->where('social_account_id', $socialAccountId)
             ->where('provider', 'google')
             ->get()->getRowArray();
 
-        $encAccess  = $this->encryptStr($accessToken);
-        $encRefresh = $this->encryptStr($refreshToken);
-
-        // refresh_token bazen ilk bağlamadan sonra gelmez -> eskisini koru
-        $refreshToStore = $encRefresh ?: ($existingTok['refresh_token'] ?? null);
-
         $payload = [
             'social_account_id' => $socialAccountId,
             'provider'          => 'google',
-            'access_token'      => $encAccess,
-            'refresh_token'     => $refreshToStore,
+            'access_token'      => $this->enc($accessToken),
+            'refresh_token'     => ($refreshToken !== '' ? $this->enc($refreshToken) : ($existingTok['refresh_token'] ?? null)),
             'token_type'        => (string)($tok['token_type'] ?? 'Bearer'),
             'expires_at'        => $expiresAt,
             'scope'             => ($scope !== '' ? $scope : null),
-
-            // ✅ raw token yok. sadece kanal id gibi zararsız meta.
             'meta_json'         => json_encode([
                 'channel_id' => $channelId,
-            ], JSON_UNESCAPED_UNICODE),
-
+                'obtained_at'=> $now,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'updated_at'        => $now,
         ];
 
