@@ -45,6 +45,8 @@ $routes->group('panel', ['filter' => 'auth'], static function ($routes) {
     $routes->get('social-accounts/youtube/connect',                 'Panel\YouTubeOAuthController::connect');
     $routes->get('social-accounts/youtube/callback',                'Panel\YouTubeOAuthController::callback');
     $routes->post('social-accounts/youtube/disconnect',             'Panel\YouTubeOAuthController::disconnect');
+    $routes->get('auth/tiktok',                                     'Panel\TikTokController::start');
+    $routes->get('auth/tiktok/callback',                            'Panel\TikTokController::callback');
 
     $routes->get('social-accounts/meta/publish-test',               'Panel\MetaOAuthController::publishTestForm');
     $routes->post('social-accounts/meta/test-publish',              'Panel\MetaOAuthController::testPublish');
