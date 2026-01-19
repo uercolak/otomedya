@@ -2,85 +2,118 @@
 
 namespace App\Queue\Handlers;
 
-use CodeIgniter\Database\Config as DBConfig;
+use Config\Database;
 
 class RefreshTikTokTokenHandler
 {
     public function handle(array $payload = []): void
     {
-        $db = DBConfig::connect();
+        $db = Database::connect();
+
+        $now = date('Y-m-d H:i:s');
+
+        // Eğer payload ile tek hesap gönderildiyse sadece onu yenile
+        $onlyAccountId = isset($payload['social_account_id']) ? (int)$payload['social_account_id'] : 0;
 
         // 10 dk içinde bitecek tokenları yenile
         $threshold = date('Y-m-d H:i:s', time() + 10 * 60);
 
-        $rows = $db->table('social_account_tokens sat')
+        $q = $db->table('social_account_tokens sat')
             ->select('sat.id as token_row_id, sat.social_account_id, sat.refresh_token, sat.expires_at, sa.external_id')
             ->join('social_accounts sa', 'sa.id = sat.social_account_id', 'inner')
-            ->where('sat.provider', 'tiktok')
-            ->groupStart()
-                ->where('sat.expires_at IS NULL', null, false)
-                ->orWhere('sat.expires_at <=', $threshold)
-            ->groupEnd()
-            ->limit(50)
-            ->get()
-            ->getResultArray();
+            ->where('sat.provider', 'tiktok');
+
+        if ($onlyAccountId > 0) {
+            $q->where('sat.social_account_id', $onlyAccountId);
+        } else {
+            $q->groupStart()
+                    ->where('sat.expires_at IS NULL', null, false)
+                    ->orWhere('sat.expires_at <=', $threshold)
+              ->groupEnd();
+        }
+
+        $rows = $q->limit(50)->get()->getResultArray();
+
+        if (!$rows) {
+            log_message('info', '[TikTokRefresh] No tokens to refresh. threshold={threshold}', ['threshold' => $threshold]);
+            return;
+        }
 
         foreach ($rows as $row) {
-            $refreshToken = (string) ($row['refresh_token'] ?? '');
-            if ($refreshToken === '') {
-                // refresh token yoksa yenileyemeyiz
+            $socialAccountId = (int)($row['social_account_id'] ?? 0);
+            $refreshToken = (string)($row['refresh_token'] ?? '');
+
+            if ($socialAccountId <= 0 || $refreshToken === '') {
+                log_message('warning', '[TikTokRefresh] Skip account. social_account_id={id} refreshTokenEmpty={empty}', [
+                    'id' => $socialAccountId,
+                    'empty' => $refreshToken === '' ? 'yes' : 'no',
+                ]);
                 continue;
             }
 
-            $newToken = $this->refreshToken($refreshToken);
+            try {
+                $newToken = $this->refreshToken($refreshToken);
+            } catch (\Throwable $e) {
+                log_message('error', '[TikTokRefresh] Refresh failed account_id={id} err={err}', [
+                    'id' => $socialAccountId,
+                    'err' => $e->getMessage(),
+                ]);
+                continue;
+            }
 
-            $accessToken  = (string) ($newToken['access_token'] ?? '');
-            $expiresIn    = (int)    ($newToken['expires_in'] ?? 0);
-            $scopeStr     = (string) ($newToken['scope'] ?? null);
-            $tokenType    = (string) ($newToken['token_type'] ?? 'bearer');
+            $accessToken  = (string)($newToken['access_token'] ?? '');
+            $expiresIn    = (int)($newToken['expires_in'] ?? 0);
+            $scopeStr     = (string)($newToken['scope'] ?? '');
+            $tokenType    = (string)($newToken['token_type'] ?? 'bearer');
 
-            // TikTok bazen refresh sonucu yeni refresh_token da döndürebilir
-            $newRefresh   = (string) ($newToken['refresh_token'] ?? '');
+            $newRefresh   = (string)($newToken['refresh_token'] ?? '');
             if ($newRefresh === '') {
                 $newRefresh = $refreshToken; // eskisini koru
             }
 
             if ($accessToken === '') {
-                // refresh başarısız; loglamak istersen buraya log_message ekleyebilirsin
+                log_message('error', '[TikTokRefresh] Missing access_token after refresh. account_id={id} resp={resp}', [
+                    'id' => $socialAccountId,
+                    'resp' => json_encode($newToken),
+                ]);
                 continue;
             }
 
-            $now = date('Y-m-d H:i:s');
             $expiresAt = ($expiresIn > 0) ? date('Y-m-d H:i:s', time() + $expiresIn - 60) : null;
 
             // social_account_tokens güncelle
             $db->table('social_account_tokens')
-                ->where('social_account_id', (int)$row['social_account_id'])
+                ->where('social_account_id', $socialAccountId)
                 ->where('provider', 'tiktok')
                 ->update([
                     'access_token'  => $accessToken,
                     'refresh_token' => $newRefresh,
                     'token_type'    => $tokenType,
                     'expires_at'    => $expiresAt,
-                    'scope'         => $scopeStr ?: null,
+                    'scope'         => $scopeStr !== '' ? $scopeStr : null,
                     'updated_at'    => $now,
                 ]);
 
-            // social_accounts güncelle (panel liste vs buradan okuyor)
+            // social_accounts güncelle
             $db->table('social_accounts')
-                ->where('id', (int)$row['social_account_id'])
+                ->where('id', $socialAccountId)
                 ->update([
                     'access_token'     => $accessToken,
                     'token_expires_at' => $expiresAt,
                     'updated_at'       => $now,
                 ]);
+
+            log_message('info', '[TikTokRefresh] Refreshed account_id={id} expires_at={exp}', [
+                'id' => $socialAccountId,
+                'exp' => $expiresAt,
+            ]);
         }
     }
 
     private function refreshToken(string $refreshToken): array
     {
-        $clientKey    = (string) getenv('TIKTOK_CLIENT_KEY');
-        $clientSecret = (string) getenv('TIKTOK_CLIENT_SECRET');
+        $clientKey    = trim((string) env('TIKTOK_CLIENT_KEY'));
+        $clientSecret = trim((string) env('TIKTOK_CLIENT_SECRET'));
 
         if ($clientKey === '' || $clientSecret === '') {
             throw new \RuntimeException('TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET eksik.');

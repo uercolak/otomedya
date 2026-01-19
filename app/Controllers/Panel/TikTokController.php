@@ -198,14 +198,4 @@ class TikTokController extends BaseController
     }
 
 
-    public function testTikTokRefresh()
-{
-    service('queue')->push('refresh_tiktok_token', [
-        'social_account_id' => 50,
-    ]);
-
-    return 'refresh job queued';
-}
-
-
 }

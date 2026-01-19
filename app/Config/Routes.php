@@ -50,6 +50,7 @@ $routes->group('panel', ['filter' => 'auth'], static function ($routes) {
 
     $routes->get('social-accounts/meta/publish-test',               'Panel\MetaOAuthController::publishTestForm');
     $routes->post('social-accounts/meta/test-publish',              'Panel\MetaOAuthController::testPublish');
+    $routes->get('panel/test-tiktok-refresh',                       'Panel\DevController::testTikTokRefresh', ['filter' => 'auth']);
 
 });
 
