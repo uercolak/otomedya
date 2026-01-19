@@ -14,7 +14,8 @@ class TikTokController extends BaseController
             return redirect()->to(site_url('auth/login'));
         }
 
-        $clientKey = (string) getenv('TIKTOK_CLIENT_KEY');
+        $clientKey = trim((string) env('TIKTOK_CLIENT_KEY'));
+        $redirectUri = trim((string) env('TIKTOK_REDIRECT_URI')) ?: site_url('panel/auth/tiktok/callback');
         if ($clientKey === '') {
             return $this->response->setStatusCode(500)->setBody('TIKTOK_CLIENT_KEY eksik.');
         }
@@ -32,6 +33,7 @@ class TikTokController extends BaseController
             'video.upload',
             'video.publish',
         ]);
+        
 
         $authUrl = 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query([
             'client_key'    => $clientKey,
@@ -71,8 +73,9 @@ class TikTokController extends BaseController
             return $this->response->setStatusCode(400)->setBody('Geçersiz state.');
         }
 
-        $clientKey    = (string) getenv('TIKTOK_CLIENT_KEY');
-        $clientSecret = (string) getenv('TIKTOK_CLIENT_SECRET');
+        $clientKey    = trim((string) env('TIKTOK_CLIENT_KEY'));
+        $clientSecret = trim((string) env('TIKTOK_CLIENT_SECRET'));
+        $redirectUri  = trim((string) env('TIKTOK_REDIRECT_URI')) ?: site_url('panel/auth/tiktok/callback');
 
         if ($clientKey === '' || $clientSecret === '') {
             return $this->response->setStatusCode(500)->setBody('TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET eksik.');
