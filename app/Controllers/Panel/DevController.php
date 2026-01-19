@@ -8,7 +8,6 @@ class DevController extends BaseController
 {
     public function testTikTokRefresh()
     {
-        // senin social_account_id = 50
         service('queue')->push('refresh_tiktok_token', [
             'social_account_id' => 50,
         ]);
