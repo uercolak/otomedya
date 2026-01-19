@@ -12,10 +12,7 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
         $db = Database::connect();
         $now = date('Y-m-d H:i:s');
 
-        // Eğer payload ile tek hesap gönderildiyse sadece onu yenile
         $onlyAccountId = isset($payload['social_account_id']) ? (int)$payload['social_account_id'] : 0;
-
-        // 10 dk içinde bitecek tokenları yenile
         $threshold = date('Y-m-d H:i:s', time() + 10 * 60);
 
         $q = $db->table('social_account_tokens sat')
@@ -27,8 +24,8 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
             $q->where('sat.social_account_id', $onlyAccountId);
         } else {
             $q->groupStart()
-                    ->where('sat.expires_at IS NULL', null, false)
-                    ->orWhere('sat.expires_at <=', $threshold)
+                ->where('sat.expires_at IS NULL', null, false)
+                ->orWhere('sat.expires_at <=', $threshold)
               ->groupEnd();
         }
 
@@ -36,14 +33,12 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
 
         if (!$rows) {
             log_message('info', '[TikTokRefresh] No tokens to refresh. threshold={threshold}', ['threshold' => $threshold]);
-            return true; // ✅ worker bool bekliyor
+            return true;
         }
-
-        $refreshed = 0;
 
         foreach ($rows as $row) {
             $socialAccountId = (int)($row['social_account_id'] ?? 0);
-            $refreshToken    = (string)($row['refresh_token'] ?? '');
+            $refreshToken = (string)($row['refresh_token'] ?? '');
 
             if ($socialAccountId <= 0 || $refreshToken === '') {
                 log_message('warning', '[TikTokRefresh] Skip account. social_account_id={id} refreshTokenEmpty={empty}', [
@@ -53,7 +48,15 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                 continue;
             }
 
-            $newToken = $this->refreshToken($refreshToken);
+            try {
+                $newToken = $this->refreshToken($refreshToken);
+            } catch (\Throwable $e) {
+                log_message('error', '[TikTokRefresh] Refresh failed account_id={id} err={err}', [
+                    'id' => $socialAccountId,
+                    'err' => $e->getMessage(),
+                ]);
+                continue;
+            }
 
             $accessToken  = (string)($newToken['access_token'] ?? '');
             $expiresIn    = (int)($newToken['expires_in'] ?? 0);
@@ -61,18 +64,18 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
             $tokenType    = (string)($newToken['token_type'] ?? 'bearer');
 
             $newRefresh   = (string)($newToken['refresh_token'] ?? '');
-            if ($newRefresh === '') {
-                $newRefresh = $refreshToken; // eskisini koru
-            }
+            if ($newRefresh === '') $newRefresh = $refreshToken;
 
             if ($accessToken === '') {
-                throw new \RuntimeException('[TikTokRefresh] Missing access_token after refresh. account_id=' . $socialAccountId);
+                log_message('error', '[TikTokRefresh] Missing access_token after refresh. account_id={id} resp={resp}', [
+                    'id' => $socialAccountId,
+                    'resp' => json_encode($newToken),
+                ]);
+                continue;
             }
 
-            // expire'ı 60sn erken bitir (güvenlik payı)
             $expiresAt = ($expiresIn > 0) ? date('Y-m-d H:i:s', time() + $expiresIn - 60) : null;
 
-            // social_account_tokens güncelle
             $db->table('social_account_tokens')
                 ->where('social_account_id', $socialAccountId)
                 ->where('provider', 'tiktok')
@@ -85,7 +88,6 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                     'updated_at'    => $now,
                 ]);
 
-            // social_accounts güncelle (senin tablonda bu alanlar var diye kullanıyorsun)
             $db->table('social_accounts')
                 ->where('id', $socialAccountId)
                 ->update([
@@ -94,15 +96,12 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                     'updated_at'       => $now,
                 ]);
 
-            $refreshed++;
-
             log_message('info', '[TikTokRefresh] Refreshed account_id={id} expires_at={exp}', [
                 'id' => $socialAccountId,
                 'exp' => $expiresAt,
             ]);
         }
 
-        log_message('info', '[TikTokRefresh] Done. refreshed={n}', ['n' => $refreshed]);
         return true;
     }
 

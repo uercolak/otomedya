@@ -92,6 +92,7 @@ class PlannerController extends BaseController
         $hasInstagram = in_array('instagram', $selectedPlatforms, true);
         $hasFacebook  = in_array('facebook',  $selectedPlatforms, true);
         $hasYouTube   = in_array('youtube',   $selectedPlatforms, true);
+        $hasTikTok    = in_array('tiktok',    $selectedPlatforms, true);
 
         // upload (opsiyonel)
         $mediaType = null;
@@ -155,6 +156,13 @@ class PlannerController extends BaseController
         $ytPrivacy = strtolower(trim((string)$this->request->getPost('youtube_privacy')));
         if ($ytPrivacy === '') $ytPrivacy = 'public';
         if (!in_array($ytPrivacy, ['public','unlisted','private'], true)) $ytPrivacy = 'public';
+
+        if ($hasTikTok) {
+            if ($mediaType !== 'video') {
+                return redirect()->to(site_url('panel/planner'))
+                    ->with('error', 'TikTok için şimdilik video zorunlu (mp4).');
+            }
+        }
 
         if ($hasYouTube) {
             if ($ytTitle === '') {

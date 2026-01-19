@@ -10,5 +10,6 @@ class Queue extends BaseConfig
         'publish_post' => \App\Queue\Handlers\PublishPostHandler::class,
         'publish_youtube' => \App\Queue\Handlers\PublishYouTubeHandler::class,
         'refresh_tiktok_token' => \App\Queue\Handlers\RefreshTikTokTokenHandler::class,
+        'tiktok_publish_status'  => \App\Queue\Handlers\TikTokPublishStatusHandler::class,
     ];
 }

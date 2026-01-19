@@ -179,6 +179,81 @@ class PublishPostHandler implements JobHandlerInterface
         }
 
         // =========================
+        // ✅ TIKTOK (VIDEO + CAPTION)
+        // =========================
+        if ($platform === 'tiktok') {
+
+            // token
+            $ttAccessToken = '';
+            // publish handler query’sinde satg/satm var, tiktok yok → hızlıca çekelim:
+            $tok = $db->table('social_account_tokens')
+                ->select('access_token')
+                ->where('social_account_id', (int)($row['sa_id'] ?? 0))
+                ->where('provider', 'tiktok')
+                ->get()->getRowArray();
+
+            if ($tok) $ttAccessToken = trim((string)($tok['access_token'] ?? ''));
+
+            if ($ttAccessToken === '') {
+                throw new \RuntimeException('TikTok access_token yok. social_account_tokens(provider=tiktok) kontrol et.');
+            }
+
+            // sadece video (v1)
+            if ($mediaType !== 'video' || $mediaPath === '') {
+                throw new \RuntimeException('TikTok için şimdilik sadece video destekli. media_type=video ve media_path zorunlu.');
+            }
+
+            $absPath = rtrim(FCPATH, '/\\') . DIRECTORY_SEPARATOR . ltrim($mediaPath, '/\\');
+            if (!is_file($absPath) || !is_readable($absPath)) {
+                throw new \RuntimeException('TikTok video dosyası okunamadı: ' . $absPath);
+            }
+
+            $size = filesize($absPath);
+            if ($size === false || (int)$size <= 0) {
+                throw new \RuntimeException('TikTok video boyutu okunamadı.');
+            }
+            $size = (int)$size;
+
+            $tt = new \App\Services\TikTokPublishService();
+
+            // init → upload_url + publish_id
+            $init = $tt->initVideoPublish($ttAccessToken, ($caption !== '' ? $caption : ' '), $size);
+            $data = $init['data'] ?? [];
+
+            $uploadUrl = (string)($data['upload_url'] ?? '');
+            $publishTokenId = (string)($data['publish_id'] ?? '');
+
+            if ($uploadUrl === '' || $publishTokenId === '') {
+                throw new \RuntimeException('TikTok init başarısız. RESP=' . json_encode($init));
+            }
+
+            // upload
+            $tt->uploadToUrl($uploadUrl, $absPath);
+
+            // publish kaydına meta yaz
+            $meta = [
+                'tiktok' => [
+                    'publish_id' => $publishTokenId,
+                    'status'     => 'UPLOADED',
+                ],
+            ];
+
+            $this->publishes->update($publishId, [
+                'status'    => PublishModel::STATUS_PUBLISHING,
+                'error'     => null,
+                'meta_json' => json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ]);
+
+            // 20sn sonra status poll job’u kuyruğa al
+            $runAt = date('Y-m-d H:i:s', time() + 20);
+            \Config\Services::queue()->push('tiktok_publish_status', [
+                'publish_id' => $publishId,
+            ], $runAt);
+
+            return true;
+        }
+
+        // =========================
         // ✅ META (INSTAGRAM / FACEBOOK)
         // =========================
         if (!in_array($platform, ['instagram', 'facebook'], true)) {
