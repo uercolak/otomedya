@@ -167,11 +167,8 @@ class PlannerController extends BaseController
             }
         }
 
-        // Facebook: video/görsel opsiyonel (sende çalışıyor)
-
-        // İçerik meta_json: post_type + youtube ayarları
         $contentMeta = [
-            'post_type' => $postType, // instagram handler AUTO'yu kendi çözer
+            'post_type' => $postType, 
         ];
         if ($hasYouTube) {
             $contentMeta['youtube'] = [

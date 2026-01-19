@@ -11,42 +11,83 @@ class HandlerRegistry
 
     public function __construct(?array $map = null)
     {
-        // Test/override
         if (is_array($map)) {
             $this->map = $map;
             return;
         }
 
-        $this->reloadFromConfig();
-    }
-
-    private function reloadFromConfig(): void
-    {
-        // En sağlam: direkt instance
-        $cfg = new \Config\Queue();
-
-        $handlers = $cfg->handlers ?? [];
-        $this->map = is_array($handlers) ? $handlers : [];
+        $this->map = $this->loadHandlers();
     }
 
     private function normalizeType(string $type): string
     {
-        // trailing space / case / newline vb farkları öldür
         return strtolower(trim($type));
+    }
+
+    /**
+     * Config\Queue->handlers yükle (CI context varsa), yoksa dosyadan fallback.
+     */
+    private function loadHandlers(): array
+    {
+        // 1) CI config helper ile dene (normalde worker burada)
+        try {
+            $cfg = config(\Config\Queue::class);
+            $handlers = $cfg->handlers ?? [];
+            if (is_array($handlers) && !empty($handlers)) {
+                return $this->normalizeMap($handlers);
+            }
+        } catch (\Throwable $e) {
+            // ignore -> fallback
+        }
+
+        // 2) Fallback: dosyayı doğrudan include et (CI BaseConfig lifecycle'a takılmadan)
+        $path = APPPATH . 'Config/Queue.php';
+        if (!is_file($path)) {
+            return [];
+        }
+
+        require_once $path;
+
+        // class var mı?
+        if (!class_exists(\Config\Queue::class)) {
+            return [];
+        }
+
+        // Reflection ile $handlers property değerini al
+        try {
+            $ref = new \ReflectionClass(\Config\Queue::class);
+            $defaults = $ref->getDefaultProperties();
+            $handlers = $defaults['handlers'] ?? [];
+            if (is_array($handlers)) {
+                return $this->normalizeMap($handlers);
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        return [];
+    }
+
+    private function normalizeMap(array $handlers): array
+    {
+        $out = [];
+        foreach ($handlers as $k => $v) {
+            $k = $this->normalizeType((string)$k);
+            $out[$k] = $v;
+        }
+        return $out;
     }
 
     public function resolve(string $type): JobHandlerInterface
     {
         $type = $this->normalizeType($type);
 
-        // 1) normal map
+        // 1) yoksa yeniden yükle (cache/boot farkı varsa)
         if (!isset($this->map[$type])) {
-            // 2) config'i tekrar yükle (bazı CLI contextlerde ilk load boş gelebiliyor)
-            $this->reloadFromConfig();
+            $this->map = $this->loadHandlers();
         }
 
         if (!isset($this->map[$type])) {
-            // Debug: hangi key'ler var?
             $keys = array_keys($this->map);
             $keysStr = $keys ? implode(', ', $keys) : '(empty)';
             throw new RuntimeException("No handler registered for job type: {$type}. Registered: {$keysStr}");
@@ -65,12 +106,6 @@ class HandlerRegistry
         }
 
         return $handler;
-    }
-
-    public function register(string $type, string $handlerClass): void
-    {
-        $type = $this->normalizeType($type);
-        $this->map[$type] = $handlerClass;
     }
 
     public function all(): array
