@@ -13,9 +13,6 @@ class Services extends BaseService
             return static::getSharedInstance('queue');
         }
 
-        // Queue config'i al (Config\Queue.php)
-        $config = config('Queue');
-
-        return new \App\Services\QueueService($config);
+        return new \App\Services\QueueService();
     }
 }

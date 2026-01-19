@@ -36,4 +36,15 @@ class QueueService
 
         return (int)$id;
     }
+
+    public function push(string $type, array $payload = [], array $options = []): int
+    {
+        return $this->dispatch(
+            $type,
+            $payload,
+            $options['run_at'] ?? null,
+            $options['priority'] ?? 100,
+            $options['max_attempts'] ?? 3
+        );
+    }
 }
