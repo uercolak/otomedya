@@ -256,6 +256,18 @@ class PublishPostHandler implements JobHandlerInterface
         // =========================
         // ✅ META (INSTAGRAM / FACEBOOK)
         // =========================
+
+        if ($platform === 'tiktok') {
+
+            if ($mediaType !== 'video' || $mediaPath === '') {
+                throw new \RuntimeException('TikTok için video zorunlu. content.media_path boş ya da media_type video değil.');
+            }
+            // TikTok API upload akışı burada olacak.
+            // Şimdilik “stub” yapma; yoksa UI published sanır.
+            // Gerçek upload servisini ekleyene kadar net hata verelim:
+            throw new \RuntimeException('TikTok publish henüz implemente edilmedi (upload servisi eksik).');
+        }
+
         if (!in_array($platform, ['instagram', 'facebook'], true)) {
             throw new \RuntimeException('Desteklenmeyen platform: ' . $platform);
         }

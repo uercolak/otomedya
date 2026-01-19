@@ -164,6 +164,11 @@ class PlannerController extends BaseController
             }
         }
 
+        if ($hasTikTok && trim($baseText) === '') {
+            return redirect()->to(site_url('panel/planner'))
+                ->with('error', 'TikTok için açıklama/caption boş olmasın.');
+        }
+
         if ($hasYouTube) {
             if ($ytTitle === '') {
                 return redirect()->to(site_url('panel/planner'))
@@ -242,9 +247,8 @@ class PlannerController extends BaseController
                 'content_id' => $contentId,
             ];
 
-            // instagram için post_type taşıyalım (AUTO dahil)
-            if ($platform === 'instagram') {
-                $payload['post_type'] = $postType;
+            if (in_array($platform, ['instagram','tiktok'], true)) {
+                $payload['post_type'] = $postType; 
             }
 
             $db->table('jobs')->insert([

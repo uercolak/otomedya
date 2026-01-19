@@ -119,6 +119,24 @@ class QueueWork extends BaseCommand
                 $currentAttempts = (int)$job['attempts'] + 1;
                 $maxAttempts     = (int)$job['max_attempts'];
 
+                $err = $e->getMessage();
+
+                // retry edilmemesi gereken hatalar
+                $nonRetry = (
+                    str_contains($err, 'uploadLimitExceeded') ||
+                    str_contains($err, '"uploadLimitExceeded"')
+                );
+
+                $currentAttempts = (int)$job['attempts'] + 1;
+                $maxAttempts     = (int)$job['max_attempts'];
+
+                if ($nonRetry) {
+                    $currentAttempts = $maxAttempts; // direkt son deneme gibi işaretle
+                    $nextStatus = 'failed';
+                } else {
+                    $nextStatus = ($currentAttempts >= $maxAttempts) ? 'failed' : 'queued';
+                }
+                
                 // 🔁 Retry olacaksa queued'a dön
                 $nextStatus = ($currentAttempts >= $maxAttempts) ? 'failed' : 'queued';
                 $nextRunAt  = ($nextStatus === 'queued')

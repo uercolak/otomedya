@@ -24,8 +24,8 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
             $q->where('sat.social_account_id', $onlyAccountId);
         } else {
             $q->groupStart()
-                ->where('sat.expires_at IS NULL', null, false)
-                ->orWhere('sat.expires_at <=', $threshold)
+                    ->where('sat.expires_at IS NULL', null, false)
+                    ->orWhere('sat.expires_at <=', $threshold)
               ->groupEnd();
         }
 
@@ -88,6 +88,7 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                     'updated_at'    => $now,
                 ]);
 
+            // not: social_accounts tablon bu alanları gerçekten içeriyorsa kalsın
             $db->table('social_accounts')
                 ->where('id', $socialAccountId)
                 ->update([
@@ -149,10 +150,6 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
             throw new \RuntimeException('TikTok refresh JSON parse edilemedi: ' . substr((string)$resp, 0, 200));
         }
 
-        if (isset($json['data']) && is_array($json['data'])) {
-            return $json['data'];
-        }
-
-        return $json;
+        return (isset($json['data']) && is_array($json['data'])) ? $json['data'] : $json;
     }
 }
