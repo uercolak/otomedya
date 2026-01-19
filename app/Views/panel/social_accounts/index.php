@@ -71,6 +71,29 @@
       </div>
     </div>
 
+    <div class="card-soft p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="metric-label">TikTok Bağla</div>
+            <span class="metric-tag"><i class="bi bi-link-45deg me-1"></i>TikTok</span>
+        </div>
+
+        <div class="text-muted small mb-2">
+            TikTok hesabını bağla. Böylece videoları panelden planlayıp TikTok’a gönderebiliriz.
+            (Şu an Sandbox ile test ediyorsun, Prod onay gelince gerçek kullanıcılar bağlayabilecek.)
+        </div>
+
+        <a href="<?= site_url('panel/auth/tiktok') ?>"
+            class="btn btn-dark w-100 btn-sm"
+            style="border-radius:999px;">
+            <i class="bi bi-music-note-beamed me-1"></i> TikTok’u Bağla
+        </a>
+
+        <div class="text-muted small mt-2">
+            Not: İlk bağlantıda TikTok izin ekranı açılır.
+        </div>
+    </div>
+
+
     <div class="card-soft p-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="metric-label">Hesap Ekle</div>

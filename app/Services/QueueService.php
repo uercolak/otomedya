@@ -13,7 +13,6 @@ class QueueService
         $this->jobs = new JobModel();
     }
 
-    // İstersen eski alışkanlık için push alias:
     public function push(string $type, array $payload, ?string $runAt = null, int $priority = 100, int $maxAttempts = 3): int
     {
         return $this->dispatch($type, $payload, $runAt, $priority, $maxAttempts);
