@@ -20,9 +20,6 @@ class TikTokController extends BaseController
             return $this->response->setStatusCode(500)->setBody('TIKTOK_CLIENT_KEY eksik.');
         }
 
-        // ✅ Route yapına göre callback URL:
-        $redirectUri = site_url('panel/auth/tiktok/callback');
-
         // CSRF benzeri state
         $state = bin2hex(random_bytes(16));
         session()->set('tiktok_oauth_state', $state);
@@ -80,8 +77,6 @@ class TikTokController extends BaseController
         if ($clientKey === '' || $clientSecret === '') {
             return $this->response->setStatusCode(500)->setBody('TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET eksik.');
         }
-
-        $redirectUri = site_url('panel/auth/tiktok/callback');
 
         $token = $this->exchangeCodeForToken($clientKey, $clientSecret, $redirectUri, $code);
 
