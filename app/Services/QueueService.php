@@ -6,8 +6,17 @@ use App\Models\JobModel;
 
 class QueueService
 {
-    public function __construct(private readonly JobModel $jobs = new JobModel())
+    private JobModel $jobs;
+
+    public function __construct()
     {
+        $this->jobs = new JobModel();
+    }
+
+    // İstersen eski alışkanlık için push alias:
+    public function push(string $type, array $payload, ?string $runAt = null, int $priority = 100, int $maxAttempts = 3): int
+    {
+        return $this->dispatch($type, $payload, $runAt, $priority, $maxAttempts);
     }
 
     public function dispatch(
@@ -34,17 +43,6 @@ class QueueService
             'updated_at'   => $now,
         ], true);
 
-        return (int)$id;
-    }
-
-    public function push(string $type, array $payload = [], array $options = []): int
-    {
-        return $this->dispatch(
-            $type,
-            $payload,
-            $options['run_at'] ?? null,
-            $options['priority'] ?? 100,
-            $options['max_attempts'] ?? 3
-        );
+        return (int) $id;
     }
 }
