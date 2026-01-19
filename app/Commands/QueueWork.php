@@ -33,10 +33,10 @@ class QueueWork extends BaseCommand
 
         $workerId = gethostname() . ':' . getmypid();
 
-        $jobs      = new JobModel();
-        $attempts  = new JobAttemptModel();
-        $logger    = new LogService();
-        $registry  = new HandlerRegistry();
+        $jobs     = new JobModel();
+        $attempts = new JobAttemptModel();
+        $logger   = new LogService();
+        $registry = new HandlerRegistry();
 
         $processed = 0;
 
@@ -119,53 +119,47 @@ class QueueWork extends BaseCommand
                 $currentAttempts = (int)$job['attempts'] + 1;
                 $maxAttempts     = (int)$job['max_attempts'];
 
-                $err = $e->getMessage();
-
-                // retry edilmemesi gereken hatalar
+                // ❌ retry edilmemesi gereken hatalar
+                // - YouTube upload limit: tekrar denemek işe yaramaz
+                // - TikTok unaudited: tekrar denemek işe yaramaz (audit/approval gerekir)
                 $nonRetry = (
                     str_contains($err, 'uploadLimitExceeded') ||
-                    str_contains($err, '"uploadLimitExceeded"')
+                    str_contains($err, '"uploadLimitExceeded"') ||
+                    str_contains($err, 'unaudited_client_can_only_post_to_private_accounts')
                 );
 
-                $currentAttempts = (int)$job['attempts'] + 1;
-                $maxAttempts     = (int)$job['max_attempts'];
-
                 if ($nonRetry) {
-                    $currentAttempts = $maxAttempts; // direkt son deneme gibi işaretle
                     $nextStatus = 'failed';
+                    $nextRunAt  = $job['run_at'];
+                    $currentAttempts = $maxAttempts; // direkt bitti gibi işaretle
                 } else {
                     $nextStatus = ($currentAttempts >= $maxAttempts) ? 'failed' : 'queued';
+                    $nextRunAt  = ($nextStatus === 'queued')
+                        ? date('Y-m-d H:i:s', time() + $this->backoffSeconds($currentAttempts))
+                        : $job['run_at'];
                 }
-                
-                // 🔁 Retry olacaksa queued'a dön
-                $nextStatus = ($currentAttempts >= $maxAttempts) ? 'failed' : 'queued';
-                $nextRunAt  = ($nextStatus === 'queued')
-                    ? date('Y-m-d H:i:s', time() + $this->backoffSeconds($currentAttempts))
-                    : $job['run_at'];
 
-                    try {
-                        $payload = json_decode($job['payload_json'] ?? '', true) ?: [];
-                        $publishId = (int)($payload['publish_id'] ?? 0);
+                // publish status'u da (best-effort) senkronla
+                try {
+                    $payload = json_decode($job['payload_json'] ?? '', true) ?: [];
+                    $publishId = (int)($payload['publish_id'] ?? 0);
 
-                        if ($publishId > 0) {
-                            $db = \Config\Database::connect();
+                    if ($publishId > 0) {
+                        $db = \Config\Database::connect();
 
-                            // Job retry olacaksa publish'i "queued"e geri al, son denemede "failed" yap
-                            $currentAttempts = (int)$job['attempts'] + 1;
-                            $maxAttempts     = (int)$job['max_attempts'];
-                            $publishNextStatus = ($currentAttempts >= $maxAttempts) ? 'failed' : 'queued';
+                        $publishNextStatus = ($nextStatus === 'failed') ? 'failed' : 'queued';
 
-                            $db->table('publishes')
-                                ->where('id', $publishId)
-                                ->update([
-                                    'status'     => $publishNextStatus,
-                                    'error'      => $e->getMessage(),
-                                    'updated_at' => date('Y-m-d H:i:s'),
-                                ]);
-                        }
-                    } catch (\Throwable $ignored) {
-                        // best-effort
+                        $db->table('publishes')
+                            ->where('id', $publishId)
+                            ->update([
+                                'status'     => $publishNextStatus,
+                                'error'      => mb_substr($e->getMessage(), 0, 2000),
+                                'updated_at' => date('Y-m-d H:i:s'),
+                            ]);
                     }
+                } catch (\Throwable $ignored) {
+                    // best-effort
+                }
 
                 $jobs->update($jobId, [
                     'status'     => $nextStatus,
@@ -199,10 +193,10 @@ class QueueWork extends BaseCommand
     {
         // 1->10s, 2->30s, 3->60s, 4+->120s
         return match (true) {
-            $attemptNo <= 1 => 10,
+            $attemptNo <= 1  => 10,
             $attemptNo === 2 => 30,
             $attemptNo === 3 => 60,
-            default => 120,
+            default          => 120,
         };
     }
 
@@ -229,7 +223,7 @@ class QueueWork extends BaseCommand
 
         if (!$row) return null;
 
-        // 2) atomik kilitleme (race condition önler) + TTL koşulu
+        // 2) atomik kilitleme
         $affected = $db->table('jobs')
             ->where('id', $row['id'])
             ->where('status', 'queued')
