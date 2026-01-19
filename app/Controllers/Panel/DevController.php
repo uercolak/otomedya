@@ -9,10 +9,11 @@ class DevController extends BaseController
     public function testTikTokRefresh()
     {
         try {
-            $queue = service('queue');
 
+            $queue = \Config\Services::queue();
+            
             if (!$queue) {
-                return $this->response->setStatusCode(500)->setBody('ERROR: queue service is NULL (Services::queue missing?)');
+                return $this->response->setStatusCode(500)->setBody('Queue service is null');
             }
 
             $queue->push('refresh_tiktok_token', [
