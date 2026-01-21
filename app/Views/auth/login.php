@@ -51,8 +51,8 @@
         }
 
         .brand-logo{
-            width:54px;
-            height:54px;
+            width:85px;
+            height:85px;
             border-radius:16px;
             background: rgba(255,255,255,.08);
             border:1px solid var(--border);
@@ -64,8 +64,8 @@
         }
 
         .brand-logo img{
-            width:42px;
-            height:42px;
+            width:85px;
+            height:85px;
             object-fit:contain;
             display:block;
         }
@@ -235,7 +235,7 @@
     <div class="auth-left">
         <div class="brand">
             <div class="brand-logo">
-                <img src="<?= base_url('/logo.png'); ?>" alt="Sosyal Panel">
+                <img src="<?= base_url('/logo2.png'); ?>" alt="Sosyal Panel">
             </div>
             <div>
                 <div class="brand-title">Sosyal Panel</div>
