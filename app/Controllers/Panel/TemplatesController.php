@@ -131,8 +131,6 @@ class TemplatesController extends BaseController
             return $this->response->setStatusCode(400)->setJSON(['ok'=>false,'message'=>'Eksik veri.']);
         }
 
-        // LONGTEXT tutuyoruz (DB’de state_json longtext)
-        // Upsert mantığı: aynı user+template+format için yeni kayıt oluştur (history kalsın)
         $db->table('template_designs')->insert([
             'user_id'       => $userId,
             'template_id'   => (int)$id,
@@ -148,8 +146,10 @@ class TemplatesController extends BaseController
         $designId = (int)$db->insertID();
 
         return $this->response->setJSON([
-            'ok' => true,
+            'ok'        => true,
             'design_id' => $designId,
+            'csrfName'  => csrf_token(),
+            'csrfHash'  => csrf_hash(),
         ]);
     }
 
@@ -252,9 +252,11 @@ class TemplatesController extends BaseController
         }
 
         return $this->response->setJSON([
-            'ok' => true,
-            'content_id' => $contentId,
-            'redirect' => site_url('panel/planner?content_id=' . $contentId),
+            'ok'        => true,
+            'content_id'=> $contentId,
+            'redirect'  => site_url('panel/planner?content_id=' . $contentId),
+            'csrfName'  => csrf_token(),
+            'csrfHash'  => csrf_hash(),
         ]);
     }
 }

@@ -5,9 +5,15 @@
   $tplId = (int)($tpl['id'] ?? 0);
   $w = (int)($tpl['width'] ?? 1080);
   $h = (int)($tpl['height'] ?? 1080);
-  $bgUrl = !empty($tpl['file_path']) ? base_url($tpl['file_path']) : '';
-  $formatKey = (string)($tpl['format_key'] ?? '');
-  $savedState = $design['state_json'] ?? '';
+
+  // ✅ Background artık base_media_id üzerinden geliyor
+  $bgUrl = !empty($tpl['base_media_id'])
+    ? site_url('media/' . (int)$tpl['base_media_id'])
+    : (!empty($tpl['file_path']) ? base_url($tpl['file_path']) : '');
+
+  $formatKey  = (string)($tpl['format_key'] ?? '');
+  $savedState = (string)($design['state_json'] ?? '');
+  $lastDesignId = (int)($design['id'] ?? 0);
 ?>
 
 <div class="container-fluid py-3">
@@ -19,8 +25,8 @@
 
     <div class="d-flex gap-2">
       <a href="<?= site_url('panel/templates') ?>" class="btn btn-outline-secondary">Geri</a>
-      <button id="btnSave" class="btn btn-outline-primary">Kaydet</button>
-      <button id="btnExport" class="btn btn-primary">Planla</button>
+      <button id="btnSave" class="btn btn-outline-primary" type="button">Kaydet</button>
+      <button id="btnExport" class="btn btn-primary" type="button">Planla</button>
     </div>
   </div>
 
@@ -37,7 +43,7 @@
       <div class="card p-3">
         <div class="fw-semibold mb-2">Araçlar</div>
 
-        <button id="btnAddText" class="btn btn-outline-secondary w-100 mb-2">
+        <button id="btnAddText" class="btn btn-outline-secondary w-100 mb-2" type="button">
           <i class="bi bi-type me-1"></i> Yazı ekle
         </button>
 
@@ -46,7 +52,7 @@
           <input id="logoFile" type="file" accept="image/*" hidden>
         </label>
 
-        <button id="btnDelete" class="btn btn-outline-danger w-100 mb-2">
+        <button id="btnDelete" class="btn btn-outline-danger w-100 mb-2" type="button">
           <i class="bi bi-trash me-1"></i> Seçileni sil
         </button>
 
@@ -57,6 +63,7 @@
           <option value="post" selected>Post</option>
           <option value="story">Story</option>
           <option value="reels">Reels (V1 image için planlama; video değil)</option>
+          <option value="auto">AUTO</option>
         </select>
 
         <div class="small text-muted">
@@ -75,8 +82,9 @@
   const BG = <?= json_encode((string)$bgUrl) ?>;
   const SAVED = <?= json_encode((string)$savedState) ?>;
 
-  const csrfName = <?= json_encode(csrf_token()) ?>;
-  const csrfHash = <?= json_encode(csrf_hash()) ?>;
+  // ✅ CSRF sabit değil: postForm her başarılı yanıtta güncelleyecek
+  let csrfName = <?= json_encode(csrf_token()) ?>;
+  let csrfHash = <?= json_encode(csrf_hash()) ?>;
 
   const saveUrl   = <?= json_encode(site_url('panel/templates/'.$tplId.'/save')) ?>;
   const exportUrl = <?= json_encode(site_url('panel/templates/'.$tplId.'/export')) ?>;
@@ -89,12 +97,20 @@
   // Background (template image)
   function setBackground(url){
     return new Promise((resolve) => {
+      if (!url) return resolve();
+
       fabric.Image.fromURL(url, (img) => {
-        img.set({ selectable:false, evented:false });
+        if (!img) return resolve();
+        img.set({ selectable:false, evented:false, left:0, top:0 });
+
+        // cover gibi: template boyutuna oturt
         img.scaleToWidth(W);
         img.scaleToHeight(H);
-        canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
-        resolve();
+
+        canvas.setBackgroundImage(img, () => {
+          canvas.requestRenderAll();
+          resolve();
+        });
       }, { crossOrigin: 'anonymous' });
     });
   }
@@ -106,23 +122,16 @@
     if (SAVED) {
       try {
         const json = JSON.parse(SAVED);
-        // load WITHOUT background (we already set it)
         canvas.loadFromJSON(json, () => {
-          // background tekrar seçilebilir olmasın
-          canvas.getObjects().forEach(o => {
-            // nothing
-          });
-          canvas.renderAll();
+          canvas.requestRenderAll();
         });
       } catch(e) {}
     }
   }
 
   function getStateJson(){
-    // BackgroundImage JSON’a girmesin diye: export sadece objects
-    // Fabric loadFromJSON ile yine çizilecek.
+    // backgroundImage JSON'a girmesin
     const json = canvas.toJSON(['selectable','evented']);
-    // backgroundImage kaldır
     delete json.backgroundImage;
     return JSON.stringify(json);
   }
@@ -137,11 +146,24 @@
       headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
       body: form.toString()
     });
+
     const json = await res.json().catch(() => null);
+
     if (!res.ok || !json || json.ok !== true) {
       throw new Error((json && json.message) ? json.message : 'İşlem başarısız');
     }
+
+    // ✅ CSRF refresh (controller JSON’a csrfName/csrfHash eklemelisin)
+    if (json.csrfName) csrfName = json.csrfName;
+    if (json.csrfHash) csrfHash = json.csrfHash;
+
     return json;
+  }
+
+  // Toast helper (layout'a appToast eklediysen onu kullanır; yoksa fallback)
+  function notify(msg, variant='success'){
+    if (window.appToast) return window.appToast(msg, variant === 'error' ? 'error' : variant);
+    alert(msg);
   }
 
   // UI actions
@@ -155,20 +177,22 @@
     });
     canvas.add(t);
     canvas.setActiveObject(t);
-    canvas.renderAll();
+    canvas.requestRenderAll();
   });
 
   document.getElementById('logoFile').addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = () => {
       fabric.Image.fromURL(reader.result, (img) => {
+        if (!img) return;
         img.set({ left: 80, top: 160 });
         img.scaleToWidth(Math.min(280, W/3));
         canvas.add(img);
         canvas.setActiveObject(img);
-        canvas.renderAll();
+        canvas.requestRenderAll();
       });
     };
     reader.readAsDataURL(file);
@@ -179,11 +203,11 @@
     const obj = canvas.getActiveObject();
     if (!obj) return;
     canvas.remove(obj);
-    canvas.renderAll();
+    canvas.requestRenderAll();
   });
 
   // SAVE
-  let lastDesignId = <?= (int)($design['id'] ?? 0) ?>;
+  let lastDesignId = <?= (int)$lastDesignId ?>;
 
   document.getElementById('btnSave').addEventListener('click', async () => {
     try {
@@ -193,10 +217,11 @@
         canvas_height: H,
         state_json: state
       });
+
       lastDesignId = json.design_id || lastDesignId;
-      alert('Kaydedildi ✅');
+      notify('Kaydedildi ✅', 'success');
     } catch(err) {
-      alert(err.message || 'Kaydetme hatası');
+      notify(err.message || 'Kaydetme hatası', 'error');
     }
   });
 
@@ -228,10 +253,10 @@
       if (out.redirect) {
         window.location.href = out.redirect;
       } else {
-        alert('Export tamam ama yönlendirme yok.');
+        notify('Export tamam ama yönlendirme yok.', 'error');
       }
     } catch(err) {
-      alert(err.message || 'Export hatası');
+      notify(err.message || 'Export hatası', 'error');
     }
   });
 

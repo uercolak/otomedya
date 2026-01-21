@@ -167,6 +167,27 @@
   });
 })();
 </script>
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:2000">
+  <div id="appToast" class="toast align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div id="appToastBody" class="toast-body"></div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Kapat"></button>
+    </div>
+  </div>
+</div>
 
+<script>
+window.appToast = function(message, variant='success'){
+  const el = document.getElementById('appToast');
+  const body = document.getElementById('appToastBody');
+  if (!el || !body) return alert(message);
+
+  el.className = 'toast align-items-center text-bg-' + (variant === 'error' ? 'danger' : variant);
+  body.textContent = message;
+
+  const t = bootstrap.Toast.getOrCreateInstance(el, { delay: 2500 });
+  t.show();
+}
+</script>
 </body>
 </html>

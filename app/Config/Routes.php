@@ -11,6 +11,7 @@ $routes->get('/', function () {
     $routes->get('data-deletion',               'Legal::dataDeletion');
     $routes->get('media/(:num)',                'MediaController::show/$1');
     $routes->post('deploy/webhook',             'DeployWebhookController::github', ['filter' => 'deploywebhook']);
+    $routes->get('media/(:num)',                'MediaController::show/$1');
 
 $routes->group('auth', static function ($routes) {
     $routes->get('login',                       'Auth::loginForm');
@@ -52,6 +53,7 @@ $routes->group('panel', ['filter' => 'auth'], static function ($routes) {
     $routes->get('templates/(:num)/edit',                           'Panel\TemplatesController::edit/$1');
     $routes->post('templates/(:num)/save',                          'Panel\TemplatesController::save/$1');
     $routes->post('templates/(:num)/export',                        'Panel\TemplatesController::export/$1');
+    
 
     $routes->get('social-accounts/meta/publish-test',               'Panel\MetaOAuthController::publishTestForm');
     $routes->post('social-accounts/meta/test-publish',              'Panel\MetaOAuthController::testPublish');
