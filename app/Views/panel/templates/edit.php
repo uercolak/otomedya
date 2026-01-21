@@ -1,6 +1,48 @@
 <?= $this->extend('layouts/panel') ?>
 <?= $this->section('content') ?>
 
+<!-- Google Fonts (edit ekranına özel; istersen layout'a taşıyabilirsin) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Montserrat:wght@300;400;500;700&family=Poppins:wght@300;400;500;600;700&family=Oswald:wght@300;400;500;700&family=Playfair+Display:wght@400;500;600;700&family=Nunito:wght@300;400;500;700&family=Raleway:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  /* Basit, bağımsız snackbar/toast (Bootstrap JS yoksa bile çalışır) */
+  .om-toast-wrap{
+    position:fixed; top:16px; right:16px; z-index:2000;
+    display:flex; flex-direction:column; gap:10px;
+    pointer-events:none;
+  }
+  .om-toast{
+    pointer-events:auto;
+    min-width:260px; max-width:360px;
+    border-radius:14px;
+    padding:12px 14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.12);
+    background:#111827; color:#fff;
+    display:flex; align-items:flex-start; gap:10px;
+    transform:translateY(-8px);
+    opacity:0;
+    transition:all .18s ease;
+    border:1px solid rgba(255,255,255,.10);
+  }
+  .om-toast.show{ transform:translateY(0); opacity:1; }
+  .om-toast .t-title{ font-weight:600; font-size:13px; line-height:1.2; margin-bottom:2px; }
+  .om-toast .t-msg{ font-size:13px; opacity:.92; line-height:1.35; }
+  .om-toast .t-close{
+    margin-left:auto; border:none; background:transparent; color:#fff;
+    opacity:.8; cursor:pointer; padding:0 4px; line-height:1;
+    font-size:18px;
+  }
+  .om-toast.success{ background:#0b1220; border-color:rgba(34,197,94,.35); }
+  .om-toast.danger { background:#1a0b0b; border-color:rgba(239,68,68,.35); }
+  .om-toast.warning{ background:#1a1408; border-color:rgba(245,158,11,.35); }
+  .om-toast.info   { background:#0b1620; border-color:rgba(59,130,246,.35); }
+
+  /* Sağ panel kutuları biraz daha modern */
+  #textStyleBox, #cropBox { background:rgba(255,255,255,.7); }
+</style>
+
 <?php
   $tplId = (int)($tpl['id'] ?? 0);
   $w = (int)($tpl['width'] ?? 1080);
@@ -36,7 +78,7 @@
           <canvas id="c"
                   width="<?= $w ?>"
                   height="<?= $h ?>"
-                  style="border-radius:12px; border:1px solid rgba(0,0,0,.08);"></canvas>
+                  style="border-radius:14px; border:1px solid rgba(0,0,0,.08);"></canvas>
         </div>
       </div>
     </div>
@@ -78,18 +120,25 @@
 
           <label class="form-label small mb-1">Font</label>
           <select id="txtFont" class="form-select form-select-sm mb-2">
-            <option value="Arial" selected>Arial</option>
-            <option value="Roboto">Roboto</option>
-            <option value="Montserrat">Montserrat</option>
+            <option value="Inter" selected>Inter (önerilen)</option>
             <option value="Poppins">Poppins</option>
-            <option value="Times New Roman">Times New Roman</option>
+            <option value="Montserrat">Montserrat</option>
+            <option value="Roboto">Roboto</option>
+            <option value="Oswald">Oswald</option>
+            <option value="Playfair Display">Playfair Display</option>
+            <option value="Nunito">Nunito</option>
+            <option value="Raleway">Raleway</option>
+            <option value="Arial">Arial (system)</option>
+            <option value="Times New Roman">Times New Roman (system)</option>
           </select>
 
           <label class="form-label small mb-1">Boyut</label>
-          <input id="txtSize" type="number" min="8" max="200" step="1" class="form-control form-control-sm mb-2" value="48">
+          <input id="txtSize" type="number" min="8" max="200" step="1"
+                 class="form-control form-control-sm mb-2" value="48">
 
           <label class="form-label small mb-1">Renk</label>
-          <input id="txtColor" type="color" class="form-control form-control-sm mb-2" value="#111111" style="height:36px;">
+          <input id="txtColor" type="color" class="form-control form-control-sm mb-2"
+                 value="#111111" style="height:36px;">
 
           <div class="d-flex gap-2 mb-2">
             <button id="txtBold" type="button" class="btn btn-sm btn-outline-secondary w-100">B</button>
@@ -120,22 +169,10 @@
   </div>
 </div>
 
-<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
-  <div id="appToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex">
-      <div id="appToastBody" class="toast-body">...</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Kapat"></button>
-    </div>
-  </div>
-</div>
+<!-- Toast area (custom) -->
+<div id="omToastWrap" class="om-toast-wrap" aria-live="polite" aria-atomic="true"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
-
-<!-- (İstersen Google Fonts da ekleyebilirsin; panel layout’ta tek sefer eklemek daha iyi)
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Poppins:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
--->
 
 <script>
 (function(){
@@ -153,23 +190,77 @@
   const saveUrl   = <?= json_encode(site_url('panel/templates/'.$tplId.'/save')) ?>;
   const exportUrl = <?= json_encode(site_url('panel/templates/'.$tplId.'/export')) ?>;
 
-  const toastEl = document.getElementById('appToast');
-  const toastBodyEl = document.getElementById('appToastBody');
-  const toast = (toastEl && window.bootstrap) ? new bootstrap.Toast(toastEl, { delay: 2200 }) : null;
+  // ---------- Custom Toast (NO alert, NO bootstrap dependency) ----------
+  const toastWrap = document.getElementById('omToastWrap');
 
-  function notify(message, type='dark'){
-    if (!toastEl || !toast) { alert(message); return; }
-    toastEl.className = 'toast align-items-center text-bg-' + type + ' border-0';
-    toastBodyEl.textContent = message;
-    toast.show();
+  function notify(message, type='info', title=null, ttl=2400){
+    try{
+      if(!toastWrap) return;
+      const t = document.createElement('div');
+      t.className = 'om-toast ' + (type || 'info');
+      const safeTitle = title || (type==='success'?'Başarılı':type==='danger'?'Hata':type==='warning'?'Uyarı':'Bilgi');
+
+      t.innerHTML = `
+        <div>
+          <div class="t-title">${escapeHtml(safeTitle)}</div>
+          <div class="t-msg">${escapeHtml(String(message || ''))}</div>
+        </div>
+        <button class="t-close" type="button" aria-label="Kapat">×</button>
+      `;
+
+      toastWrap.appendChild(t);
+
+      const close = () => {
+        t.classList.remove('show');
+        setTimeout(()=>{ try{ t.remove(); }catch(e){} }, 180);
+      };
+
+      t.querySelector('.t-close')?.addEventListener('click', close);
+
+      requestAnimationFrame(()=> t.classList.add('show'));
+      setTimeout(close, Math.max(800, ttl|0));
+    }catch(e){
+      // hiçbir koşulda alert'e düşme
+      console.log('notify error', e);
+    }
   }
 
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'","&#039;");
+  }
+
+  // ---------- Fabric init ----------
   const canvas = new fabric.Canvas('c', {
     preserveObjectStacking: true,
     selection: true
   });
 
-  // ---------- Helpers ----------
+  // ✅ Modern selection handles (küçük, yuvarlak, daha şık)
+  // Not: Fabric canvas içi renkler burada normal (grafik tool kuralı değil).
+  fabric.Object.prototype.transparentCorners = false;
+  fabric.Object.prototype.cornerStyle = 'circle';
+  fabric.Object.prototype.cornerSize = 10;       // daha küçük
+  fabric.Object.prototype.cornerColor = '#ffffff';
+  fabric.Object.prototype.cornerStrokeColor = '#7c3aed';
+  fabric.Object.prototype.borderColor = '#7c3aed';
+  fabric.Object.prototype.borderDashArray = [6, 4];
+  fabric.Object.prototype.padding = 4;
+
+  // Text objelerinde “çok büyük/garip” görünümü azaltmak için:
+  // (Text seçilince çıkan çerçeve özellikle göze batıyor demiştin)
+  function tuneTextControls(obj){
+    if(!obj) return;
+    obj.set({
+      cornerSize: 9,
+      padding: 2
+    });
+  }
+
   function setBusy(on){
     const b1 = document.getElementById('btnSave');
     const b2 = document.getElementById('btnExport');
@@ -194,7 +285,6 @@
     return new Promise((resolve) => {
       if (!url) return resolve(false);
 
-      // fabric.util.loadImage ile daha stabil
       fabric.util.loadImage(url, (imgEl) => {
         if (!imgEl) return resolve(false);
 
@@ -203,7 +293,6 @@
           evented: false
         });
 
-        // cover gibi değil, tam W/H’e oturt
         img.scaleToWidth(W);
         img.scaleToHeight(H);
 
@@ -216,9 +305,8 @@
   }
 
   function getStateJson(){
-    // DB şişmesin diye background JSON’a yazmıyoruz
     const json = canvas.toJSON(['selectable','evented']);
-    delete json.backgroundImage;
+    delete json.backgroundImage; // DB şişmesin
     return JSON.stringify(json);
   }
 
@@ -235,7 +323,7 @@
 
     const json = await res.json().catch(() => null);
 
-    // ✅ CSRF hash’i her response’ta güncelle (Planla hatasını bitirir)
+    // ✅ CSRF hash’i her response’ta güncelle
     if (json && json.csrfHash) {
       CSRF.hash = String(json.csrfHash);
     }
@@ -247,15 +335,50 @@
     return json;
   }
 
+  // ---------- Fonts: gerçek font değişimi ----------
+  // Google fontlar yüklü değilse Fabric fallback yapar (senin yaşadığın “hepsi aynı” sorunu)
+  // Bunu çözmek için font uygulanmadan önce yüklenmesini bekliyoruz.
+  const fontCache = new Set();
+
+  async function ensureFontLoaded(fontFamily){
+    const ff = String(fontFamily || '').trim();
+    if(!ff || ff.toLowerCase()==='arial' || ff.toLowerCase()==='times new roman'){
+      return true; // system font
+    }
+    if(fontCache.has(ff)) return true;
+
+    if(!document.fonts || !document.fonts.load){
+      // eski browser: en azından devam et
+      fontCache.add(ff);
+      return true;
+    }
+
+    try{
+      // birkaç ağırlığı dene
+      await document.fonts.load(`400 16px "${ff}"`);
+      await document.fonts.load(`600 16px "${ff}"`);
+      fontCache.add(ff);
+      return true;
+    }catch(e){
+      console.warn('Font load failed', ff, e);
+      return false;
+    }
+  }
+
   // ---------- UI: Add Text / Logo / Delete ----------
-  document.getElementById('btnAddText').addEventListener('click', () => {
+  document.getElementById('btnAddText').addEventListener('click', async () => {
+    // Varsayılanı Inter yapalım
+    await ensureFontLoaded('Inter');
+
     const t = new fabric.Textbox('Metin', {
       left: 80, top: 80,
       fontSize: 48,
       fill: '#111111',
-      fontFamily: 'Arial',
-      width: Math.min(800, W - 160)
+      fontFamily: 'Inter',
+      width: Math.min(820, W - 160)
     });
+
+    tuneTextControls(t);
     canvas.add(t);
     canvas.setActiveObject(t);
     canvas.requestRenderAll();
@@ -269,7 +392,7 @@
     reader.onload = () => {
       fabric.Image.fromURL(reader.result, (img) => {
         img.set({ left: 80, top: 160 });
-        img.scaleToWidth(Math.min(280, W/3));
+        img.scaleToWidth(Math.min(320, W/3));
         canvas.add(img);
         canvas.setActiveObject(img);
         canvas.requestRenderAll();
@@ -297,10 +420,13 @@
   function isText(o){
     return o && (o.type === 'textbox' || o.type === 'text' || o.type === 'i-text');
   }
+  function isImage(o){
+    return o && o.type === 'image';
+  }
 
   function syncTextPanel(o){
     if (!isText(o)) return;
-    txtFont.value = o.fontFamily || 'Arial';
+    txtFont.value = o.fontFamily || 'Inter';
     txtSize.value = Math.round(o.fontSize || 48);
     txtColor.value = (o.fill && typeof o.fill === 'string') ? o.fill : '#111111';
   }
@@ -309,12 +435,25 @@
     const o = canvas.getActiveObject();
     if (!isText(o)) return;
     o.set(patch);
+    tuneTextControls(o);
     o.setCoords();
     canvas.requestRenderAll();
   }
 
-  txtFont.addEventListener('change', () => applyToActiveText({ fontFamily: txtFont.value }));
-  txtSize.addEventListener('change', () => applyToActiveText({ fontSize: parseInt(txtSize.value || '48', 10) }));
+  txtFont.addEventListener('change', async () => {
+    const ff = txtFont.value;
+    const ok = await ensureFontLoaded(ff);
+    if(!ok){
+      notify('Font yüklenemedi, sistem fontuna düşebilir.', 'warning');
+    }
+    applyToActiveText({ fontFamily: ff });
+  });
+
+  txtSize.addEventListener('change', () => {
+    const n = parseInt(txtSize.value || '48', 10);
+    applyToActiveText({ fontSize: isFinite(n) ? n : 48 });
+  });
+
   txtColor.addEventListener('input', () => applyToActiveText({ fill: txtColor.value }));
 
   txtBold.addEventListener('click', () => {
@@ -344,32 +483,31 @@
   const btnCropApply = document.getElementById('btnCropApply');
   const btnCropCancel= document.getElementById('btnCropCancel');
 
-  let cropTarget = null;  // selected image
-  let cropRect   = null;  // overlay rect
-
-  function isImage(o){
-    return o && o.type === 'image';
-  }
+  let cropTarget = null;
+  let cropRect   = null;
 
   function enterCropMode(img){
     cropTarget = img;
     cropBox.style.display = 'block';
 
-    // mevcut clip varsa üstüne düzenleme için approx bir rect çıkar
-    const rW = Math.min(400, img.getScaledWidth() * 0.8);
-    const rH = Math.min(400, img.getScaledHeight() * 0.8);
+    const rW = Math.min(460, img.getScaledWidth() * 0.8);
+    const rH = Math.min(460, img.getScaledHeight() * 0.8);
 
     cropRect = new fabric.Rect({
-      left: img.left + 20,
-      top: img.top + 20,
+      left: img.left + 18,
+      top: img.top + 18,
       width: rW,
       height: rH,
-      fill: 'rgba(255,255,255,0.05)',
-      stroke: '#0d6efd',
+      fill: 'rgba(255,255,255,0.06)',
+      stroke: '#7c3aed',
       strokeWidth: 2,
+      strokeDashArray: [6,4],
       selectable: true,
       hasRotatingPoint: false,
-      objectCaching: false
+      objectCaching: false,
+      cornerStyle: 'circle',
+      cornerSize: 10,
+      transparentCorners: false
     });
 
     canvas.add(cropRect);
@@ -379,9 +517,7 @@
 
   function exitCropMode(removeRect = true){
     cropBox.style.display = 'none';
-    if (removeRect && cropRect) {
-      canvas.remove(cropRect);
-    }
+    if (removeRect && cropRect) canvas.remove(cropRect);
     cropRect = null;
     cropTarget = null;
     canvas.discardActiveObject();
@@ -391,12 +527,9 @@
   function applyCrop(){
     if (!cropTarget || !cropRect) return;
 
-    // cropRect'in koordinatlarını canvas üzerinde al
     cropRect.setCoords();
     cropTarget.setCoords();
 
-    // cropRect'i hedef resmin lokal koordinatına çevirmek için:
-    // - resmin transform matrisini kullanırız
     const inv = fabric.util.invertTransform(cropTarget.calcTransformMatrix());
     const rectTL = new fabric.Point(cropRect.left, cropRect.top);
     const rectBR = new fabric.Point(cropRect.left + cropRect.getScaledWidth(), cropRect.top + cropRect.getScaledHeight());
@@ -407,7 +540,7 @@
     const clipW = Math.max(1, localBR.x - localTL.x);
     const clipH = Math.max(1, localBR.y - localTL.y);
 
-    const clip = new fabric.Rect({
+    cropTarget.clipPath = new fabric.Rect({
       left: localTL.x,
       top: localTL.y,
       width: clipW,
@@ -415,9 +548,7 @@
       absolutePositioned: false
     });
 
-    cropTarget.clipPath = clip;
     cropTarget.dirty = true;
-
     exitCropMode(true);
     notify('Kırpma uygulandı ✅', 'success');
   }
@@ -431,29 +562,24 @@
   btnCropApply.addEventListener('click', applyCrop);
   btnCropCancel.addEventListener('click', () => exitCropMode(true));
 
-  // ---------- Selection change: enable crop / show text panel ----------
+  // ---------- Selection UI ----------
   canvas.on('selection:created', refreshSelectionUI);
   canvas.on('selection:updated', refreshSelectionUI);
   canvas.on('selection:cleared', refreshSelectionUI);
 
   function refreshSelectionUI(){
     const o = canvas.getActiveObject();
-
-    // crop butonu sadece image seçilince
     btnCrop.disabled = !isImage(o);
 
-    // text panel sadece text seçilince
     if (isText(o)) {
       textStyleBox.style.display = 'block';
       syncTextPanel(o);
+      tuneTextControls(o);
     } else {
       textStyleBox.style.display = 'none';
     }
 
-    // crop modu açıkken başka şeye tıklanırsa iptal
     if (cropRect && o !== cropRect) {
-      // crop rect harici bir seçim olursa crop moddan çık
-      // (kullanıcı kafası karışmasın)
       exitCropMode(true);
     }
   }
@@ -484,7 +610,6 @@
     e.preventDefault();
     setBusy(true);
     try {
-      // önce save garanti olsun
       if (!lastDesignId) {
         const state = getStateJson();
         const json = await postForm(saveUrl, {
@@ -520,6 +645,13 @@
 
   // ---------- Init ----------
   async function init(){
+    // Fontları erken ısıt (özellikle “hepsi aynı görünüyor” sorununu azaltır)
+    // (Sistem fontlarına gerek yok)
+    const warm = ['Inter','Poppins','Montserrat','Roboto','Oswald','Playfair Display','Nunito','Raleway'];
+    try{
+      for(const f of warm){ await ensureFontLoaded(f); }
+    }catch(e){}
+
     const okBg = BG ? await setBackground(BG) : true;
     if (!okBg) notify('Arkaplan yüklenemedi (BG URL erişilemedi)', 'warning');
 
@@ -527,8 +659,9 @@
       try {
         const json = JSON.parse(SAVED);
         canvas.loadFromJSON(json, async () => {
-          // loadFromJSON background'ı sıfırlayabilir → tekrar bas
           if (BG) await setBackground(BG);
+          // loadFromJSON sonrası text objelerini bir kez tune edelim
+          canvas.getObjects().forEach(o => { if(isText(o)) tuneTextControls(o); });
           fitToWrap();
           canvas.requestRenderAll();
         });
