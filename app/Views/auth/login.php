@@ -51,8 +51,8 @@
         }
 
         .brand-logo{
-            width:85px;
-            height:85px;
+            width:110px;
+            height:75px;
             border-radius:18px;
 
             /* daha belirgin yüzey */
@@ -75,8 +75,8 @@
         }
 
         .brand-logo img{
-            width:85px;
-            height:85px;
+            width:110px;
+            height:75px;
             object-fit:cover; /* contain yerine cover logo2 için daha dolu görünür */
             display:block;
 
