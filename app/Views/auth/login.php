@@ -53,21 +53,35 @@
         .brand-logo{
             width:85px;
             height:85px;
-            border-radius:16px;
-            background: rgba(255,255,255,.08);
-            border:1px solid var(--border);
+            border-radius:18px;
+
+            /* daha belirgin yüzey */
+            background: rgba(255,255,255,.14);
+            border: 1px solid rgba(255,255,255,.22);
+
             display:flex;
             align-items:center;
             justify-content:center;
             overflow:hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,.25);
+
+            /* daha kuvvetli gölge + glow */
+            box-shadow:
+                0 18px 45px rgba(0,0,0,.35),
+                0 0 0 6px rgba(255,255,255,.05),
+                0 0 40px rgba(168,85,247,.22);
+
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
 
         .brand-logo img{
             width:85px;
             height:85px;
-            object-fit:contain;
+            object-fit:cover; /* contain yerine cover logo2 için daha dolu görünür */
             display:block;
+
+            /* logo daha canlı/okunaklı */
+            filter: saturate(1.15) contrast(1.15) brightness(1.05);
         }
 
         .brand-title{
@@ -235,7 +249,7 @@
     <div class="auth-left">
         <div class="brand">
             <div class="brand-logo">
-                <img src="<?= base_url('/logo2.png'); ?>" alt="Sosyal Panel">
+                <img src="<?= base_url('/logo.png'); ?>" alt="Sosyal Panel">
             </div>
             <div>
                 <div class="brand-title">Sosyal Panel</div>
@@ -253,7 +267,8 @@
             <div class="feature-row">
                 <div class="pill"><span class="dot"></span> Planlama & Takvim</div>
                 <div class="pill"><span class="dot"></span> Otomatik Yayınlama</div>
-                <div class="pill"><span class="dot"></span> Hata Takibi & Log</div>
+                <div class="pill"><span class="dot"></span> Yayın Akışı Takibi</div>
+                <div class="pill"><span class="dot"></span> Durum & Geçmiş</div>
             </div>
         </div>
 
