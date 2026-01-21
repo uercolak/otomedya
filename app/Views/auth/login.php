@@ -268,7 +268,6 @@
                 <div class="pill"><span class="dot"></span> Planlama & Takvim</div>
                 <div class="pill"><span class="dot"></span> Otomatik Yayınlama</div>
                 <div class="pill"><span class="dot"></span> Yayın Akışı Takibi</div>
-                <div class="pill"><span class="dot"></span> Durum & Geçmiş</div>
             </div>
         </div>
 
