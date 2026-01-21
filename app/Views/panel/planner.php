@@ -21,6 +21,10 @@
   <form action="<?= site_url('panel/planner') ?>" method="post" enctype="multipart/form-data" class="row g-3">
     <?= csrf_field() ?>
 
+    <?php if (!empty($prefill['id'])): ?>
+      <input type="hidden" name="content_id" value="<?= (int)$prefill['id'] ?>">
+    <?php endif; ?>
+
     <div class="col-lg-7">
       <div class="card">
         <div class="card-body">
@@ -28,23 +32,45 @@
 
           <div class="mb-3">
             <label class="form-label">Başlık (genel)</label>
-            <input type="text" name="title" class="form-control" placeholder="Örn: Kampanya duyurusu">
+            <input type="text" name="title" class="form-control" value="<?= esc($prefill['title'] ?? '') ?>" placeholder="Örn: Kampanya duyurusu">
             <div class="form-text">Bu alan genel başlık. YouTube başlığı için aşağıdaki YouTube alanını kullan.</div>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Metin</label>
-            <textarea name="base_text" class="form-control" rows="6" placeholder="Caption / açıklama..."></textarea>
+            <textarea name="base_text" class="form-control" rows="6" placeholder="Caption / açıklama..."><?= esc($prefill['base_text'] ?? '') ?></textarea>
             <div class="form-text">Instagram/Facebook açıklaması buradan gider. YouTube açıklaması da buradan gidebilir.</div>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label">Medya</label>
-            <input type="file" name="media" class="form-control" accept="image/*,video/*">
-            <div class="form-text">
-              Instagram Post/Story ve YouTube için medya gerekir. YouTube seçersen video zorunlu.
+            <div class="mb-3">
+                        <label class="form-label">Medya</label>
+
+                        <?php if (!empty($prefill) && !empty($prefill['media_path'])): ?>
+                        <div class="border rounded p-2 bg-light">
+                            <div class="small text-muted mb-2">Şablondan üretilen medya:</div>
+
+                            <?php if (($prefill['media_type'] ?? '') === 'image'): ?>
+                            <img src="<?= base_url($prefill['media_path']) ?>"
+                                style="max-width: 100%; height: auto; border-radius: 10px; display:block;">
+                            <?php elseif (($prefill['media_type'] ?? '') === 'video'): ?>
+                            <video controls style="max-width:100%; border-radius:10px; display:block;">
+                                <source src="<?= base_url($prefill['media_path']) ?>">
+                            </video>
+                            <?php else: ?>
+                            <div class="text-danger small">Medya tipi bulunamadı.</div>
+                            <?php endif; ?>
+
+                            <div class="small text-muted mt-2">
+                            Bu içerik hazır. Yeni dosya yükleme alanı gizlendi.
+                            </div>
+                        </div>
+                        <?php else: ?>
+                        <input type="file" name="media" class="form-control" accept="image/*,video/*">
+                        <div class="form-text">
+                            Instagram Post/Story ve YouTube için medya gerekir. YouTube seçersen video zorunlu.
+                        </div>
+                        <?php endif; ?>
             </div>
-          </div>
 
           <div id="ytSettings" class="mt-4" style="display:none;">
             <div class="d-flex align-items-center justify-content-between">

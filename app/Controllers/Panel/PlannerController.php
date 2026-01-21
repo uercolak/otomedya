@@ -63,6 +63,31 @@ class PlannerController extends BaseController
         $baseText     = trim((string)$this->request->getPost('base_text'));
         $scheduleAtRaw= trim((string)$this->request->getPost('schedule_at'));
 
+        $incomingContentId = (int)($this->request->getPost('content_id') ?? 0);
+        $existingContent = null;
+
+        // Eğer template export'tan geldiysek içerik zaten DB'de var (media_path dolu)
+        if ($incomingContentId > 0) {
+            $existingContent = $db->table('contents')
+                ->select('id,title,base_text,media_type,media_path,meta_json,template_id')
+                ->where('id', $incomingContentId)
+                ->where('user_id', $userId)
+                ->get()->getRowArray();
+
+            if (!$existingContent) {
+                return redirect()->to(site_url('panel/planner'))
+                    ->with('error', 'İçerik bulunamadı (content_id geçersiz).');
+            }
+
+            // Form boş geldiyse içerikten doldur (kullanıcı isterse formdan override edebiliriz)
+            if ($title === '' && !empty($existingContent['title'])) {
+                $title = (string)$existingContent['title'];
+            }
+            if ($baseText === '' && !empty($existingContent['base_text'])) {
+                $baseText = (string)$existingContent['base_text'];
+            }
+        }
+
         // Instagram post type (AUTO dahil)
         $postType = strtolower(trim((string)$this->request->getPost('post_type')));
         if (!in_array($postType, ['auto','post','reels','story'], true)) {
@@ -106,10 +131,16 @@ class PlannerController extends BaseController
         $hasYouTube   = in_array('youtube',   $selectedPlatforms, true);
         $hasTikTok    = in_array('tiktok',    $selectedPlatforms, true);
 
-        // upload (opsiyonel)
         $mediaType = null;
         $mediaPath = null;
 
+        // 1) Önce content_id ile gelen hazır medyayı baz al
+        if ($existingContent) {
+            $mediaType = !empty($existingContent['media_type']) ? (string)$existingContent['media_type'] : null;
+            $mediaPath = !empty($existingContent['media_path']) ? (string)$existingContent['media_path'] : null;
+        }
+
+        // 2) Kullanıcı yeni dosya yüklerse (ileride "değiştir" yaparsak) override eder
         $file = $this->request->getFile('media');
         if ($file && $file->isValid() && !$file->hasMoved()) {
             $mime = (string)$file->getMimeType();
@@ -205,18 +236,34 @@ class PlannerController extends BaseController
         $db->transStart();
 
         // 1) content
-        $db->table('contents')->insert([
-            'user_id'     => $userId,
-            'title'       => ($title !== '' ? $title : null),
-            'base_text'   => ($baseText !== '' ? $baseText : null),
-            'media_type'  => $mediaType,
-            'media_path'  => $mediaPath,
-            'template_id' => null,
-            'meta_json'   => json_encode($contentMeta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-            'created_at'  => $now,
-            'updated_at'  => $now,
-        ]);
-        $contentId = (int) $db->insertID();
+         if ($existingContent) {
+            // var olan content'i kullanacağız
+            $contentId = (int)$existingContent['id'];
+
+            // İstersen başlık/metin güncelle (kullanıcı planner'da değiştirdiyse)
+            $db->table('contents')
+                ->where('id', $contentId)
+                ->where('user_id', $userId)
+                ->update([
+                    'title'      => ($title !== '' ? $title : null),
+                    'base_text'  => ($baseText !== '' ? $baseText : null),
+                    'updated_at' => $now,
+                ]);
+        } else {
+            // yeni içerik oluştur
+            $db->table('contents')->insert([
+                'user_id'     => $userId,
+                'title'       => ($title !== '' ? $title : null),
+                'base_text'   => ($baseText !== '' ? $baseText : null),
+                'media_type'  => $mediaType,
+                'media_path'  => $mediaPath,
+                'template_id' => null,
+                'meta_json'   => json_encode($contentMeta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'created_at'  => $now,
+                'updated_at'  => $now,
+            ]);
+            $contentId = (int) $db->insertID();
+        }
 
         $createdPublishes = 0;
 
