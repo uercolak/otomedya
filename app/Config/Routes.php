@@ -66,21 +66,25 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->post('users/(:num)/delete',            'Users::delete/$1');
     $routes->post('users/(:num)/toggle-status',     'Users::toggleStatus/$1');
 
-    $routes->get('logs', 'LogsController::index');
+    $routes->get('logs',                            'LogsController::index');
     
-    $routes->get('jobs',            'JobsController::index');
-    $routes->get('jobs/(:num)',     'JobsController::show/$1');
-    $routes->post('jobs/(:num)/retry',      'JobsController::retry/$1');
-    $routes->post('jobs/(:num)/reset',      'JobsController::reset/$1');
-    $routes->post('jobs/(:num)/cancel',     'JobsController::cancel/$1');
+    $routes->get('jobs',                            'JobsController::index');
+    $routes->get('jobs/(:num)',                     'JobsController::show/$1');
+    $routes->post('jobs/(:num)/retry',              'JobsController::retry/$1');
+    $routes->post('jobs/(:num)/reset',              'JobsController::reset/$1');
+    $routes->post('jobs/(:num)/cancel',             'JobsController::cancel/$1');
     
-    $routes->get('publishes/create', 'PublishesController::create');
-    $routes->post('publishes',       'PublishesController::store');
-    $routes->get('publishes',        'PublishesController::index');
-    $routes->get('publishes/(:num)', 'PublishesController::show/$1');
+    $routes->get('publishes/create',                'PublishesController::create');
+    $routes->post('publishes',                      'PublishesController::store');
+    $routes->get('publishes',                       'PublishesController::index');
+    $routes->get('publishes/(:num)',                'PublishesController::show/$1');
+    $routes->post('publishes/(:num)/cancel',        'PublishesController::cancel/$1');
+    $routes->post('publishes/(:num)/retry',         'PublishesController::retry/$1');
+    $routes->post('publishes/(:num)/check',         'PublishesController::check/$1');
+    $routes->post('publishes/(:num)/reset-job',     'PublishesController::resetJob/$1');
 
-    $routes->post('publishes/(:num)/cancel',    'PublishesController::cancel/$1');
-    $routes->post('publishes/(:num)/retry',     'PublishesController::retry/$1');
-    $routes->post('publishes/(:num)/check',     'PublishesController::check/$1');
-    $routes->post('publishes/(:num)/reset-job', 'PublishesController::resetJob/$1');
+    $routes->get('templates',                       'TemplatesController::index');
+    $routes->get('templates/new',                   'TemplatesController::create');
+    $routes->post('templates',                      'TemplatesController::store');
+    $routes->post('templates/(:num)/toggle',        'TemplatesController::toggle/$1');
 });

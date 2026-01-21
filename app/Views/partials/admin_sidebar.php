@@ -44,6 +44,11 @@ $seg3 = $segments[2] ?? '';
     <i class="bi bi-journal-text"></i> <span>İşlem Geçmişi</span>
   </a>
 
+  <a href="<?= site_url('admin/templates'); ?>"
+    class="nav-link <?= ($seg1 === 'admin' && $seg2 === 'templates') ? 'active' : '' ?>">
+    <span class="me-2">🧩</span> Hazır Şablonlar
+  </a>
+
   <a href="#" class="nav-link">
     <i class="bi bi-gear"></i> <span>Sistem Ayarları</span>
   </a>

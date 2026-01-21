@@ -2,43 +2,36 @@
 
 namespace App\Controllers;
 
-use App\Models\ContentModel;
-use CodeIgniter\Exceptions\PageNotFoundException;
+use App\Controllers\BaseController;
+use App\Models\MediaModel;
 
 class MediaController extends BaseController
 {
     public function show(int $id)
     {
-        $contentModel = new ContentModel();
-        $content = $contentModel->find($id);
-
-        if (!$content || empty($content['media_path'])) {
-            throw PageNotFoundException::forPageNotFound();
+        $media = (new MediaModel())->find($id);
+        if (!$media) {
+            return $this->response->setStatusCode(404)->setBody('Not found');
         }
 
-        $relativePath = (string)$content['media_path'];
-        $absolutePath = FCPATH . $relativePath;
-
-        if (!is_file($absolutePath)) {
-            throw PageNotFoundException::forPageNotFound();
+        $relPath = ltrim((string)($media['file_path'] ?? ''), '/');
+        if ($relPath === '') {
+            return $this->response->setStatusCode(404)->setBody('Not found');
         }
 
-        $mimeType = mime_content_type($absolutePath) ?: 'application/octet-stream';
-        $fileSize = (int) filesize($absolutePath);
-
-        // CI Response üzerinden header bas
-        $this->response
-            ->setHeader('Content-Type', $mimeType)
-            ->setHeader('Content-Length', (string)$fileSize)
-            ->setHeader('Cache-Control', 'public, max-age=31536000')
-            ->setHeader('Accept-Ranges', 'bytes');
-
-        // ✅ HEAD request: body göndermeden çık (Meta için kritik)
-        if ($this->request->getMethod(true) === 'HEAD') {
-            return $this->response->setStatusCode(200);
+        $fullPath = ROOTPATH . 'public/' . $relPath;
+        if (!is_file($fullPath)) {
+            return $this->response->setStatusCode(404)->setBody('File not found');
         }
 
-        // GET: dosyayı stream et
-        return $this->response->setBody(file_get_contents($absolutePath));
+        $mime = (string)($media['mime_type'] ?? '');
+        if ($mime === '') {
+            $mime = mime_content_type($fullPath) ?: 'application/octet-stream';
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', $mime)
+            ->setHeader('Cache-Control', 'public, max-age=86400')
+            ->setBody(file_get_contents($fullPath));
     }
 }
