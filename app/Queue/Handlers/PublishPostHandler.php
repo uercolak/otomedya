@@ -34,7 +34,6 @@ class PublishPostHandler implements JobHandlerInterface
 
         $db = Database::connect();
 
-        // job payload içinden post_type (platform normalized) al
         $jobPostType = strtolower(trim((string)($payload['post_type'] ?? 'post')));
 
         $row = $db->table('publishes p')
@@ -49,11 +48,18 @@ class PublishPostHandler implements JobHandlerInterface
                 sa.platform as sa_platform,
                 sa.external_id as sa_external_id,
                 sa.meta_page_id as sa_meta_page_id,
-                satm.access_token as meta_access_token
+
+                satm.access_token as meta_access_token,
+
+                satg.id as google_token_id,
+                satg.access_token as google_access_token,
+                satg.refresh_token as google_refresh_token,
+                satg.expires_at as google_expires_at
             ')
             ->join('contents c', 'c.id = p.content_id', 'left')
             ->join('social_accounts sa', 'sa.id = p.account_id', 'left')
             ->join('social_account_tokens satm', "satm.social_account_id = sa.id AND satm.provider='meta'", 'left')
+            ->join('social_account_tokens satg', "satg.social_account_id = sa.id AND satg.provider='google'", 'left')
             ->where('p.id', $publishId)
             ->get()
             ->getRowArray();
@@ -68,12 +74,11 @@ class PublishPostHandler implements JobHandlerInterface
 
         $platform = strtolower(trim((string)($row['platform'] ?? '')));
 
-        // Ortak alanlar
         $caption   = trim((string)($row['content_text'] ?? ''));
         $mediaType = strtolower(trim((string)($row['content_media_type'] ?? ''))); // image|video|null
         $mediaPath = trim((string)($row['content_media_path'] ?? ''));
 
-        // media url (Meta için)
+        // Meta için URL
         $mediaUrl = '';
         if ($mediaPath !== '') {
             $mediaUrl = base_url($mediaPath);
@@ -82,45 +87,33 @@ class PublishPostHandler implements JobHandlerInterface
             }
         }
 
-        // media_type fallback (uzantıdan)
         if ($mediaUrl !== '' && !in_array($mediaType, ['image', 'video'], true)) {
             $ext = strtolower(pathinfo(parse_url($mediaUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
             $mediaType = in_array($ext, ['mp4', 'mov', 'm4v', 'webm'], true) ? 'video' : 'image';
         }
 
-        // publish "publishing" (işe başladık)
+        // publishing
         $this->publishes->update($publishId, [
             'status' => PublishModel::STATUS_PUBLISHING,
             'error'  => null,
         ]);
 
         // =========================
-        // YOUTUBE (bu handler'da olmasın diye normalde ayırdık ama geriye dönük güvenli dursun)
-        // =========================
-        if ($platform === 'youtube') {
-            throw new \RuntimeException('publish_post handler youtube için kullanılmamalı. publish_youtube kullan.');
-        }
-
-        // =========================
-        // TIKTOK (MVP: VIDEO + CAPTION)
+        // ✅ TIKTOK (MVP: sadece video + caption)
         // =========================
         if ($platform === 'tiktok') {
 
-            // token (provider=tiktok)
-            $ttAccessToken = '';
             $tok = $db->table('social_account_tokens')
                 ->select('access_token')
-                ->where('social_account_id', (int)($row['account_id'] ?? 0))
+                ->where('social_account_id', (int)($row['sa_id'] ?? 0))
                 ->where('provider', 'tiktok')
                 ->get()->getRowArray();
 
-            if ($tok) $ttAccessToken = trim((string)($tok['access_token'] ?? ''));
-
+            $ttAccessToken = $tok ? trim((string)($tok['access_token'] ?? '')) : '';
             if ($ttAccessToken === '') {
                 throw new \RuntimeException('TikTok access_token yok. social_account_tokens(provider=tiktok) kontrol et.');
             }
 
-            // MVP: sadece video
             if ($mediaType !== 'video' || $mediaPath === '') {
                 throw new \RuntimeException('TikTok için şimdilik sadece video destekli. media_type=video ve media_path zorunlu.');
             }
@@ -134,27 +127,15 @@ class PublishPostHandler implements JobHandlerInterface
             if ($size === false || (int)$size <= 0) {
                 throw new \RuntimeException('TikTok video boyutu okunamadı.');
             }
-            $size = (int)$size;
-
-            $this->logger->event('info', 'queue', 'publish.started', [
-                'publish_id' => $publishId,
-                'platform'   => 'tiktok',
-                'media_type' => $mediaType,
-                'size'       => $size,
-            ], $row['user_id'] ?? null);
 
             $tt = new TikTokPublishService();
 
             // init → upload_url + publish_id
-            $init = $tt->initVideoPublish(
-                $ttAccessToken,
-                ($caption !== '' ? $caption : ' '),
-                $size
-            );
-
+            $init = $tt->initVideoPublish($ttAccessToken, ($caption !== '' ? $caption : ' '), (int)$size);
             $data = $init['data'] ?? [];
-            $uploadUrl     = (string)($data['upload_url'] ?? '');
-            $publishTokenId= (string)($data['publish_id'] ?? '');
+
+            $uploadUrl = (string)($data['upload_url'] ?? '');
+            $publishTokenId = (string)($data['publish_id'] ?? '');
 
             if ($uploadUrl === '' || $publishTokenId === '') {
                 throw new \RuntimeException('TikTok init başarısız. RESP=' . json_encode($init));
@@ -163,7 +144,7 @@ class PublishPostHandler implements JobHandlerInterface
             // upload
             $tt->uploadToUrl($uploadUrl, $absPath);
 
-            // MVP: TikTok tarafında publish finalize/poll ayrı akış. Şimdilik upload tamam -> publishing bırak.
+            // MVP: “poll/status check” yok → en azından kayıt tutalım, published yapmayalım.
             $meta = [
                 'tiktok' => [
                     'publish_id' => $publishTokenId,
@@ -177,18 +158,18 @@ class PublishPostHandler implements JobHandlerInterface
                 'meta_json' => json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             ]);
 
-            $this->logger->event('info', 'queue', 'publish.deferred', [
-                'publish_id' => $publishId,
-                'platform'   => 'tiktok',
-                'publish_id_token' => $publishTokenId,
-                'note'       => 'Uploaded. Status poll/finalize MVP disi.',
-            ], $row['user_id'] ?? null);
-
             return true;
         }
 
         // =========================
-        // META (INSTAGRAM / FACEBOOK)
+        // ✅ YOUTUBE (publish_post içinde kullanılmıyor ama güvenli kalsın)
+        // =========================
+        if ($platform === 'youtube') {
+            throw new \RuntimeException('youtube publish_post ile değil publish_youtube job ile çalışmalı.');
+        }
+
+        // =========================
+        // ✅ META (INSTAGRAM / FACEBOOK)
         // =========================
         if (!in_array($platform, ['instagram', 'facebook'], true)) {
             throw new \RuntimeException('Desteklenmeyen platform: ' . $platform);
@@ -218,13 +199,11 @@ class PublishPostHandler implements JobHandlerInterface
                 $postType = ($mediaType === 'video') ? 'reels' : 'post';
             }
 
-            if ($postType === 'reels' && $mediaType !== 'video') {
-                $postType = 'post';
+            if ($postType === 'reels' && $mediaType !== 'video') $postType = 'post';
+            if ($postType === 'story' && $mediaUrl === '') {
+                throw new \RuntimeException('Instagram Story için medya zorunlu.');
             }
-
-            if (!in_array($postType, ['post','reels','story'], true)) {
-                $postType = 'post';
-            }
+            if (!in_array($postType, ['post','reels','story'], true)) $postType = 'post';
 
             $this->logger->event('info', 'queue', 'publish.started', [
                 'publish_id' => $publishId,
@@ -235,12 +214,12 @@ class PublishPostHandler implements JobHandlerInterface
             ], $row['user_id'] ?? null);
 
             $res = $this->meta->publishInstagram([
-                'ig_user_id'   => $igUserId,
-                'access_token' => $pageToken,
-                'post_type'    => $postType,
-                'media_type'   => ($mediaType ?: 'image'),
-                'media_url'    => $mediaUrl,
-                'caption'      => $caption,
+                'ig_user_id'    => $igUserId,
+                'access_token'  => $pageToken,
+                'post_type'     => $postType,
+                'media_type'    => ($mediaType ?: 'image'),
+                'media_url'     => $mediaUrl,
+                'caption'       => $caption,
             ]);
 
             $creationId  = (string)($res['creation_id'] ?? '');
@@ -248,7 +227,6 @@ class PublishPostHandler implements JobHandlerInterface
             $statusCode  = (string)($res['status_code'] ?? '');
             $deferred    = !empty($res['deferred']);
 
-            // video/reels işleniyor → meta_media_jobs'e yaz
             if ($deferred && $creationId !== '' && $publishedId === '') {
 
                 $this->upsertMetaMediaJob($db, [
@@ -284,12 +262,6 @@ class PublishPostHandler implements JobHandlerInterface
                     'meta_json' => json_encode($metaJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 ]);
 
-                $this->logger->event('info', 'queue', 'publish.deferred', [
-                    'publish_id'  => $publishId,
-                    'creation_id' => $creationId,
-                    'status_code' => $statusCode,
-                ], $row['user_id'] ?? null);
-
                 return true;
             }
 
@@ -315,13 +287,6 @@ class PublishPostHandler implements JobHandlerInterface
                 'meta_json'    => json_encode($metaJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             ]);
 
-            $this->logger->event('info', 'queue', 'publish.succeeded', [
-                'publish_id'  => $publishId,
-                'remote_id'   => $publishedId,
-                'creation_id' => $creationId,
-                'permalink'   => $permalink,
-            ], $row['user_id'] ?? null);
-
             return true;
         }
 
@@ -336,14 +301,6 @@ class PublishPostHandler implements JobHandlerInterface
 
         $fbPostType = $jobPostType; // post|video
         if (!in_array($fbPostType, ['post','video'], true)) $fbPostType = 'post';
-
-        $this->logger->event('info', 'queue', 'publish.started', [
-            'publish_id' => $publishId,
-            'platform'   => 'facebook',
-            'page_id'    => $pageId,
-            'post_type'  => $fbPostType,
-            'media_type' => ($mediaUrl !== '' ? $mediaType : 'none'),
-        ], $row['user_id'] ?? null);
 
         $fb = $this->meta->publishFacebookPage([
             'page_id'      => $pageId,
@@ -375,12 +332,6 @@ class PublishPostHandler implements JobHandlerInterface
             'error'        => null,
             'meta_json'    => json_encode($metaJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         ]);
-
-        $this->logger->event('info', 'queue', 'publish.succeeded', [
-            'publish_id' => $publishId,
-            'remote_id'  => $postId,
-            'permalink'  => $permalink,
-        ], $row['user_id'] ?? null);
 
         return true;
     }

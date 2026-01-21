@@ -22,7 +22,6 @@ class QueueWork extends BaseCommand
         '--limit' => 'Max jobs to process in one run (default: 50).',
     ];
 
-    // 🔒 Worker kilidi için TTL (worker ölürse job tekrar alınabilsin)
     private const LOCK_TTL_SECONDS = 600; // 10 dk
 
     public function run(array $params)
@@ -61,7 +60,6 @@ class QueueWork extends BaseCommand
 
             $attemptNo = ((int)$job['attempts']) + 1;
 
-            // Attempt kaydı aç (started)
             $attemptId = $attempts->insert([
                 'job_id'        => $jobId,
                 'attempt_no'    => $attemptNo,
@@ -83,13 +81,11 @@ class QueueWork extends BaseCommand
                     throw new \RuntimeException('Job handler returned false');
                 }
 
-                // attempt success
                 $attempts->update($attemptId, [
                     'status'      => 'success',
                     'finished_at' => date('Y-m-d H:i:s'),
                 ]);
 
-                // job done
                 $jobs->update($jobId, [
                     'status'     => 'done',
                     'locked_at'  => null,
@@ -106,22 +102,18 @@ class QueueWork extends BaseCommand
                 ]);
 
             } catch (\Throwable $e) {
-                $err = $e->getMessage();
+                $err = (string)$e->getMessage();
 
-                // attempt failed
                 $attempts->update($attemptId, [
                     'status'      => 'failed',
                     'finished_at' => date('Y-m-d H:i:s'),
                     'error'       => $e->getMessage() . "\n" . $e->getTraceAsString(),
                 ]);
 
-                // attempts++ ve retry logic
                 $currentAttempts = (int)$job['attempts'] + 1;
                 $maxAttempts     = (int)$job['max_attempts'];
 
-                // ❌ retry edilmemesi gereken hatalar
-                // - YouTube upload limit: tekrar denemek işe yaramaz
-                // - TikTok unaudited: tekrar denemek işe yaramaz (audit/approval gerekir)
+                // ✅ retry edilmemesi gereken hatalar
                 $nonRetry = (
                     str_contains($err, 'uploadLimitExceeded') ||
                     str_contains($err, '"uploadLimitExceeded"') ||
@@ -129,9 +121,10 @@ class QueueWork extends BaseCommand
                 );
 
                 if ($nonRetry) {
+                    // direkt failed
+                    $currentAttempts = max($currentAttempts, $maxAttempts);
                     $nextStatus = 'failed';
                     $nextRunAt  = $job['run_at'];
-                    $currentAttempts = $maxAttempts; // direkt bitti gibi işaretle
                 } else {
                     $nextStatus = ($currentAttempts >= $maxAttempts) ? 'failed' : 'queued';
                     $nextRunAt  = ($nextStatus === 'queued')
@@ -139,21 +132,20 @@ class QueueWork extends BaseCommand
                         : $job['run_at'];
                 }
 
-                // publish status'u da (best-effort) senkronla
+                // publish tablosunu da senkron tut (best-effort)
                 try {
                     $payload = json_decode($job['payload_json'] ?? '', true) ?: [];
                     $publishId = (int)($payload['publish_id'] ?? 0);
 
                     if ($publishId > 0) {
                         $db = \Config\Database::connect();
-
                         $publishNextStatus = ($nextStatus === 'failed') ? 'failed' : 'queued';
 
                         $db->table('publishes')
                             ->where('id', $publishId)
                             ->update([
                                 'status'     => $publishNextStatus,
-                                'error'      => mb_substr($e->getMessage(), 0, 2000),
+                                'error'      => mb_substr($err, 0, 2000),
                                 'updated_at' => date('Y-m-d H:i:s'),
                             ]);
                     }
@@ -191,12 +183,11 @@ class QueueWork extends BaseCommand
 
     private function backoffSeconds(int $attemptNo): int
     {
-        // 1->10s, 2->30s, 3->60s, 4+->120s
         return match (true) {
-            $attemptNo <= 1  => 10,
+            $attemptNo <= 1 => 10,
             $attemptNo === 2 => 30,
             $attemptNo === 3 => 60,
-            default          => 120,
+            default => 120,
         };
     }
 
@@ -207,7 +198,6 @@ class QueueWork extends BaseCommand
 
         $staleCutoff = date('Y-m-d H:i:s', time() - self::LOCK_TTL_SECONDS);
 
-        // 1) aday job al (queued + run_at <= now + lock yok veya stale)
         $row = $db->table('jobs')
             ->select('*')
             ->where('status', 'queued')
@@ -223,7 +213,6 @@ class QueueWork extends BaseCommand
 
         if (!$row) return null;
 
-        // 2) atomik kilitleme
         $affected = $db->table('jobs')
             ->where('id', $row['id'])
             ->where('status', 'queued')
@@ -240,7 +229,6 @@ class QueueWork extends BaseCommand
 
         if (!$affected) return null;
 
-        // 3) güncel halini dön
         return $db->table('jobs')->where('id', $row['id'])->get(1)->getRowArray();
     }
 }

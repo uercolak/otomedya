@@ -5,16 +5,19 @@
     <title>Giriş Yap | Sosyal Panel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
+    <link rel="icon" type="image/png" href="<?= base_url('/logo2.png'); ?>">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="<?= base_url('/assets/css/auth.css'); ?>" rel="stylesheet">
-    
 </head>
 <body>
 <div class="auth-wrapper">
     <div class="auth-side">
         <div>
-            <div class="auth-brand mb-4">
-                <div class="auth-logo">S</div>
+            <div class="auth-brand mb-4 d-flex align-items-center gap-3">
+                <div class="auth-logo" style="width:46px;height:46px;border-radius:14px;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;">
+                    <img src="<?= base_url('/logo.png'); ?>" alt="Sosyal Panel" style="max-width:100%;max-height:100%;display:block;">
+                </div>
                 <div>
                     <div class="auth-brand-title">Sosyal Panel</div>
                     <div class="auth-brand-sub">Planla • Yayınla • Yönet</div>
@@ -27,6 +30,14 @@
                     Facebook, Instagram, YouTube ve TikTok gönderilerini tek takvim üzerinden planla,
                     otomatik olarak yayınla.
                 </div>
+            </div>
+
+            <div class="mt-4 small text-muted">
+                <a class="text-decoration-none" href="<?= base_url('/terms'); ?>">Kullanım Şartları</a>
+                <span class="mx-2">•</span>
+                <a class="text-decoration-none" href="<?= base_url('/privacy'); ?>">Gizlilik Politikası</a>
+                <span class="mx-2">•</span>
+                <a class="text-decoration-none" href="<?= base_url('/data-deletion'); ?>">Veri Silme Politikası</a>
             </div>
         </div>
 
@@ -73,6 +84,14 @@
 
             <div class="mt-3 small text-muted">
                 Panel erişimi için lütfen sistem yöneticinizle iletişime geçin.
+            </div>
+
+            <div class="mt-3 small text-muted">
+                <a class="text-decoration-none" href="<?= base_url('/terms'); ?>">Kullanım Şartları</a>
+                <span class="mx-2">•</span>
+                <a class="text-decoration-none" href="<?= base_url('/privacy'); ?>">Gizlilik Politikası</a>
+                <span class="mx-2">•</span>
+                <a class="text-decoration-none" href="<?= base_url('/data-deletion'); ?>">Veri Silme</a>
             </div>
         </form>
     </div>

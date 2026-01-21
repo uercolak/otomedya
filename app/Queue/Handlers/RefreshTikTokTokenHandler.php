@@ -13,6 +13,7 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
         $now = date('Y-m-d H:i:s');
 
         $onlyAccountId = isset($payload['social_account_id']) ? (int)$payload['social_account_id'] : 0;
+
         $threshold = date('Y-m-d H:i:s', time() + 10 * 60);
 
         $q = $db->table('social_account_tokens sat')
@@ -88,7 +89,6 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                     'updated_at'    => $now,
                 ]);
 
-            // not: social_accounts tablon bu alanları gerçekten içeriyorsa kalsın
             $db->table('social_accounts')
                 ->where('id', $socialAccountId)
                 ->update([
@@ -96,11 +96,6 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                     'token_expires_at' => $expiresAt,
                     'updated_at'       => $now,
                 ]);
-
-            log_message('info', '[TikTokRefresh] Refreshed account_id={id} expires_at={exp}', [
-                'id' => $socialAccountId,
-                'exp' => $expiresAt,
-            ]);
         }
 
         return true;
