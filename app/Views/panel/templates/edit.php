@@ -32,6 +32,11 @@
   <div class="row g-3">
     <div class="col-lg-9">
       <div class="card p-3">
+
+      <div class="small text-muted mb-2">
+        BG: <?= esc($bgUrl) ?>
+        </div>
+
         <!-- ✅ Fit için wrapper -->
         <div id="canvasWrap" style="max-width:100%; overflow:auto;">
           <canvas id="c"
@@ -119,22 +124,32 @@
 
   // ✅ Background (template image)
   function setBackground(url){
-    return new Promise((resolve, reject) => {
-      if (!url) return resolve();
+    return new Promise((resolve) => {
+      if (!url) { 
+        notify('BG boş geldi (template base_media_id/file_path yok)', 'warning');
+        return resolve(false);
+      }
 
-      fabric.Image.fromURL(url, (img) => {
-        if (!img) { resolve(); return; }
-        img.set({ selectable:false, evented:false });
+      // Debug (Console’da gör)
+      console.log('BG URL =>', url);
 
-        // Orijinal canvas koordinatları W/H kalsın; background W/H’e otursun
+      fabric.util.loadImage(url, (imgEl) => {
+        if (!imgEl) {
+          notify('Arkaplan yüklenemedi: ' + url, 'danger');
+          return resolve(false);
+        }
+
+        const img = new fabric.Image(imgEl, { selectable:false, evented:false });
+
+        // W/H koordinatı sabit; background W/H'e oturur
         img.scaleToWidth(W);
         img.scaleToHeight(H);
 
         canvas.setBackgroundImage(img, () => {
-          canvas.renderAll();
-          resolve();
+          canvas.requestRenderAll();
+          resolve(true);
         });
-      }, { crossOrigin: 'anonymous' });
+      }, null, 'anonymous');
     });
   }
 
@@ -167,6 +182,12 @@
         canvas.loadFromJSON(json, async () => {
           // ✅ loadFromJSON background'ı sıfırlayabiliyor → tekrar bas
           if (BG) await setBackground(BG);
+
+            const okBg = BG ? await setBackground(BG) : false;
+            if (BG && !okBg) {
+            // BG URL bozuksa en azından kullanıcı bilsin
+            console.warn('BG load failed:', BG);
+            }
 
           // Fit + render
           fitToWrap();
