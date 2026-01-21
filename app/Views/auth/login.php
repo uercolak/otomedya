@@ -235,7 +235,7 @@
     <div class="auth-left">
         <div class="brand">
             <div class="brand-logo">
-                <img src="<?= base_url('/logo.png'); ?>" alt="Sosyal Panel">
+                <img src="<?= base_url('/logo2.png'); ?>" alt="Sosyal Panel">
             </div>
             <div>
                 <div class="brand-title">Sosyal Panel</div>
