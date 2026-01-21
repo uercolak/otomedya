@@ -6,14 +6,29 @@
   $w = (int)($tpl['width'] ?? 1080);
   $h = (int)($tpl['height'] ?? 1080);
 
-  // ✅ base_media_id varsa /media/{id} ile çek
+  // base_media_id varsa /media/{id}; yoksa eski file_path fallback
   $bgUrl = !empty($tpl['base_media_id'])
     ? site_url('media/' . (int)$tpl['base_media_id'])
     : (!empty($tpl['file_path']) ? base_url($tpl['file_path']) : '');
 
-  $formatKey = (string)($tpl['format_key'] ?? '');
-  $savedState = $design['state_json'] ?? '';
+  $formatKey  = (string)($tpl['format_key'] ?? '');
+  $savedState = (string)($design['state_json'] ?? '');
 ?>
+
+<style>
+  /* ✅ Canvas “ekranda” fit olacak ama gerçek çözünürlük bozulmayacak */
+  #canvasWrap {
+    width: 100%;
+    overflow: auto;
+  }
+  #canvasStage {
+    /* stage içine canvas’ı koyuyoruz; burası ölçeklenecek */
+    transform-origin: top left;
+    display: inline-block;
+  }
+  /* Canvas elementleri inline-block kalsın */
+  canvas { display:block; }
+</style>
 
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-content-between mb-3">
@@ -24,8 +39,8 @@
 
     <div class="d-flex gap-2">
       <a href="<?= site_url('panel/templates') ?>" class="btn btn-outline-secondary">Geri</a>
-      <button id="btnSave" class="btn btn-outline-primary">Kaydet</button>
-      <button id="btnExport" class="btn btn-primary">Planla</button>
+      <button id="btnSave" class="btn btn-outline-primary" type="button">Kaydet</button>
+      <button id="btnExport" class="btn btn-primary" type="button">Planla</button>
     </div>
   </div>
 
@@ -33,17 +48,22 @@
     <div class="col-lg-9">
       <div class="card p-3">
 
-      <div class="small text-muted mb-2">
-        BG: <?= esc($bgUrl) ?>
+        <?php if ($bgUrl): ?>
+          <div class="small text-muted mb-2">BG: <?= esc($bgUrl) ?></div>
+        <?php else: ?>
+          <div class="small text-danger mb-2">BG yok (base_media_id/file_path boş)</div>
+        <?php endif; ?>
+
+        <div id="canvasWrap">
+          <!-- ✅ Stage: sadece görüntü için scale uygulanacak -->
+          <div id="canvasStage">
+            <canvas id="c"
+              width="<?= $w ?>"
+              height="<?= $h ?>"
+              style="border-radius:12px; border:1px solid rgba(0,0,0,.08);"></canvas>
+          </div>
         </div>
 
-        <!-- ✅ Fit için wrapper -->
-        <div id="canvasWrap" style="max-width:100%; overflow:auto;">
-          <canvas id="c"
-                  width="<?= $w ?>"
-                  height="<?= $h ?>"
-                  style="border-radius:12px; border:1px solid rgba(0,0,0,.08);"></canvas>
-        </div>
       </div>
     </div>
 
@@ -51,7 +71,7 @@
       <div class="card p-3">
         <div class="fw-semibold mb-2">Araçlar</div>
 
-        <button id="btnAddText" class="btn btn-outline-secondary w-100 mb-2">
+        <button id="btnAddText" class="btn btn-outline-secondary w-100 mb-2" type="button">
           <i class="bi bi-type me-1"></i> Yazı ekle
         </button>
 
@@ -60,7 +80,7 @@
           <input id="logoFile" type="file" accept="image/*" hidden>
         </label>
 
-        <button id="btnDelete" class="btn btn-outline-danger w-100 mb-2">
+        <button id="btnDelete" class="btn btn-outline-danger w-100 mb-2" type="button">
           <i class="bi bi-trash me-1"></i> Seçileni sil
         </button>
 
@@ -73,15 +93,13 @@
           <option value="reels">Reels (V1 image için planlama; video değil)</option>
         </select>
 
-        <div class="small text-muted">
-          V1’de export PNG üretir ve Planner’a içerik olarak taşır.
-        </div>
+        <div class="small text-muted">V1’de export PNG üretir ve Planner’a içerik olarak taşır.</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ✅ Toast container -->
+<!-- Toast (Bootstrap varsa kullanır, yoksa alert fallback) -->
 <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
   <div id="appToast" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true">
     <div class="d-flex">
@@ -93,7 +111,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 <script>
-(function(){
+(() => {
   const W = <?= (int)$w ?>;
   const H = <?= (int)$h ?>;
   const BG = <?= json_encode((string)$bgUrl) ?>;
@@ -107,14 +125,18 @@
 
   const toastEl = document.getElementById('appToast');
   const toastBodyEl = document.getElementById('appToastBody');
-  const toast = toastEl ? new bootstrap.Toast(toastEl, { delay: 2200 }) : null;
 
   function notify(message, type='dark'){
     // type: success | danger | warning | dark
-    if (!toastEl || !toast) { alert(message); return; }
-    toastEl.className = 'toast align-items-center text-bg-' + type + ' border-0';
-    toastBodyEl.textContent = message;
-    toast.show();
+    try {
+      if (window.bootstrap && toastEl && toastBodyEl) {
+        toastEl.className = 'toast align-items-center text-bg-' + type + ' border-0';
+        toastBodyEl.textContent = message;
+        new bootstrap.Toast(toastEl, { delay: 2200 }).show();
+        return;
+      }
+    } catch (e) {}
+    alert(message);
   }
 
   const canvas = new fabric.Canvas('c', {
@@ -122,26 +144,31 @@
     selection: true
   });
 
-  // ✅ Background (template image)
-  function setBackground(url){
+  // ✅ Display fit: canvas gerçek boyutu sabit, sadece stage CSS scale
+  function fitToWrap(){
+    const wrap = document.getElementById('canvasWrap');
+    const stage = document.getElementById('canvasStage');
+    if (!wrap || !stage) return;
+
+    const availableW = Math.max(320, wrap.clientWidth - 6);
+    const scale = Math.min(1, availableW / W);
+
+    stage.style.transform = `scale(${scale})`;
+    stage.style.width = (W * scale) + 'px';
+    stage.style.height = (H * scale) + 'px';
+  }
+
+  // ✅ Background yükle (Fabric uyumlu, CORS anonymous)
+  async function loadBackground(){
+    if (!BG) return false;
+
     return new Promise((resolve) => {
-      if (!url) { 
-        notify('BG boş geldi (template base_media_id/file_path yok)', 'warning');
-        return resolve(false);
-      }
-
-      // Debug (Console’da gör)
-      console.log('BG URL =>', url);
-
-      fabric.util.loadImage(url, (imgEl) => {
-        if (!imgEl) {
-          notify('Arkaplan yüklenemedi: ' + url, 'danger');
+      fabric.Image.fromURL(BG, (img) => {
+        if (!img) {
+          notify('Arkaplan yüklenemedi: ' + BG, 'danger');
           return resolve(false);
         }
-
-        const img = new fabric.Image(imgEl, { selectable:false, evented:false });
-
-        // W/H koordinatı sabit; background W/H'e oturur
+        img.set({ selectable:false, evented:false });
         img.scaleToWidth(W);
         img.scaleToHeight(H);
 
@@ -149,62 +176,13 @@
           canvas.requestRenderAll();
           resolve(true);
         });
-      }, null, 'anonymous');
+      }, { crossOrigin: 'anonymous' });
     });
   }
 
-  // ✅ Fit canvas into visible container (zoom + resize)
-  function fitToWrap(){
-    const wrap = document.getElementById('canvasWrap');
-    if (!wrap) return;
-
-    // Scrollbarları hesaba katmak için biraz padding bırak
-    const maxW = Math.max(320, wrap.clientWidth - 6);
-    const scale = Math.min(1, maxW / W);
-
-    canvas.setZoom(scale);
-    canvas.setWidth(Math.round(W * scale));
-    canvas.setHeight(Math.round(H * scale));
-
-    // Background ve objeler zoom’dan sonra düzgün çizilsin
-    canvas.requestRenderAll();
-  }
-
-  // ✅ Saved state yükle
-  async function init(){
-    // önce background set et
-    if (BG) await setBackground(BG);
-
-    if (SAVED) {
-      try {
-        const json = JSON.parse(SAVED);
-
-        canvas.loadFromJSON(json, async () => {
-          // ✅ loadFromJSON background'ı sıfırlayabiliyor → tekrar bas
-          if (BG) await setBackground(BG);
-
-            const okBg = BG ? await setBackground(BG) : false;
-            if (BG && !okBg) {
-            // BG URL bozuksa en azından kullanıcı bilsin
-            console.warn('BG load failed:', BG);
-            }
-
-          // Fit + render
-          fitToWrap();
-          canvas.renderAll();
-        });
-      } catch(e) {
-        fitToWrap();
-      }
-    } else {
-      fitToWrap();
-    }
-  }
-
   function getStateJson(){
-    // backgroundImage state'e yazmayacağız (DB şişmesin)
     const json = canvas.toJSON(['selectable','evented']);
-    delete json.backgroundImage;
+    delete json.backgroundImage; // DB şişmesin
     return JSON.stringify(json);
   }
 
@@ -226,6 +204,27 @@
     return json;
   }
 
+  // ✅ Init: background -> state -> background guarantee -> fit
+  async function init(){
+    await loadBackground();
+
+    if (SAVED) {
+      try {
+        const parsed = JSON.parse(SAVED);
+        canvas.loadFromJSON(parsed, async () => {
+          // loadFromJSON background’ı silebilir → garanti tekrar
+          await loadBackground();
+          canvas.requestRenderAll();
+          fitToWrap();
+        });
+      } catch (e) {
+        fitToWrap();
+      }
+    } else {
+      fitToWrap();
+    }
+  }
+
   // UI actions
   document.getElementById('btnAddText').addEventListener('click', () => {
     const t = new fabric.Textbox('Metin', {
@@ -237,7 +236,7 @@
     });
     canvas.add(t);
     canvas.setActiveObject(t);
-    canvas.renderAll();
+    canvas.requestRenderAll();
   });
 
   document.getElementById('logoFile').addEventListener('change', (e) => {
@@ -247,11 +246,12 @@
     const reader = new FileReader();
     reader.onload = () => {
       fabric.Image.fromURL(reader.result, (img) => {
+        if (!img) return;
         img.set({ left: 80, top: 160 });
         img.scaleToWidth(Math.min(280, W/3));
         canvas.add(img);
         canvas.setActiveObject(img);
-        canvas.renderAll();
+        canvas.requestRenderAll();
       });
     };
     reader.readAsDataURL(file);
@@ -262,14 +262,13 @@
     const obj = canvas.getActiveObject();
     if (!obj) return;
     canvas.remove(obj);
-    canvas.renderAll();
+    canvas.requestRenderAll();
   });
 
-  // ✅ SAVE
+  // SAVE
   let lastDesignId = <?= (int)($design['id'] ?? 0) ?>;
 
-  document.getElementById('btnSave').addEventListener('click', async (e) => {
-    e.preventDefault();
+  document.getElementById('btnSave').addEventListener('click', async () => {
     try {
       const state = getStateJson();
       const json = await postForm(saveUrl, {
@@ -284,11 +283,9 @@
     }
   });
 
-  // ✅ EXPORT -> content oluştur -> planner’a git
-  document.getElementById('btnExport').addEventListener('click', async (e) => {
-    e.preventDefault();
+  // EXPORT (full-res garanti)
+  document.getElementById('btnExport').addEventListener('click', async () => {
     try {
-      // önce save zorunlu
       if (!lastDesignId) {
         const state = getStateJson();
         const json = await postForm(saveUrl, {
@@ -301,8 +298,12 @@
 
       const postType = document.getElementById('postType').value || 'post';
 
-      // export PNG (background dahil)
-      const dataUrl = canvas.toDataURL({ format:'png', quality: 1 });
+      // ✅ Export her zaman gerçek canvas boyutundan çıkar (W×H)
+      const dataUrl = canvas.toDataURL({
+        format: 'png',
+        multiplier: 1,
+        quality: 1
+      });
 
       const out = await postForm(exportUrl, {
         design_id: String(lastDesignId),
@@ -311,21 +312,25 @@
       });
 
       notify('Şablon aktarıldı ✅', 'success');
+      if (out.redirect) window.location.href = out.redirect;
 
-      if (out.redirect) {
-        window.location.href = out.redirect;
-      }
     } catch(err) {
       notify(err.message || 'Export hatası', 'danger');
     }
   });
 
-  // ✅ responsive: resize olunca fit
-  let resizeT = null;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeT);
-    resizeT = setTimeout(() => fitToWrap(), 120);
-  });
+  // ✅ ResizeObserver: daha stabil (sidebar aç/kapa vs)
+  try {
+    const wrap = document.getElementById('canvasWrap');
+    if (wrap && window.ResizeObserver) {
+      const ro = new ResizeObserver(() => fitToWrap());
+      ro.observe(wrap);
+    } else {
+      window.addEventListener('resize', () => fitToWrap());
+    }
+  } catch(e) {
+    window.addEventListener('resize', () => fitToWrap());
+  }
 
   init();
 })();
