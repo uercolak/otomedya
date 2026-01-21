@@ -1,0 +1,260 @@
+<?php
+
+namespace App\Controllers\Panel;
+
+use App\Controllers\BaseController;
+use App\Models\TemplateModel;
+use App\Models\TemplateDesignModel;
+
+class TemplatesController extends BaseController
+{
+    private function ensureUser()
+    {
+        if (!session('is_logged_in')) {
+            return redirect()->to(base_url('auth/login'));
+        }
+        return null;
+    }
+
+    public function index()
+    {
+        if ($r = $this->ensureUser()) return $r;
+
+        $db = \Config\Database::connect();
+
+        $q      = trim((string)($this->request->getGet('q') ?? ''));
+        $scope  = trim((string)($this->request->getGet('scope') ?? ''));   // instagram/facebook/universal
+        $format = trim((string)($this->request->getGet('format') ?? ''));  // ig_post_1_1...
+        $type   = trim((string)($this->request->getGet('type') ?? ''));    // image/video
+
+        $builder = $db->table('templates')
+            ->where('is_active', 1);
+
+        if ($q !== '') {
+            $builder->groupStart()
+                ->like('name', $q)
+                ->orLike('description', $q)
+            ->groupEnd();
+        }
+        if ($scope !== '')  $builder->where('platform_scope', $scope);
+        if ($format !== '') $builder->where('format_key', $format);
+        if ($type !== '')   $builder->where('type', $type);
+
+        $rows = $builder->orderBy('id', 'DESC')->get()->getResultArray();
+
+        // filtre dropdown’ları
+        $scopes = $db->table('templates')->select('platform_scope')->distinct()->orderBy('platform_scope','ASC')->get()->getResultArray();
+        $formats= $db->table('templates')->select('format_key')->distinct()->orderBy('format_key','ASC')->get()->getResultArray();
+        $types  = $db->table('templates')->select('type')->distinct()->orderBy('type','ASC')->get()->getResultArray();
+
+        $scopeOptions  = array_values(array_filter(array_map(fn($r)=>(string)($r['platform_scope']??''), $scopes)));
+        $formatOptions = array_values(array_filter(array_map(fn($r)=>(string)($r['format_key']??''), $formats)));
+        $typeOptions   = array_values(array_filter(array_map(fn($r)=>(string)($r['type']??''), $types)));
+
+        return view('panel/templates/index', [
+            'pageTitle' => 'Hazır Şablonlar',
+            'headerVariant' => 'compact',
+            'rows' => $rows,
+            'filters' => ['q'=>$q,'scope'=>$scope,'format'=>$format,'type'=>$type],
+            'scopeOptions' => $scopeOptions,
+            'formatOptions'=> $formatOptions,
+            'typeOptions'  => $typeOptions,
+        ]);
+    }
+
+    public function show(int $id)
+    {
+        if ($r = $this->ensureUser()) return $r;
+
+        $tpl = (new TemplateModel())->find($id);
+        if (!$tpl || (int)($tpl['is_active'] ?? 0) !== 1) {
+            return redirect()->to(site_url('panel/templates'))->with('error', 'Şablon bulunamadı.');
+        }
+
+        return view('panel/templates/show', [
+            'pageTitle' => 'Şablon',
+            'headerVariant' => 'compact',
+            'tpl' => $tpl,
+        ]);
+    }
+
+    public function edit(int $id)
+    {
+        if ($r = $this->ensureUser()) return $r;
+
+        $userId = (int)session('user_id');
+
+        $tpl = (new TemplateModel())->find($id);
+        if (!$tpl || (int)($tpl['is_active'] ?? 0) !== 1) {
+            return redirect()->to(site_url('panel/templates'))->with('error', 'Şablon bulunamadı.');
+        }
+
+        // Kullanıcı daha önce kaydettiyse son tasarımı çek
+        $design = (new TemplateDesignModel())
+            ->where('user_id', $userId)
+            ->where('template_id', $id)
+            ->where('format_key', (string)($tpl['format_key'] ?? ''))
+            ->orderBy('id','DESC')
+            ->first();
+
+        return view('panel/templates/edit', [
+            'pageTitle' => 'Şablonu Düzenle',
+            'headerVariant' => 'compact',
+            'tpl' => $tpl,
+            'design' => $design,
+        ]);
+    }
+
+    public function save(int $id)
+    {
+        if ($r = $this->ensureUser()) return $r;
+
+        if ($this->request->getMethod(true) !== 'POST') {
+            return $this->response->setStatusCode(405)->setJSON(['ok'=>false,'message'=>'Method not allowed']);
+        }
+
+        $userId = (int)session('user_id');
+        $db = \Config\Database::connect();
+        $now = date('Y-m-d H:i:s');
+
+        $tpl = (new TemplateModel())->find($id);
+        if (!$tpl || (int)($tpl['is_active'] ?? 0) !== 1) {
+            return $this->response->setStatusCode(404)->setJSON(['ok'=>false,'message'=>'Şablon yok']);
+        }
+
+        $formatKey = (string)($tpl['format_key'] ?? '');
+        $cw = (int)($this->request->getPost('canvas_width') ?? 0);
+        $ch = (int)($this->request->getPost('canvas_height') ?? 0);
+        $stateJson = (string)($this->request->getPost('state_json') ?? '');
+
+        if ($cw <= 0 || $ch <= 0 || $stateJson === '') {
+            return $this->response->setStatusCode(400)->setJSON(['ok'=>false,'message'=>'Eksik veri.']);
+        }
+
+        // LONGTEXT tutuyoruz (DB’de state_json longtext)
+        // Upsert mantığı: aynı user+template+format için yeni kayıt oluştur (history kalsın)
+        $db->table('template_designs')->insert([
+            'user_id'       => $userId,
+            'template_id'   => (int)$id,
+            'editor_type'   => 'fabric',
+            'format_key'    => $formatKey,
+            'canvas_width'  => $cw,
+            'canvas_height' => $ch,
+            'state_json'    => $stateJson,
+            'created_at'    => $now,
+            'updated_at'    => $now,
+        ]);
+
+        $designId = (int)$db->insertID();
+
+        return $this->response->setJSON([
+            'ok' => true,
+            'design_id' => $designId,
+        ]);
+    }
+
+    public function export(int $id)
+    {
+        if ($r = $this->ensureUser()) return $r;
+
+        if ($this->request->getMethod(true) !== 'POST') {
+            return $this->response->setStatusCode(405)->setJSON(['ok'=>false,'message'=>'Method not allowed']);
+        }
+
+        $userId = (int)session('user_id');
+        $db = \Config\Database::connect();
+        $now = date('Y-m-d H:i:s');
+
+        $tpl = (new TemplateModel())->find($id);
+        if (!$tpl || (int)($tpl['is_active'] ?? 0) !== 1) {
+            return $this->response->setStatusCode(404)->setJSON(['ok'=>false,'message'=>'Şablon yok']);
+        }
+
+        $designId = (int)($this->request->getPost('design_id') ?? 0);
+        $dataUrl  = (string)($this->request->getPost('png_data') ?? '');
+        $postType = strtolower(trim((string)($this->request->getPost('post_type') ?? 'post')));
+
+        if (!in_array($postType, ['post','reels','story','auto'], true)) $postType = 'post';
+
+        if ($designId <= 0 || $dataUrl === '' || !str_starts_with($dataUrl, 'data:image/png;base64,')) {
+            return $this->response->setStatusCode(400)->setJSON(['ok'=>false,'message'=>'Eksik/Geçersiz export verisi.']);
+        }
+
+        // Design ownership check
+        $design = $db->table('template_designs')
+            ->where('id', $designId)
+            ->where('user_id', $userId)
+            ->where('template_id', $id)
+            ->get()->getRowArray();
+
+        if (!$design) {
+            return $this->response->setStatusCode(403)->setJSON(['ok'=>false,'message'=>'Design yetkisiz.']);
+        }
+
+        // PNG decode
+        $base64 = substr($dataUrl, strlen('data:image/png;base64,'));
+        $bin = base64_decode($base64, true);
+        if ($bin === false) {
+            return $this->response->setStatusCode(400)->setJSON(['ok'=>false,'message'=>'Base64 çözülemedi.']);
+        }
+
+        // Kaydet: uploads/Y/m
+        $subdir = date('Y') . '/' . date('m');
+        $targetDir = FCPATH . 'uploads/' . $subdir;
+        if (!is_dir($targetDir)) {
+            @mkdir($targetDir, 0775, true);
+        }
+
+        $filename = 'tpl_' . $id . '_d' . $designId . '_' . bin2hex(random_bytes(6)) . '.png';
+        $relPath = 'uploads/' . $subdir . '/' . $filename;
+        $absPath = FCPATH . $relPath;
+
+        if (@file_put_contents($absPath, $bin) === false) {
+            return $this->response->setStatusCode(500)->setJSON(['ok'=>false,'message'=>'Dosya yazılamadı. Permission kontrol et.']);
+        }
+
+        // contents üret (Planner ile aynı şema)
+        $meta = [
+            'post_type' => $postType,
+            'template' => [
+                'template_id' => (int)$id,
+                'design_id'   => (int)$designId,
+                'format_key'  => (string)($tpl['format_key'] ?? ''),
+            ],
+        ];
+
+        $db->transStart();
+
+        $db->table('contents')->insert([
+            'user_id'     => $userId,
+            'title'       => (string)($tpl['name'] ?? '') ?: null,
+            'base_text'   => null,
+            'media_type'  => 'image',
+            'media_path'  => $relPath,
+            'template_id' => (int)$id,
+            'meta_json'   => json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'created_at'  => $now,
+            'updated_at'  => $now,
+        ]);
+        $contentId = (int)$db->insertID();
+
+        // template_designs güncelle (export yolu + content_id)
+        $db->table('template_designs')->where('id', $designId)->where('user_id', $userId)->update([
+            'export_file_path' => $relPath,
+            'content_id'       => $contentId,
+            'updated_at'       => $now,
+        ]);
+
+        $db->transComplete();
+
+        if (!$db->transStatus()) {
+            return $this->response->setStatusCode(500)->setJSON(['ok'=>false,'message'=>'DB işlem hatası.']);
+        }
+
+        return $this->response->setJSON([
+            'ok' => true,
+            'content_id' => $contentId,
+            'redirect' => site_url('panel/planner?content_id=' . $contentId),
+        ]);
+    }
+}

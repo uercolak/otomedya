@@ -47,6 +47,11 @@ $routes->group('panel', ['filter' => 'auth'], static function ($routes) {
     $routes->post('social-accounts/youtube/disconnect',             'Panel\YouTubeOAuthController::disconnect');
     $routes->get('auth/tiktok',                                     'Panel\TikTokController::start');
     $routes->get('auth/tiktok/callback',                            'Panel\TikTokController::callback');
+    $routes->get('templates',                                       'Panel\TemplatesController::index');
+    $routes->get('templates/(:num)',                                'Panel\TemplatesController::show/$1');
+    $routes->get('templates/(:num)/edit',                           'Panel\TemplatesController::edit/$1');
+    $routes->post('templates/(:num)/save',                          'Panel\TemplatesController::save/$1');
+    $routes->post('templates/(:num)/export',                        'Panel\TemplatesController::export/$1');
 
     $routes->get('social-accounts/meta/publish-test',               'Panel\MetaOAuthController::publishTestForm');
     $routes->post('social-accounts/meta/test-publish',              'Panel\MetaOAuthController::testPublish');

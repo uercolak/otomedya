@@ -28,10 +28,22 @@ class PlannerController extends BaseController
             ->orderBy('id', 'DESC')
             ->get()->getResultArray();
 
+        $contentId = (int)($this->request->getGet('content_id') ?? 0);
+        $prefill = null;
+
+        if ($contentId > 0) {
+            $prefill = $db->table('contents')
+                ->select('id,title,base_text,media_type,media_path,meta_json')
+                ->where('id', $contentId)
+                ->where('user_id', $userId)
+                ->get()->getRowArray();
+        }
+
         return view('panel/planner', [
             'pageTitle' => 'Yeni Gönderi Planla',
             'headerVariant' => 'compact',
             'accounts' => $accounts,
+            'prefill' => $prefill,
         ]);
     }
 

@@ -8,6 +8,7 @@
       <div class="text-muted">İçerik oluştur, hesap(lar) seç, tarih/saat belirle ve kuyruğa al.</div>
     </div>
     <a href="<?= site_url('panel/calendar') ?>" class="btn btn-outline-secondary">Takvime Dön</a>
+    <a href="<?= site_url('panel/templates') ?>" class="btn btn-outline-primary">Şablondan Oluştur</a>
   </div>
 
   <?php if (session()->getFlashdata('error')): ?>
