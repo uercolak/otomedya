@@ -8,12 +8,13 @@ class TikTokPublishService
     {
         $url = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
 
-        // TikTok caption içine hashtag direkt yazılır: "Merhaba #etiket"
+        $privacy = strtoupper(trim((string) env('TIKTOK_PRIVACY_LEVEL', 'SELF_ONLY')));
+
         $body = json_encode([
             'post_info' => [
-                'title' => mb_substr($caption, 0, 150),   // güvenli kısaltma
-                'description' => $caption,               // caption/hashtag burada
-                'privacy_level' => 'PUBLIC_TO_EVERYONE', // istersen UI’dan seçtiririz
+                'title' => mb_substr($caption, 0, 150),
+                'description' => $caption,
+                'privacy_level' => $privacy, 
                 'disable_comment' => false,
                 'disable_duet' => false,
                 'disable_stitch' => false,
