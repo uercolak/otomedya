@@ -27,6 +27,34 @@ class TemplatesController extends BaseController
         $format = trim((string)($this->request->getGet('format') ?? ''));  // ig_post_1_1...
         $type   = trim((string)($this->request->getGet('type') ?? ''));    // image/video
 
+        $countBuilder = $db->table('templates')
+            ->select('platform_scope, COUNT(*) AS cnt')
+            ->where('is_active', 1);
+
+        if ($q !== '') {
+            $countBuilder->groupStart()
+                ->like('name', $q)
+                ->orLike('description', $q)
+            ->groupEnd();
+        }
+        if ($format !== '') $countBuilder->where('format_key', $format);
+        if ($type !== '')   $countBuilder->where('type', $type);
+
+        $countRows = $countBuilder
+            ->groupBy('platform_scope')
+            ->get()->getResultArray();
+
+        $categoryCounts = [];
+        $totalCount = 0;
+        foreach ($countRows as $cr) {
+            $k = (string)($cr['platform_scope'] ?? '');
+            $c = (int)($cr['cnt'] ?? 0);
+            if ($k !== '') {
+                $categoryCounts[$k] = $c;
+                $totalCount += $c;
+            }
+        }
+
         $builder = $db->table('templates')
             ->where('is_active', 1);
 
@@ -42,23 +70,26 @@ class TemplatesController extends BaseController
 
         $rows = $builder->orderBy('id', 'DESC')->get()->getResultArray();
 
-        // filtre dropdown’ları
-        $scopes = $db->table('templates')->select('platform_scope')->distinct()->orderBy('platform_scope','ASC')->get()->getResultArray();
-        $formats= $db->table('templates')->select('format_key')->distinct()->orderBy('format_key','ASC')->get()->getResultArray();
-        $types  = $db->table('templates')->select('type')->distinct()->orderBy('type','ASC')->get()->getResultArray();
+        $scopes = $db->table('templates')
+            ->select('platform_scope')
+            ->where('is_active', 1)
+            ->distinct()
+            ->orderBy('platform_scope', 'ASC')
+            ->get()->getResultArray();
 
-        $scopeOptions  = array_values(array_filter(array_map(fn($r)=>(string)($r['platform_scope']??''), $scopes)));
-        $formatOptions = array_values(array_filter(array_map(fn($r)=>(string)($r['format_key']??''), $formats)));
-        $typeOptions   = array_values(array_filter(array_map(fn($r)=>(string)($r['type']??''), $types)));
+        $scopeOptions = array_values(array_filter(array_map(
+            fn($r)=>(string)($r['platform_scope'] ?? ''),
+            $scopes
+        )));
 
         return view('panel/templates/index', [
-            'pageTitle' => 'Hazır Şablonlar',
-            'headerVariant' => 'compact',
-            'rows' => $rows,
-            'filters' => ['q'=>$q,'scope'=>$scope,'format'=>$format,'type'=>$type],
-            'scopeOptions' => $scopeOptions,
-            'formatOptions'=> $formatOptions,
-            'typeOptions'  => $typeOptions,
+            'pageTitle'       => 'Hazır Şablonlar',
+            'headerVariant'   => 'compact',
+            'rows'            => $rows,
+            'filters'         => ['q'=>$q,'scope'=>$scope,'format'=>$format,'type'=>$type],
+            'scopeOptions'    => $scopeOptions,
+            'categoryCounts'  => $categoryCounts,
+            'totalCount'      => $totalCount,
         ]);
     }
 
@@ -89,7 +120,6 @@ class TemplatesController extends BaseController
             return redirect()->to(site_url('panel/templates'))->with('error', 'Şablon bulunamadı.');
         }
 
-        // Kullanıcı daha önce kaydettiyse son tasarımı çek
         $design = (new TemplateDesignModel())
             ->where('user_id', $userId)
             ->where('template_id', $id)
@@ -97,11 +127,14 @@ class TemplatesController extends BaseController
             ->orderBy('id','DESC')
             ->first();
 
+        $autoplan = ((string)$this->request->getGet('autoplan') === '1');
+
         return view('panel/templates/edit', [
             'pageTitle' => 'Şablonu Düzenle',
             'headerVariant' => 'compact',
             'tpl' => $tpl,
             'design' => $design,
+            'autoplan' => $autoplan,
         ]);
     }
 

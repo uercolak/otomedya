@@ -41,6 +41,51 @@
 
   /* Sağ panel kutuları biraz daha modern */
   #textStyleBox, #cropBox { background:rgba(255,255,255,.7); }
+
+   .om-autoplan-overlay{
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: rgba(15, 23, 42, .55);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .om-autoplan-overlay.show{ display:flex; }
+
+  .om-autoplan-box{
+    width: min(420px, 92vw);
+    background: rgba(255,255,255,.92);
+    border: 1px solid rgba(0,0,0,.08);
+    border-radius: 18px;
+    box-shadow: 0 18px 60px rgba(0,0,0,.20);
+    padding: 18px 18px 16px 18px;
+    text-align: center;
+  }
+  .om-autoplan-title{
+    font-weight: 700;
+    letter-spacing: -.2px;
+    margin: 10px 0 6px 0;
+  }
+  .om-autoplan-sub{
+    color: rgba(0,0,0,.62);
+    font-size: 13px;
+    line-height: 1.35;
+    margin: 0;
+  }
+
+  .om-spinner{
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 4px solid rgba(124,58,237,.20);
+    border-top-color: rgba(124,58,237,1);
+    margin: 0 auto;
+    animation: omspin .9s linear infinite;
+  }
+  @keyframes omspin { to { transform: rotate(360deg); } }
 </style>
 
 <?php
@@ -169,6 +214,16 @@
   </div>
 </div>
 
+<div id="omAutoplanOverlay" class="om-autoplan-overlay" aria-live="polite" aria-busy="true">
+  <div class="om-autoplan-box">
+    <div class="om-spinner"></div>
+    <div class="om-autoplan-title">Yönlendiriliyorsunuz…</div>
+    <p class="om-autoplan-sub">
+      Şablon kaydediliyor ve planlama ekranı hazırlanıyor.
+    </p>
+  </div>
+</div>
+
 <!-- Toast area (custom) -->
 <div id="omToastWrap" class="om-toast-wrap" aria-live="polite" aria-atomic="true"></div>
 
@@ -180,8 +235,8 @@
   const H = <?= (int)$h ?>;
   const BG = <?= json_encode((string)$bgUrl) ?>;
   const SAVED = <?= json_encode((string)$savedState) ?>;
+  const AUTOPLAN = <?= json_encode((bool)($autoplan ?? false)) ?>;
 
-  // ✅ CSRF state (auto refresh)
   const CSRF = {
     name: <?= json_encode(csrf_token()) ?>,
     hash: <?= json_encode(csrf_hash()) ?>
@@ -190,7 +245,6 @@
   const saveUrl   = <?= json_encode(site_url('panel/templates/'.$tplId.'/save')) ?>;
   const exportUrl = <?= json_encode(site_url('panel/templates/'.$tplId.'/export')) ?>;
 
-  // ---------- Custom Toast (NO alert, NO bootstrap dependency) ----------
   const toastWrap = document.getElementById('omToastWrap');
 
   function notify(message, type='info', title=null, ttl=2400){
@@ -220,7 +274,6 @@
       requestAnimationFrame(()=> t.classList.add('show'));
       setTimeout(close, Math.max(800, ttl|0));
     }catch(e){
-      // hiçbir koşulda alert'e düşme
       console.log('notify error', e);
     }
   }
@@ -240,19 +293,15 @@
     selection: true
   });
 
-  // ✅ Modern selection handles (küçük, yuvarlak, daha şık)
-  // Not: Fabric canvas içi renkler burada normal (grafik tool kuralı değil).
   fabric.Object.prototype.transparentCorners = false;
   fabric.Object.prototype.cornerStyle = 'circle';
-  fabric.Object.prototype.cornerSize = 10;       // daha küçük
+  fabric.Object.prototype.cornerSize = 10;      
   fabric.Object.prototype.cornerColor = '#ffffff';
   fabric.Object.prototype.cornerStrokeColor = '#7c3aed';
   fabric.Object.prototype.borderColor = '#7c3aed';
   fabric.Object.prototype.borderDashArray = [6, 4];
   fabric.Object.prototype.padding = 4;
 
-  // Text objelerinde “çok büyük/garip” görünümü azaltmak için:
-  // (Text seçilince çıkan çerçeve özellikle göze batıyor demiştin)
   function tuneTextControls(obj){
     if(!obj) return;
     obj.set({
@@ -267,6 +316,12 @@
     if (b1) b1.disabled = !!on;
     if (b2) b2.disabled = !!on;
   }
+
+    const overlayEl = document.getElementById('omAutoplanOverlay');
+    function showAutoplanOverlay(show){
+    if(!overlayEl) return;
+    overlayEl.classList.toggle('show', !!show);
+    }
 
   function fitToWrap(){
     const wrap = document.getElementById('canvasWrap');
@@ -335,9 +390,7 @@
     return json;
   }
 
-  // ---------- Fonts: gerçek font değişimi ----------
-  // Google fontlar yüklü değilse Fabric fallback yapar (senin yaşadığın “hepsi aynı” sorunu)
-  // Bunu çözmek için font uygulanmadan önce yüklenmesini bekliyoruz.
+
   const fontCache = new Set();
 
   async function ensureFontLoaded(fontFamily){
@@ -645,8 +698,6 @@
 
   // ---------- Init ----------
   async function init(){
-    // Fontları erken ısıt (özellikle “hepsi aynı görünüyor” sorununu azaltır)
-    // (Sistem fontlarına gerek yok)
     const warm = ['Inter','Poppins','Montserrat','Roboto','Oswald','Playfair Display','Nunito','Raleway'];
     try{
       for(const f of warm){ await ensureFontLoaded(f); }
@@ -660,7 +711,6 @@
         const json = JSON.parse(SAVED);
         canvas.loadFromJSON(json, async () => {
           if (BG) await setBackground(BG);
-          // loadFromJSON sonrası text objelerini bir kez tune edelim
           canvas.getObjects().forEach(o => { if(isText(o)) tuneTextControls(o); });
           fitToWrap();
           canvas.requestRenderAll();
@@ -673,14 +723,57 @@
     }
   }
 
+  async function runAutoPlan(){
+    try{
+        setBusy(true);
+        showAutoplanOverlay(true);
+
+        // önce save garanti olsun
+        if (!lastDesignId) {
+        const state = getStateJson();
+        const json = await postForm(saveUrl, {
+            canvas_width: W,
+            canvas_height: H,
+            state_json: state
+        });
+        if (json.design_id) lastDesignId = parseInt(json.design_id, 10) || lastDesignId;
+        }
+
+        const postType = document.getElementById('postType').value || 'post';
+        const dataUrl = canvas.toDataURL({ format:'png', quality: 1 });
+
+        const out = await postForm(exportUrl, {
+        design_id: String(lastDesignId),
+        png_data: dataUrl,
+        post_type: postType
+        });
+
+        if (out.redirect) window.location.href = out.redirect;
+
+    } catch(e){
+        showAutoplanOverlay(false);
+        notify((e && e.message) ? e.message : 'Hızlı planlama hatası', 'danger');
+    } finally {
+        setBusy(false);
+    }
+    }
+
+
   let resizeT = null;
   window.addEventListener('resize', () => {
     clearTimeout(resizeT);
     resizeT = setTimeout(() => fitToWrap(), 120);
   });
 
-  init();
+    (async () => {
+    await init();
+    if (AUTOPLAN) {
+        showAutoplanOverlay(true); 
+        setTimeout(() => runAutoPlan(), 250);
+    }
+    })();
 })();
+
 </script>
 
 <?= $this->endSection() ?>
