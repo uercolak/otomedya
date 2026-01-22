@@ -18,8 +18,6 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
         $threshold     = date('Y-m-d H:i:s', time() + 10 * 60);
 
         // 1) Yenilenecek token satırlarını seç
-        //    - onlyAccountId geldiyse: o hesabın EN GÜNCEL token satırı
-        //    - yoksa: süresi dolmuş / yakında dolacak tokenların her hesap için EN GÜNCEL satırı
         if ($onlyAccountId > 0) {
             $rows = $db->table('social_account_tokens sat')
                 ->select('sat.id as token_row_id, sat.social_account_id, sat.refresh_token, sat.expires_at, sa.external_id')
@@ -30,7 +28,6 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                 ->limit(1)
                 ->get()->getResultArray();
         } else {
-            // Her social_account_id için MAX(id) olan satırı al
             $sql = "
                 SELECT sat.id as token_row_id, sat.social_account_id, sat.refresh_token, sat.expires_at, sa.external_id
                 FROM social_account_tokens sat
@@ -57,11 +54,13 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
         $touchedAccountIds = [];
 
         foreach ($rows as $row) {
+            $tokenRowId      = (int)($row['token_row_id'] ?? 0);
             $socialAccountId = (int)($row['social_account_id'] ?? 0);
             $refreshToken    = (string)($row['refresh_token'] ?? '');
 
-            if ($socialAccountId <= 0 || $refreshToken === '') {
-                log_message('warning', '[TikTokRefresh] Skip account. social_account_id={id} refreshTokenEmpty={empty}', [
+            if ($tokenRowId <= 0 || $socialAccountId <= 0 || $refreshToken === '') {
+                log_message('warning', '[TikTokRefresh] Skip row. token_row_id={tid} social_account_id={id} refreshTokenEmpty={empty}', [
+                    'tid'   => $tokenRowId,
                     'id'    => $socialAccountId,
                     'empty' => $refreshToken === '' ? 'yes' : 'no',
                 ]);
@@ -96,10 +95,9 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
 
             $expiresAt = ($expiresIn > 0) ? date('Y-m-d H:i:s', time() + $expiresIn - 60) : null;
 
-            // 2) social_account_tokens tablosunu güncelle (tek satır modelin var: update ediyoruz)
+            // 2) Sadece seçtiğimiz token satırını update et (en güvenlisi)
             $db->table('social_account_tokens')
-                ->where('social_account_id', $socialAccountId)
-                ->where('provider', 'tiktok')
+                ->where('id', $tokenRowId)
                 ->update([
                     'access_token'  => $accessToken,
                     'refresh_token' => $newRefresh,
@@ -109,7 +107,7 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                     'updated_at'    => $now,
                 ]);
 
-            // 3) social_accounts (senin sistemde de kopyası var) güncelle
+            // 3) social_accounts kopyasını da güncelle
             $db->table('social_accounts')
                 ->where('id', $socialAccountId)
                 ->update([
@@ -127,16 +125,16 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
             ]);
         }
 
-        // 4) Eğer bu refresh bir publish akışından geldiyse, status jobunu tekrar sıraya koy
-        //    (TikTokPublishStatusHandler bunu okuyup devam edecek)
+        // 4) Refresh bir publish akışından geldiyse, status değil publish_post'u yeniden dene
+        //    Çünkü 401 init/upload aşamasında geldiyse meta_json'da publish_id yoktur.
         if ($refreshedAny && $publishId > 0) {
             $queue = new QueueService();
-            $queue->push('tiktok_publish_status', [
+            $queue->push('publish_post', [
                 'publish_id' => $publishId,
-                'attempt'    => 0,
-            ], date('Y-m-d H:i:s', time() + 5), 90, 3);
+                'post_type'  => 'post', // sende payload farklıysa burayı aynı bırakabiliriz, default zaten post.
+            ], date('Y-m-d H:i:s', time() + 3), 90, 3);
 
-            log_message('info', '[TikTokRefresh] Re-queued tiktok_publish_status for publish_id={pid}', ['pid' => $publishId]);
+            log_message('info', '[TikTokRefresh] Re-queued publish_post for publish_id={pid}', ['pid' => $publishId]);
         }
 
         return true;
