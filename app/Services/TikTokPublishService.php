@@ -32,22 +32,36 @@ class TikTokPublishService
 
     public function uploadToUrl(string $uploadUrl, string $filePath): void
     {
+        if (!is_file($filePath) || !is_readable($filePath)) {
+            throw new \RuntimeException('TikTok upload: dosya okunamadı: ' . $filePath);
+        }
+
+        $size = filesize($filePath);
+        if ($size === false || (int)$size <= 0) {
+            throw new \RuntimeException('TikTok upload: dosya boyutu okunamadı.');
+        }
+
         $fp = fopen($filePath, 'rb');
-        if (!$fp) throw new \RuntimeException('TikTok upload: dosya açılamadı: ' . $filePath);
+        if (!$fp) {
+            throw new \RuntimeException('TikTok upload: dosya açılamadı: ' . $filePath);
+        }
 
-        $data = stream_get_contents($fp);
-        fclose($fp);
-
-        if ($data === false) throw new \RuntimeException('TikTok upload: dosya okunamadı.');
+        $start = 0;
+        $end   = $size - 1;
 
         $ch = curl_init($uploadUrl);
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST  => 'PUT',
-            CURLOPT_POSTFIELDS     => $data,
+            CURLOPT_UPLOAD         => true,
+            CURLOPT_INFILE         => $fp,
+            CURLOPT_INFILESIZE     => $size,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER         => true,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: video/mp4',
+                'Content-Length: ' . $size,
+                'Content-Range: bytes ' . $start . '-' . $end . '/' . $size,
+                'Expect:', // 100-continue kapat, bazen sorun çıkarıyor
             ],
             CURLOPT_TIMEOUT        => 0,
         ]);
@@ -55,10 +69,16 @@ class TikTokPublishService
         $resp = curl_exec($ch);
         $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = curl_error($ch);
+
         curl_close($ch);
+        fclose($fp);
 
         if ($resp === false || $http < 200 || $http >= 300) {
-            throw new \RuntimeException('TikTok upload failed HTTP=' . $http . ' ERR=' . $err . ' RESP=' . substr((string)$resp, 0, 800));
+            throw new \RuntimeException(
+                'TikTok upload failed HTTP=' . $http .
+                ' ERR=' . $err .
+                ' RESP=' . substr((string)$resp, 0, 1200)
+            );
         }
     }
 
