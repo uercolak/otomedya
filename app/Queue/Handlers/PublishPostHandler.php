@@ -8,6 +8,7 @@ use App\Services\LogService;
 use App\Services\MetaPublishService;
 use App\Services\YouTubePublishService;
 use App\Services\TikTokPublishService;
+use App\Services\QueueService;
 use Config\Database;
 
 class PublishPostHandler implements JobHandlerInterface
@@ -144,13 +145,17 @@ class PublishPostHandler implements JobHandlerInterface
             // upload
             $tt->uploadToUrl($uploadUrl, $absPath);
 
-            // MVP: “poll/status check” yok → en azından kayıt tutalım, published yapmayalım.
             $meta = [
                 'tiktok' => [
                     'publish_id' => $publishTokenId,
                     'status'     => 'UPLOADED',
                 ],
             ];
+
+            $queue = new QueueService();
+                $queue->push('tiktok_publish_status', [
+                    'publish_id' => $publishId,
+                ], date('Y-m-d H:i:s', time() + 10), 90, 30);
 
             $this->publishes->update($publishId, [
                 'status'    => PublishModel::STATUS_PUBLISHING,

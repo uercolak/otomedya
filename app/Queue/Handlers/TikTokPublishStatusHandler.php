@@ -5,6 +5,7 @@ namespace App\Queue\Handlers;
 use App\Queue\JobHandlerInterface;
 use App\Models\PublishModel;
 use App\Services\TikTokPublishService;
+use App\Services\QueueService;
 use Config\Database;
 
 class TikTokPublishStatusHandler implements JobHandlerInterface
@@ -93,6 +94,11 @@ class TikTokPublishStatusHandler implements JobHandlerInterface
             'error'     => null,
             'meta_json' => json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         ]);
+
+        $queue = new QueueService();
+        $queue->push('tiktok_publish_status', [
+            'publish_id' => $publishId,
+        ], date('Y-m-d H:i:s', time() + 10), 90, 30);
 
         // Job success: retry’ı biz zamanlayacağız (PublishPostHandler’dan)
         return true;
