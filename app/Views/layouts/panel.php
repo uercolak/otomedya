@@ -16,7 +16,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Panel CSS (harici dosya) -->
-    <link rel="icon" type="image/png" href="<?= base_url('/logo2.png'); ?>">
+    <link rel="icon" type="image/png" href="<?= base_url('/panellogo.png'); ?>">
     <link href="<?= base_url('/assets/css/panel.css'); ?>" rel="stylesheet">
 
     <style>
