@@ -549,24 +549,28 @@ body{ color: var(--ink); }
   font-weight: 700 !important;
 }
 
-/* Sidebar yazılar soft olsun */
+/* ACTIVE menü: gradient/turuncu arkaplanda yazı beyaz olsun */
+.side-nav .nav-link.active,
+.side-nav .nav-link[aria-current="page"],
+.side-nav .nav-link.is-active,
+.side-nav .nav-link.active * ,
+.side-nav .nav-link[aria-current="page"] * ,
+.side-nav .nav-link.is-active *{
+  color: #fff !important;
+}
+
+/* Active item içindeki ikonlar da beyaz */
+.side-nav .nav-link.active i,
+.side-nav .nav-link[aria-current="page"] i,
+.side-nav .nav-link.is-active i{
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
+/* Active değilken soft kalsın (senin istediğin) */
 .side-nav .nav-link{
   color: rgba(17,24,39,.64) !important;
-  font-weight: 600 !important;
 }
 .side-nav .nav-link:hover{
   color: rgba(17,24,39,.78) !important;
-}
-.side-nav .nav-link.active{
-  color: rgba(17,24,39,.82) !important;
-}
-
-/* Sidebar başlıkları (GENEL / İÇERİK / YÖNETİM) çok koyuysa */
-.sidebar .nav-header,
-.sidebar .section-title{
-  color: rgba(17,24,39,.40) !important;
-  letter-spacing: .18em;
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 11px;
 }
