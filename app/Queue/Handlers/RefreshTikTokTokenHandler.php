@@ -3,47 +3,66 @@
 namespace App\Queue\Handlers;
 
 use App\Queue\JobHandlerInterface;
+use App\Services\QueueService;
 use Config\Database;
 
 class RefreshTikTokTokenHandler implements JobHandlerInterface
 {
     public function handle(array $payload): bool
     {
-        $db = Database::connect();
+        $db  = Database::connect();
         $now = date('Y-m-d H:i:s');
 
         $onlyAccountId = isset($payload['social_account_id']) ? (int)$payload['social_account_id'] : 0;
+        $publishId     = isset($payload['publish_id']) ? (int)$payload['publish_id'] : 0; // opsiyonel
+        $threshold     = date('Y-m-d H:i:s', time() + 10 * 60);
 
-        $threshold = date('Y-m-d H:i:s', time() + 10 * 60);
-
-        $q = $db->table('social_account_tokens sat')
-            ->select('sat.id as token_row_id, sat.social_account_id, sat.refresh_token, sat.expires_at, sa.external_id')
-            ->join('social_accounts sa', 'sa.id = sat.social_account_id', 'inner')
-            ->where('sat.provider', 'tiktok');
-
+        // 1) Yenilenecek token satırlarını seç
+        //    - onlyAccountId geldiyse: o hesabın EN GÜNCEL token satırı
+        //    - yoksa: süresi dolmuş / yakında dolacak tokenların her hesap için EN GÜNCEL satırı
         if ($onlyAccountId > 0) {
-            $q->where('sat.social_account_id', $onlyAccountId);
+            $rows = $db->table('social_account_tokens sat')
+                ->select('sat.id as token_row_id, sat.social_account_id, sat.refresh_token, sat.expires_at, sa.external_id')
+                ->join('social_accounts sa', 'sa.id = sat.social_account_id', 'inner')
+                ->where('sat.provider', 'tiktok')
+                ->where('sat.social_account_id', $onlyAccountId)
+                ->orderBy('sat.id', 'DESC')
+                ->limit(1)
+                ->get()->getResultArray();
         } else {
-            $q->groupStart()
-                    ->where('sat.expires_at IS NULL', null, false)
-                    ->orWhere('sat.expires_at <=', $threshold)
-              ->groupEnd();
+            // Her social_account_id için MAX(id) olan satırı al
+            $sql = "
+                SELECT sat.id as token_row_id, sat.social_account_id, sat.refresh_token, sat.expires_at, sa.external_id
+                FROM social_account_tokens sat
+                INNER JOIN social_accounts sa ON sa.id = sat.social_account_id
+                WHERE sat.provider = 'tiktok'
+                  AND (sat.expires_at IS NULL OR sat.expires_at <= ?)
+                  AND sat.id IN (
+                      SELECT MAX(id)
+                      FROM social_account_tokens
+                      WHERE provider = 'tiktok'
+                      GROUP BY social_account_id
+                  )
+                LIMIT 50
+            ";
+            $rows = $db->query($sql, [$threshold])->getResultArray();
         }
-
-        $rows = $q->limit(50)->get()->getResultArray();
 
         if (!$rows) {
             log_message('info', '[TikTokRefresh] No tokens to refresh. threshold={threshold}', ['threshold' => $threshold]);
             return true;
         }
 
+        $refreshedAny = false;
+        $touchedAccountIds = [];
+
         foreach ($rows as $row) {
             $socialAccountId = (int)($row['social_account_id'] ?? 0);
-            $refreshToken = (string)($row['refresh_token'] ?? '');
+            $refreshToken    = (string)($row['refresh_token'] ?? '');
 
             if ($socialAccountId <= 0 || $refreshToken === '') {
                 log_message('warning', '[TikTokRefresh] Skip account. social_account_id={id} refreshTokenEmpty={empty}', [
-                    'id' => $socialAccountId,
+                    'id'    => $socialAccountId,
                     'empty' => $refreshToken === '' ? 'yes' : 'no',
                 ]);
                 continue;
@@ -53,23 +72,23 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                 $newToken = $this->refreshToken($refreshToken);
             } catch (\Throwable $e) {
                 log_message('error', '[TikTokRefresh] Refresh failed account_id={id} err={err}', [
-                    'id' => $socialAccountId,
+                    'id'  => $socialAccountId,
                     'err' => $e->getMessage(),
                 ]);
                 continue;
             }
 
-            $accessToken  = (string)($newToken['access_token'] ?? '');
-            $expiresIn    = (int)($newToken['expires_in'] ?? 0);
-            $scopeStr     = (string)($newToken['scope'] ?? '');
-            $tokenType    = (string)($newToken['token_type'] ?? 'bearer');
+            $accessToken = (string)($newToken['access_token'] ?? '');
+            $expiresIn   = (int)($newToken['expires_in'] ?? 0);
+            $scopeStr    = (string)($newToken['scope'] ?? '');
+            $tokenType   = (string)($newToken['token_type'] ?? 'bearer');
 
-            $newRefresh   = (string)($newToken['refresh_token'] ?? '');
+            $newRefresh  = (string)($newToken['refresh_token'] ?? '');
             if ($newRefresh === '') $newRefresh = $refreshToken;
 
             if ($accessToken === '') {
                 log_message('error', '[TikTokRefresh] Missing access_token after refresh. account_id={id} resp={resp}', [
-                    'id' => $socialAccountId,
+                    'id'   => $socialAccountId,
                     'resp' => json_encode($newToken),
                 ]);
                 continue;
@@ -77,6 +96,7 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
 
             $expiresAt = ($expiresIn > 0) ? date('Y-m-d H:i:s', time() + $expiresIn - 60) : null;
 
+            // 2) social_account_tokens tablosunu güncelle (tek satır modelin var: update ediyoruz)
             $db->table('social_account_tokens')
                 ->where('social_account_id', $socialAccountId)
                 ->where('provider', 'tiktok')
@@ -89,6 +109,7 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                     'updated_at'    => $now,
                 ]);
 
+            // 3) social_accounts (senin sistemde de kopyası var) güncelle
             $db->table('social_accounts')
                 ->where('id', $socialAccountId)
                 ->update([
@@ -96,6 +117,26 @@ class RefreshTikTokTokenHandler implements JobHandlerInterface
                     'token_expires_at' => $expiresAt,
                     'updated_at'       => $now,
                 ]);
+
+            $refreshedAny = true;
+            $touchedAccountIds[] = $socialAccountId;
+
+            log_message('info', '[TikTokRefresh] Refreshed token. social_account_id={id} expires_at={exp}', [
+                'id'  => $socialAccountId,
+                'exp' => $expiresAt ?? 'NULL',
+            ]);
+        }
+
+        // 4) Eğer bu refresh bir publish akışından geldiyse, status jobunu tekrar sıraya koy
+        //    (TikTokPublishStatusHandler bunu okuyup devam edecek)
+        if ($refreshedAny && $publishId > 0) {
+            $queue = new QueueService();
+            $queue->push('tiktok_publish_status', [
+                'publish_id' => $publishId,
+                'attempt'    => 0,
+            ], date('Y-m-d H:i:s', time() + 5), 90, 3);
+
+            log_message('info', '[TikTokRefresh] Re-queued tiktok_publish_status for publish_id={pid}', ['pid' => $publishId]);
         }
 
         return true;

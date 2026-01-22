@@ -9,6 +9,8 @@ class TikTokPublishService
         $url = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
 
         $privacy = strtoupper(trim((string) env('TIKTOK_PRIVACY_LEVEL', 'SELF_ONLY')));
+            $allowed = ['SELF_ONLY', 'PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR']; 
+            if (!in_array($privacy, $allowed, true)) $privacy = 'SELF_ONLY';
 
         $body = json_encode([
             'post_info' => [

@@ -79,7 +79,7 @@ class PublishPostHandler implements JobHandlerInterface
         $mediaType = strtolower(trim((string)($row['content_media_type'] ?? ''))); // image|video|null
         $mediaPath = trim((string)($row['content_media_path'] ?? ''));
 
-        // Meta için URL
+        // Meta için URL (IG/FB)
         $mediaUrl = '';
         if ($mediaPath !== '') {
             $mediaUrl = base_url($mediaPath);
@@ -93,21 +93,28 @@ class PublishPostHandler implements JobHandlerInterface
             $mediaType = in_array($ext, ['mp4', 'mov', 'm4v', 'webm'], true) ? 'video' : 'image';
         }
 
-        // publishing
+        // publish -> publishing
         $this->publishes->update($publishId, [
             'status' => PublishModel::STATUS_PUBLISHING,
             'error'  => null,
         ]);
 
         // =========================
-        // ✅ TIKTOK (MVP: sadece video + caption)
+        // ✅ TIKTOK (MVP: video + caption)
         // =========================
         if ($platform === 'tiktok') {
 
+            $saId = (int)($row['sa_id'] ?? 0);
+            if ($saId <= 0) {
+                throw new \RuntimeException('TikTok için social_account (sa_id) bulunamadı.');
+            }
+
+            // token'ı ayrı çekiyoruz (meta/google join'larından bağımsız)
             $tok = $db->table('social_account_tokens')
-                ->select('access_token')
-                ->where('social_account_id', (int)($row['sa_id'] ?? 0))
+                ->select('access_token, refresh_token, expires_at')
+                ->where('social_account_id', $saId)
                 ->where('provider', 'tiktok')
+                ->orderBy('id', 'DESC')
                 ->get()->getRowArray();
 
             $ttAccessToken = $tok ? trim((string)($tok['access_token'] ?? '')) : '';
@@ -129,33 +136,86 @@ class PublishPostHandler implements JobHandlerInterface
                 throw new \RuntimeException('TikTok video boyutu okunamadı.');
             }
 
+            // mevcut meta_json varsa merge edelim
+            $meta = [];
+            if (!empty($row['meta_json'])) {
+                $tmp = json_decode((string)$row['meta_json'], true);
+                if (is_array($tmp)) $meta = $tmp;
+            }
+
             $tt = new TikTokPublishService();
 
-            // init → upload_url + publish_id
-            $init = $tt->initVideoPublish($ttAccessToken, ($caption !== '' ? $caption : ' '), (int)$size);
+            // init -> upload_url + publish_id
+            try {
+                $init = $tt->initVideoPublish($ttAccessToken, ($caption !== '' ? $caption : ' '), (int)$size);
+            } catch (\Throwable $e) {
+                $msg = $e->getMessage();
+
+                // 401 / invalid token ise refresh'e düş
+                if (stripos($msg, 'HTTP=401') !== false || stripos($msg, 'access_token_invalid') !== false) {
+
+                    $queue = new QueueService();
+                    $queue->push('refresh_tiktok_token', [
+                        'social_account_id' => $saId,
+                        'publish_id'        => $publishId,
+                    ], date('Y-m-d H:i:s', time() + 2), 90, 3);
+
+                    $this->publishes->update($publishId, [
+                        'status' => PublishModel::STATUS_PUBLISHING,
+                        'error'  => null,
+                    ]);
+
+                    return true;
+                }
+
+                throw $e;
+            }
+
             $data = $init['data'] ?? [];
 
-            $uploadUrl = (string)($data['upload_url'] ?? '');
+            $uploadUrl      = (string)($data['upload_url'] ?? '');
             $publishTokenId = (string)($data['publish_id'] ?? '');
 
             if ($uploadUrl === '' || $publishTokenId === '') {
-                throw new \RuntimeException('TikTok init başarısız. RESP=' . json_encode($init));
+                throw new \RuntimeException('TikTok init başarısız. RESP=' . json_encode($init, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
             }
 
-            // upload
-            $tt->uploadToUrl($uploadUrl, $absPath);
+            // upload (burada da token invalid çıkabilir)
+            try {
+                $tt->uploadToUrl($uploadUrl, $absPath);
+            } catch (\Throwable $e) {
+                $msg = $e->getMessage();
+                if (stripos($msg, 'HTTP=401') !== false || stripos($msg, 'access_token_invalid') !== false) {
 
-            $meta = [
-                'tiktok' => [
-                    'publish_id' => $publishTokenId,
-                    'status'     => 'UPLOADED',
-                ],
-            ];
+                    $queue = new QueueService();
+                    $queue->push('refresh_tiktok_token', [
+                        'social_account_id' => $saId,
+                        'publish_id'        => $publishId,
+                    ], date('Y-m-d H:i:s', time() + 2), 90, 3);
 
+                    $this->publishes->update($publishId, [
+                        'status' => PublishModel::STATUS_PUBLISHING,
+                        'error'  => null,
+                    ]);
+
+                    return true;
+                }
+
+                throw $e;
+            }
+
+            // meta güncelle (merge)
+            $meta['tiktok'] = array_merge(($meta['tiktok'] ?? []), [
+                'publish_id' => $publishTokenId,
+                'status'     => 'UPLOADED',
+            ]);
+
+            // status job bas (attempt=0)
             $queue = new QueueService();
-                $queue->push('tiktok_publish_status', [
-                    'publish_id' => $publishId,
-                ], date('Y-m-d H:i:s', time() + 10), 90, 30);
+            $queue->push('tiktok_publish_status', [
+                'publish_id' => $publishId,
+                'attempt'    => 0,
+            ], date('Y-m-d H:i:s', time() + 10), 90, 30);
 
             $this->publishes->update($publishId, [
                 'status'    => PublishModel::STATUS_PUBLISHING,
@@ -167,7 +227,7 @@ class PublishPostHandler implements JobHandlerInterface
         }
 
         // =========================
-        // ✅ YOUTUBE (publish_post içinde kullanılmıyor ama güvenli kalsın)
+        // ✅ YOUTUBE
         // =========================
         if ($platform === 'youtube') {
             throw new \RuntimeException('youtube publish_post ile değil publish_youtube job ile çalışmalı.');
