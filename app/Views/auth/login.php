@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="utf-8">
-    <title>Giriş Yap | Sosyal Panel</title>
+    <title>Giriş Yap | Sosyal Medya Planlama</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <link rel="icon" type="image/png" href="<?= base_url('/logo2.png'); ?>">
@@ -252,7 +252,7 @@
                 <img src="<?= base_url('/logo.png'); ?>" alt="Sosyal Panel">
             </div>
             <div>
-                <div class="brand-title">Sosyal Panel</div>
+                <div class="brand-title">Sosyal Medya Planlama</div>
                 <div class="brand-sub">Planla • Yayınla • Yönet</div>
             </div>
         </div>
