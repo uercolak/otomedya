@@ -120,7 +120,7 @@
 
     <aside id="sidebar" class="sidebar">
         <div class="brand mb-3">
-            <img class="brand-logo-img" src="<?= base_url('logo.png') ?>" alt="Logo">
+            <img class="brand-logo-img" src="<?= base_url('panellogo.png') ?>" alt="Logo">
             <div>
                 <div class="brand-title">Sosyal Medya Planlama</div>
                 <div class="brand-sub">Planla • Tasarla • Yayınla</div>
