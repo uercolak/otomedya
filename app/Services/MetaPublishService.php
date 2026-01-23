@@ -258,4 +258,31 @@ class MetaPublishService
         $link = (string)($res['permalink_url'] ?? '');
         return $link !== '' ? $link : null;
     }
+
+    public function getInstagramContainerStatus(string $creationId, string $accessToken): array
+    {
+        $url = "https://graph.facebook.com/v19.0/{$creationId}?fields=status_code&access_token=" . urlencode($accessToken);
+        $raw = $this->getJson($url);
+        return [
+            'status_code' => $raw['status_code'] ?? null,
+            'raw' => $raw,
+        ];
+    }
+
+    public function publishInstagramContainer(string $igUserId, string $creationId, string $accessToken): array
+    {
+        $url = "https://graph.facebook.com/v19.0/{$igUserId}/media_publish";
+        $raw = $this->postForm($url, [
+            'creation_id'  => $creationId,
+            'access_token' => $accessToken,
+        ]);
+
+        return [
+            'published_id' => $raw['id'] ?? null,
+            'raw' => $raw,
+        ];
+    }
+
+    
 }
+

@@ -2,6 +2,7 @@
 
 namespace App\Queue;
 
+use App\Queue\Handlers\MetaMediaStatusHandler;
 use RuntimeException;
 
 class HandlerRegistry
@@ -24,12 +25,8 @@ class HandlerRegistry
         return strtolower(trim($type));
     }
 
-    /**
-     * Config\Queue->handlers yükle (CI context varsa), yoksa dosyadan fallback.
-     */
     private function loadHandlers(): array
     {
-        // 1) CI config helper ile dene (normalde worker burada)
         try {
             $cfg = config(\Config\Queue::class);
             $handlers = $cfg->handlers ?? [];
@@ -37,10 +34,8 @@ class HandlerRegistry
                 return $this->normalizeMap($handlers);
             }
         } catch (\Throwable $e) {
-            // ignore -> fallback
         }
 
-        // 2) Fallback: dosyayı doğrudan include et (CI BaseConfig lifecycle'a takılmadan)
         $path = APPPATH . 'Config/Queue.php';
         if (!is_file($path)) {
             return [];
@@ -53,7 +48,6 @@ class HandlerRegistry
             return [];
         }
 
-        // Reflection ile $handlers property değerini al
         try {
             $ref = new \ReflectionClass(\Config\Queue::class);
             $defaults = $ref->getDefaultProperties();
