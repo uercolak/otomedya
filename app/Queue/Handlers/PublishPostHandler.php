@@ -17,6 +17,7 @@ class PublishPostHandler implements JobHandlerInterface
     private LogService $logger;
     private MetaPublishService $meta;
     private YouTubePublishService $youtube;
+    private TikTokPublishService $tiktok;
 
     public function __construct()
     {
@@ -24,6 +25,7 @@ class PublishPostHandler implements JobHandlerInterface
         $this->logger    = new LogService();
         $this->meta      = new MetaPublishService();
         $this->youtube   = new YouTubePublishService();
+        $this->tiktok    = new TikTokPublishService();
     }
 
     public function handle(array $payload): bool
@@ -33,10 +35,9 @@ class PublishPostHandler implements JobHandlerInterface
             throw new \RuntimeException('publish_id zorunlu.');
         }
 
-        $attempt     = (int)($payload['attempt'] ?? 0);
-        $maxAttempts = 3;
+        $db  = Database::connect();
+        $now = date('Y-m-d H:i:s');
 
-        $db = Database::connect();
         $jobPostType = strtolower(trim((string)($payload['post_type'] ?? 'post')));
 
         $row = $db->table('publishes p')
@@ -51,6 +52,7 @@ class PublishPostHandler implements JobHandlerInterface
                 sa.platform as sa_platform,
                 sa.external_id as sa_external_id,
                 sa.meta_page_id as sa_meta_page_id,
+                sa.username as sa_username,
 
                 satm.access_token as meta_access_token,
 
@@ -64,7 +66,8 @@ class PublishPostHandler implements JobHandlerInterface
             ->join('social_account_tokens satm', "satm.social_account_id = sa.id AND satm.provider='meta'", 'left')
             ->join('social_account_tokens satg', "satg.social_account_id = sa.id AND satg.provider='google'", 'left')
             ->where('p.id', $publishId)
-            ->get()->getRowArray();
+            ->get()
+            ->getRowArray();
 
         if (!$row) {
             throw new \RuntimeException('Publish kaydı bulunamadı: #' . $publishId);
@@ -80,269 +83,352 @@ class PublishPostHandler implements JobHandlerInterface
         $mediaType = strtolower(trim((string)($row['content_media_type'] ?? ''))); // image|video|null
         $mediaPath = trim((string)($row['content_media_path'] ?? ''));
 
-        // media url (Meta için)
+        // medya URL (Meta için)
         $mediaUrl = '';
         if ($mediaPath !== '') {
             $mediaUrl = base_url($mediaPath);
             if (!preg_match('~^https?://~i', $mediaUrl)) {
-                throw new \RuntimeException('Media URL http/https olmalı: ' . $mediaUrl);
+                $this->fail($publishId, 'Media URL http/https olmalı: ' . $mediaUrl, $now);
+                return true;
             }
         }
 
-        // mediaType auto-detect
+        // mediaType fallback
         if ($mediaUrl !== '' && !in_array($mediaType, ['image', 'video'], true)) {
             $ext = strtolower(pathinfo(parse_url($mediaUrl, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
             $mediaType = in_array($ext, ['mp4', 'mov', 'm4v', 'webm'], true) ? 'video' : 'image';
         }
 
-        // publishing
+        // publish = publishing
         $this->publishes->update($publishId, [
-            'status' => PublishModel::STATUS_PUBLISHING,
-            'error'  => null,
+            'status'     => PublishModel::STATUS_PUBLISHING,
+            'error'      => null,
+            'updated_at' => $now,
         ]);
 
-        // =========================
-        // ✅ TIKTOK
-        // =========================
-        if ($platform === 'tiktok') {
+        try {
+            // =========================
+            // ✅ TIKTOK (MVP: sadece video + caption)
+            // =========================
+            if ($platform === 'tiktok') {
 
-            $saId = (int)($row['sa_id'] ?? 0);
-            if ($saId <= 0) {
-                throw new \RuntimeException('TikTok social_account_id bulunamadı (sa_id boş).');
-            }
+                $tok = $db->table('social_account_tokens')
+                    ->select('access_token, refresh_token, expires_at')
+                    ->where('social_account_id', (int)($row['sa_id'] ?? 0))
+                    ->where('provider', 'tiktok')
+                    ->orderBy('id', 'DESC')
+                    ->limit(1)
+                    ->get()->getRowArray();
 
-            $tok = $db->table('social_account_tokens')
-                ->select('access_token, refresh_token, expires_at')
-                ->where('social_account_id', $saId)
-                ->where('provider', 'tiktok')
-                ->orderBy('id', 'DESC')
-                ->get()->getRowArray();
+                $ttAccessToken = $tok ? trim((string)($tok['access_token'] ?? '')) : '';
+                if ($ttAccessToken === '') {
+                    throw new \RuntimeException('TikTok access_token yok. social_account_tokens(provider=tiktok) kontrol et.');
+                }
 
-            $ttAccessToken = $tok ? trim((string)($tok['access_token'] ?? '')) : '';
-            if ($ttAccessToken === '') {
-                throw new \RuntimeException('TikTok access_token yok. social_account_tokens(provider=tiktok) kontrol et.');
-            }
+                if ($mediaType !== 'video' || $mediaPath === '') {
+                    throw new \RuntimeException('TikTok için şimdilik sadece video destekli. media_type=video ve media_path zorunlu.');
+                }
 
-            if ($mediaType !== 'video' || $mediaPath === '') {
-                throw new \RuntimeException('TikTok için şimdilik sadece video destekli. media_type=video ve media_path zorunlu.');
-            }
+                $absPath = rtrim(FCPATH, '/\\') . DIRECTORY_SEPARATOR . ltrim($mediaPath, '/\\');
+                if (!is_file($absPath) || !is_readable($absPath)) {
+                    throw new \RuntimeException('TikTok video dosyası okunamadı: ' . $absPath);
+                }
 
-            $absPath = rtrim(FCPATH, '/\\') . DIRECTORY_SEPARATOR . ltrim($mediaPath, '/\\');
-            if (!is_file($absPath) || !is_readable($absPath)) {
-                throw new \RuntimeException('TikTok video dosyası okunamadı: ' . $absPath);
-            }
+                $size = filesize($absPath);
+                if ($size === false || (int)$size <= 0) {
+                    throw new \RuntimeException('TikTok video boyutu okunamadı.');
+                }
 
-            $size = filesize($absPath);
-            if ($size === false || (int)$size <= 0) {
-                throw new \RuntimeException('TikTok video boyutu okunamadı.');
-            }
-
-            $tt = new TikTokPublishService();
-
-            try {
                 // init → upload_url + publish_id
-                $init = $tt->initVideoPublish($ttAccessToken, ($caption !== '' ? $caption : ' '), (int)$size);
+                $init = $this->tiktok->initVideoPublish($ttAccessToken, ($caption !== '' ? $caption : ' '), (int)$size);
+
                 $data = $init['data'] ?? [];
+                $uploadUrl     = (string)($data['upload_url'] ?? '');
+                $tiktokPublishId = (string)($data['publish_id'] ?? '');
 
-                $uploadUrl      = (string)($data['upload_url'] ?? '');
-                $publishTokenId = (string)($data['publish_id'] ?? '');
-
-                if ($uploadUrl === '' || $publishTokenId === '') {
+                if ($uploadUrl === '' || $tiktokPublishId === '') {
                     throw new \RuntimeException('TikTok init başarısız. RESP=' . json_encode($init));
                 }
 
                 // upload
-                $tt->uploadToUrl($uploadUrl, $absPath);
+                $this->tiktok->uploadToUrl($uploadUrl, $absPath);
 
+                // meta_json set
                 $meta = [
                     'tiktok' => [
-                        'publish_id' => $publishTokenId,
+                        'publish_id' => $tiktokPublishId,
                         'status'     => 'UPLOADED',
                     ],
                 ];
 
                 $this->publishes->update($publishId, [
-                    'status'    => PublishModel::STATUS_PUBLISHING,
-                    'error'     => null,
-                    'meta_json' => json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'status'     => PublishModel::STATUS_PUBLISHING,
+                    'error'      => null,
+                    'meta_json'  => json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'updated_at' => $now,
                 ]);
 
-                // status job
+                // status job: publish complete → published'a çekmek için
                 $queue = new QueueService();
-                $queue->push('tiktok_publish_status', [
-                    'publish_id' => $publishId,
-                    'attempt'    => 0,
-                ], date('Y-m-d H:i:s', time() + 10), 90, 30);
+                $queue->push(
+                    'tiktok_publish_status',
+                    [
+                        'publish_id'        => $publishId,
+                        'tiktok_publish_id' => $tiktokPublishId, // ✅ meta_json okumaya mecbur kalmasın
+                        'attempt'           => 0,
+                    ],
+                    date('Y-m-d H:i:s', time() + 10),
+                    90,
+                    30
+                );
 
                 return true;
+            }
 
-            } catch (\Throwable $e) {
+            // =========================
+            // ✅ YOUTUBE
+            // =========================
+            if ($platform === 'youtube') {
+                throw new \RuntimeException('youtube publish_post ile değil publish_youtube job ile çalışmalı.');
+            }
 
-                $msg = $e->getMessage();
+            // =========================
+            // ✅ META (INSTAGRAM / FACEBOOK)
+            // =========================
+            if (!in_array($platform, ['instagram', 'facebook'], true)) {
+                throw new \RuntimeException('Desteklenmeyen platform: ' . $platform);
+            }
 
-                // 401 / access_token_invalid → refresh + retry publish (max 3)
-                if ((stripos($msg, 'HTTP=401') !== false || stripos($msg, 'access_token_invalid') !== false) && $attempt < $maxAttempts) {
-                    $queue = new QueueService();
+            $pageToken = trim((string)($row['meta_access_token'] ?? ''));
+            if ($pageToken === '') {
+                throw new \RuntimeException('Meta page token eksik. social_account_tokens(provider=meta).access_token kontrol et.');
+            }
 
-                    $queue->push('refresh_tiktok_token', [
-                        'social_account_id' => $saId,
-                        'publish_id'        => $publishId,
-                    ], date('Y-m-d H:i:s', time() + 2), 90, 3);
+            // =========================
+            // INSTAGRAM
+            // =========================
+            if ($platform === 'instagram') {
 
-                    // publish_post tekrar
-                    $queue->push('publish_post', [
-                        'publish_id' => $publishId,
-                        'post_type'  => $jobPostType,
-                        'attempt'    => $attempt + 1,
-                    ], date('Y-m-d H:i:s', time() + 8), 90, 3);
-
-                    // publishing bırak
-                    $this->publishes->update($publishId, [
-                        'status' => PublishModel::STATUS_PUBLISHING,
-                        'error'  => null,
-                    ]);
-
-                    return true;
+                $igUserId  = trim((string)($row['sa_external_id'] ?? ''));
+                if ($igUserId === '') {
+                    throw new \RuntimeException('Instagram ig_user_id eksik. social_accounts.external_id kontrol et.');
                 }
 
-                // diğer hatalar: fail
-                $this->publishes->update($publishId, [
-                    'status' => PublishModel::STATUS_FAILED,
-                    'error'  => 'TikTok publish error: ' . mb_substr($msg, 0, 700),
+                if ($mediaUrl === '') {
+                    throw new \RuntimeException('Instagram için medya zorunlu. content.media_path boş.');
+                }
+
+                $postType = $jobPostType;
+                if ($postType === 'auto') {
+                    $postType = ($mediaType === 'video') ? 'reels' : 'post';
+                }
+                if ($postType === 'reels' && $mediaType !== 'video') $postType = 'post';
+                if ($postType === 'story' && $mediaUrl === '') {
+                    throw new \RuntimeException('Instagram Story için medya zorunlu.');
+                }
+                if (!in_array($postType, ['post','reels','story'], true)) $postType = 'post';
+
+                $this->logger->event('info', 'queue', 'publish.started', [
+                    'publish_id' => $publishId,
+                    'platform'   => 'instagram',
+                    'ig_user_id' => $igUserId,
+                    'post_type'  => $postType,
+                    'media_type' => $mediaType,
+                ], $row['user_id'] ?? null);
+
+                $res = $this->meta->publishInstagram([
+                    'ig_user_id'    => $igUserId,
+                    'access_token'  => $pageToken,
+                    'post_type'     => $postType,
+                    'media_type'    => ($mediaType ?: 'image'),
+                    'media_url'     => $mediaUrl,
+                    'caption'       => $caption,
                 ]);
 
-                return true;
-            }
-        }
+                $creationId  = (string)($res['creation_id'] ?? '');
+                $publishedId = (string)($res['published_id'] ?? '');
+                $statusCode  = (string)($res['status_code'] ?? '');
+                $deferred    = !empty($res['deferred']);
 
-        // =========================
-        // ✅ YOUTUBE
-        // =========================
-        if ($platform === 'youtube') {
-            throw new \RuntimeException('youtube publish_post ile değil publish_youtube job ile çalışmalı.');
-        }
+                // ✅ deferred → job + meta_media_jobs
+                if ($deferred && $creationId !== '' && $publishedId === '') {
 
-        // =========================
-        // ✅ META (INSTAGRAM / FACEBOOK)
-        // =========================
-        if (!in_array($platform, ['instagram', 'facebook'], true)) {
-            throw new \RuntimeException('Desteklenmeyen platform: ' . $platform);
-        }
-
-        $pageToken = trim((string)($row['meta_access_token'] ?? ''));
-        if ($pageToken === '') {
-            throw new \RuntimeException('Meta page token eksik. social_account_tokens(provider=meta).access_token kontrol et.');
-        }
-
-        // INSTAGRAM
-        if ($platform === 'instagram') {
-            $igUserId = trim((string)($row['sa_external_id'] ?? ''));
-            if ($igUserId === '') {
-                throw new \RuntimeException('Instagram ig_user_id eksik. social_accounts.external_id kontrol et.');
-            }
-
-            if ($mediaUrl === '') {
-                throw new \RuntimeException('Instagram için medya zorunlu. content.media_path boş.');
-            }
-
-            $postType = $jobPostType;
-            if ($postType === 'auto') $postType = ($mediaType === 'video') ? 'reels' : 'post';
-            if ($postType === 'reels' && $mediaType !== 'video') $postType = 'post';
-            if (!in_array($postType, ['post','reels','story'], true)) $postType = 'post';
-
-            $res = $this->meta->publishInstagram([
-                'ig_user_id'    => $igUserId,
-                'access_token'  => $pageToken,
-                'post_type'     => $postType,
-                'media_type'    => ($mediaType ?: 'image'),
-                'media_url'     => $mediaUrl,
-                'caption'       => $caption,
-            ]);
-
-            $creationId  = (string)($res['creation_id'] ?? '');
-            $publishedId = (string)($res['published_id'] ?? '');
-            $statusCode  = (string)($res['status_code'] ?? '');
-            $deferred    = !empty($res['deferred']);
-
-            if ($deferred && $creationId !== '' && $publishedId === '') {
-                // (senin mevcut upsertMetaMediaJob logic’in burada kalsın)
-                // ...
-                $this->publishes->update($publishId, [
-                    'status'    => PublishModel::STATUS_PUBLISHING,
-                    'error'     => null,
-                    'meta_json' => json_encode([
+                    $metaJson = [
                         'meta' => [
                             'creation_id' => $creationId,
                             'status'      => ($statusCode !== '' ? $statusCode : 'IN_PROGRESS'),
                             'deferred'    => true,
                         ],
-                    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                ]);
-                return true;
-            }
+                    ];
 
-            if ($publishedId === '') {
-                throw new \RuntimeException('Meta publish başarısız: published_id dönmedi.');
-            }
+                    $this->publishes->update($publishId, [
+                        'status'     => PublishModel::STATUS_PUBLISHING,
+                        'error'      => null,
+                        'meta_json'  => json_encode($metaJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        'updated_at' => $now,
+                    ]);
 
-            $permalink = $this->meta->getInstagramPermalink($publishedId, $pageToken) ?: '';
+                    // meta_media_jobs upsert (sessiz fail olmasın)
+                    try {
+                        $this->upsertMetaMediaJob($db, [
+                            'user_id'            => (int)($row['user_id'] ?? 0),
+                            'publish_id'         => $publishId,
+                            'social_account_id'  => (int)($row['sa_id'] ?? 0),
+                            'ig_user_id'         => $igUserId,
+                            'page_id'            => (string)($row['sa_meta_page_id'] ?? null),
+                            'creation_id'        => $creationId,
+                            'type'               => $postType,
+                            'media_kind'         => $mediaType,
+                            'media_url'          => $mediaUrl,
+                            'caption'            => ($caption !== '' ? $caption : null),
+                            'status'             => 'processing',
+                            'status_code'        => ($statusCode !== '' ? $statusCode : 'IN_PROGRESS'),
+                            'attempts'           => 0,
+                            'next_retry_at'      => date('Y-m-d H:i:s', time() + 20),
+                            'last_error'         => 'Video işleniyor (status=' . ($statusCode ?: 'IN_PROGRESS') . ').',
+                            'last_response_json' => json_encode(($res['raw'] ?? $res), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        ]);
+                    } catch (\Throwable $e) {
+                        log_message('error', '[MetaDeferred] meta_media_jobs insert/update fail publish_id={pid} err={err}', [
+                            'pid' => $publishId,
+                            'err' => $e->getMessage(),
+                        ]);
+                    }
 
-            $this->publishes->update($publishId, [
-                'status'       => PublishModel::STATUS_PUBLISHED,
-                'remote_id'    => $publishedId,
-                'published_at' => date('Y-m-d H:i:s'),
-                'error'        => null,
-                'meta_json'    => json_encode([
+                    // ✅ polling job (handler adın farklıysa değiştir)
+                    $queue = new QueueService();
+                    $queue->push(
+                        'meta_media_status',
+                        [
+                            'publish_id'   => $publishId,
+                            'creation_id'  => $creationId,
+                            'platform'     => 'instagram',
+                            'attempt'      => 0,
+                        ],
+                        date('Y-m-d H:i:s', time() + 20),
+                        90,
+                        30
+                    );
+
+                    return true;
+                }
+
+                // immediate published
+                if ($publishedId === '') {
+                    throw new \RuntimeException('Meta publish başarısız: published_id dönmedi.');
+                }
+
+                $permalink = $this->meta->getInstagramPermalink($publishedId, $pageToken) ?: '';
+
+                $metaJson = [
                     'meta' => [
                         'creation_id'  => $creationId,
                         'published_id' => $publishedId,
                         'permalink'    => $permalink,
                     ],
-                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ];
+
+                $this->publishes->update($publishId, [
+                    'status'       => PublishModel::STATUS_PUBLISHED,
+                    'remote_id'    => $publishedId,
+                    'published_at' => $now,
+                    'error'        => null,
+                    'meta_json'    => json_encode($metaJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'updated_at'   => $now,
+                ]);
+
+                return true;
+            }
+
+            // =========================
+            // FACEBOOK
+            // =========================
+            $pageId = trim((string)($row['sa_external_id'] ?? ''));
+            if ($pageId === '') $pageId = trim((string)($row['sa_meta_page_id'] ?? ''));
+            if ($pageId === '') {
+                throw new \RuntimeException('Facebook için page_id eksik. social_accounts.external_id/meta_page_id kontrol et.');
+            }
+
+            $fbPostType = $jobPostType; // post|video
+            if (!in_array($fbPostType, ['post','video'], true)) $fbPostType = 'post';
+
+            $fb = $this->meta->publishFacebookPage([
+                'page_id'      => $pageId,
+                'access_token' => $pageToken,
+                'message'      => $caption,
+                'media_url'    => $mediaUrl,
+                'media_type'   => ($mediaUrl !== '' ? ($mediaType ?: 'image') : ''),
+                'post_type'    => $fbPostType,
             ]);
 
-            return true;
-        }
+            $postId = (string)($fb['published_id'] ?? '');
+            if ($postId === '') {
+                throw new \RuntimeException('Facebook publish başarısız: id dönmedi.');
+            }
 
-        // FACEBOOK
-        $pageId = trim((string)($row['sa_external_id'] ?? ''));
-        if ($pageId === '') $pageId = trim((string)($row['sa_meta_page_id'] ?? ''));
-        if ($pageId === '') {
-            throw new \RuntimeException('Facebook için page_id eksik. social_accounts.external_id/meta_page_id kontrol et.');
-        }
+            $permalink = $this->meta->getFacebookPermalink($postId, $pageToken) ?: '';
 
-        $fbPostType = $jobPostType;
-        if (!in_array($fbPostType, ['post','video'], true)) $fbPostType = 'post';
-
-        $fb = $this->meta->publishFacebookPage([
-            'page_id'      => $pageId,
-            'access_token' => $pageToken,
-            'message'      => $caption,
-            'media_url'    => $mediaUrl,
-            'media_type'   => ($mediaUrl !== '' ? ($mediaType ?: 'image') : ''),
-            'post_type'    => $fbPostType,
-        ]);
-
-        $postId = (string)($fb['published_id'] ?? '');
-        if ($postId === '') {
-            throw new \RuntimeException('Facebook publish başarısız: id dönmedi.');
-        }
-
-        $permalink = $this->meta->getFacebookPermalink($postId, $pageToken) ?: '';
-
-        $this->publishes->update($publishId, [
-            'status'       => PublishModel::STATUS_PUBLISHED,
-            'remote_id'    => $postId,
-            'published_at' => date('Y-m-d H:i:s'),
-            'error'        => null,
-            'meta_json'    => json_encode([
+            $metaJson = [
                 'meta' => [
                     'published_id' => $postId,
                     'permalink'    => $permalink,
                 ],
-            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ];
+
+            $this->publishes->update($publishId, [
+                'status'       => PublishModel::STATUS_PUBLISHED,
+                'remote_id'    => $postId,
+                'published_at' => $now,
+                'error'        => null,
+                'meta_json'    => json_encode($metaJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'updated_at'   => $now,
+            ]);
+
+            return true;
+
+        } catch (\Throwable $e) {
+            $this->fail($publishId, $e->getMessage(), $now);
+            return true; // job fail yerine publish fail (UI net olsun)
+        }
+    }
+
+    private function fail(int $publishId, string $message, string $now): void
+    {
+        $this->publishes->update($publishId, [
+            'status'     => PublishModel::STATUS_FAILED,
+            'error'      => mb_substr($message, 0, 2000),
+            'updated_at' => $now,
         ]);
 
-        return true;
+        log_message('error', '[PublishPostHandler] publish_id={id} failed err={err}', [
+            'id'  => $publishId,
+            'err' => $message,
+        ]);
+    }
+
+    private function upsertMetaMediaJob($db, array $data): void
+    {
+        if (!$db->tableExists('meta_media_jobs')) return;
+
+        $now = date('Y-m-d H:i:s');
+        $creationId = (string)($data['creation_id'] ?? '');
+        if ($creationId === '') return;
+
+        $existing = $db->table('meta_media_jobs')->where('creation_id', $creationId)->get()->getRowArray();
+        $base = array_merge(['updated_at' => $now], $data);
+
+        if ($existing) {
+            unset($base['created_at']);
+            $db->table('meta_media_jobs')->where('id', (int)$existing['id'])->update($base);
+        } else {
+            $base['created_at'] = $now;
+            if (!isset($base['attempts'])) $base['attempts'] = 0;
+
+            $ok = $db->table('meta_media_jobs')->insert($base);
+            if ($ok === false) {
+                $err = $db->error();
+                throw new \RuntimeException('meta_media_jobs insert failed: ' . json_encode($err));
+            }
+        }
     }
 }
