@@ -261,27 +261,47 @@ class MetaPublishService
 
     public function getInstagramContainerStatus(string $creationId, string $accessToken): array
     {
-        $url = "https://graph.facebook.com/v19.0/{$creationId}?fields=status_code&access_token=" . urlencode($accessToken);
-        $raw = $this->getJson($url);
+        $creationId = trim($creationId);
+        $accessToken = trim($accessToken);
+
+        if ($creationId === '' || $accessToken === '') {
+            throw new \RuntimeException('creation_id/access_token zorunlu.');
+        }
+
+        $raw = $this->get("/{$creationId}", [
+            'fields' => 'status_code',
+            'access_token' => $accessToken,
+        ]);
+
+        $code = strtoupper((string)($raw['status_code'] ?? ''));
+
         return [
-            'status_code' => $raw['status_code'] ?? null,
+            'status_code' => $code,
             'raw' => $raw,
         ];
     }
 
     public function publishInstagramContainer(string $igUserId, string $creationId, string $accessToken): array
     {
-        $url = "https://graph.facebook.com/v19.0/{$igUserId}/media_publish";
-        $raw = $this->postForm($url, [
+        $igUserId = trim($igUserId);
+        $creationId = trim($creationId);
+        $accessToken = trim($accessToken);
+
+        if ($igUserId === '' || $creationId === '' || $accessToken === '') {
+            throw new \RuntimeException('ig_user_id/creation_id/access_token zorunlu.');
+        }
+
+        $raw = $this->post("/{$igUserId}/media_publish", [
             'creation_id'  => $creationId,
             'access_token' => $accessToken,
         ]);
 
         return [
-            'published_id' => $raw['id'] ?? null,
+            'published_id' => (string)($raw['id'] ?? ''),
             'raw' => $raw,
         ];
     }
+
 
     
 }
