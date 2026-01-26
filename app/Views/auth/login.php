@@ -337,13 +337,13 @@
 </div>
 
 <div class="site-links">
+  <a href="<?= base_url('/contact'); ?>">İletişim</a>
+  <span class="sep">•</span>
   <a href="<?= base_url('/terms'); ?>">Kullanım Şartları</a>
   <span class="sep">•</span>
   <a href="<?= base_url('/privacy'); ?>">Gizlilik Politikası</a>
   <span class="sep">•</span>
   <a href="<?= base_url('/data-deletion'); ?>">Veri Silme Politikası</a>
-  <span class="sep">•</span>
-  <a href="<?= base_url('/contact'); ?>">İletişim</a>
 </div>
 </body>
 </html>
