@@ -73,11 +73,11 @@
     }
 
     .auth-right{
-      flex: 0 0 520px;
-      padding:48px 48px 24px 24px;
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
+    flex: 0 0 520px;
+    padding:48px 48px 80px 24px; 
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
     }
 
     .card-auth{
@@ -159,6 +159,7 @@
       z-index: 10;
       color: rgba(255,255,255,.55);
       font-size: 12.5px;
+      padding-top:6px;
     }
     .site-links a{
       color: rgba(255,255,255,.72);
@@ -229,7 +230,7 @@
 
       <form method="post" action="<?= base_url('/contact') ?>">
         <?= csrf_field() ?>
-
+        <input type="hidden" name="recaptcha_token" id="recaptcha_token">
         <div class="mb-3">
           <label class="form-label small">Ad Soyad</label>
           <input type="text" name="name" class="form-control" placeholder="Adınız Soyadınız">
@@ -245,17 +246,19 @@
           <textarea name="message" class="form-control" rows="5" placeholder="Kısaca mesajınızı yazın..."></textarea>
         </div>
 
+        <input type="text" name="website" style="display:none">
+
         <button type="submit" class="btn btn-gradient w-100">Gönder</button>
 
-        <div class="mt-3 small-muted">
-            Not: Bu form destek ve başvuru talepleri içindir. Güvenlik amacıyla gerektiğinde ek doğrulama isteyebiliriz.
+       <div class="mt-4 p-3 rounded small-muted" style="background:rgba(255,255,255,.04);">
+            Not: Bu form destek ve başvuru talepleri içindir.
+            Güvenlik amacıyla gerektiğinde ek doğrulama isteyebiliriz.
         </div>
       </form>
     </div>
   </div>
 </div>
-
-<div class="site-links">
+  <div class="site-links">
   <a href="<?= base_url('/terms'); ?>">Kullanım Şartları</a>
   <span class="sep">•</span>
   <a href="<?= base_url('/privacy'); ?>">Gizlilik Politikası</a>
@@ -264,6 +267,15 @@
   <span class="sep">•</span>
   <a href="<?= base_url('/contact'); ?>">İletişim</a>
 </div>
+
+<script src="https://www.google.com/recaptcha/api.js?render=6Lc7MVcsAAAAACA7DWi66XwgT6PXQLrKKyhjKhIW"></script>
+<script>
+grecaptcha.ready(function () {
+  grecaptcha.execute('6Lc7MVcsAAAAACA7DWi66XwgT6PXQLrKKyhjKhIW', {action: 'contact'}).then(function (token) {
+    document.getElementById('recaptcha_token').value = token;
+  });
+});
+</script>
 
 </body>
 </html>
