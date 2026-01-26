@@ -242,6 +242,41 @@
             .page-footer{ position: static; margin-top: 22px; }
             .hero h1{ font-size: 34px; }
         }
+        .site-links{
+            position: fixed;
+            right: 28px;
+            bottom: 18px;
+            display:flex;
+            gap:14px;
+            align-items:center;
+            flex-wrap:wrap;
+            z-index: 10;
+            color: rgba(255,255,255,.55);
+            font-size: 12.5px;
+            }
+
+            .site-links a{
+            color: rgba(255,255,255,.72);
+            text-decoration:none;
+            border-bottom: 1px solid rgba(255,255,255,.18);
+            }
+            .site-links a:hover{
+            color: rgba(255,255,255,.92);
+            border-bottom-color: rgba(255,255,255,.42);
+            }
+
+            .site-links .sep{
+            opacity:.55;
+            }
+
+            /* mobilde fixed rahatsız etmesin */
+            @media (max-width: 1100px){
+            .site-links{
+                position: static;
+                margin: 14px 20px 18px 20px;
+                justify-content:center;
+            }
+            }
     </style>
 </head>
 <body>
@@ -314,18 +349,19 @@
                 <div class="mt-3 small-muted">
                     Panel erişimi için lütfen sistem yöneticinizle iletişime geçin.
                 </div>
-
-                <!-- ✅ Legal linkler sadece burada (tek yer) -->
-                <div class="legal-footer">
-                    <a href="<?= base_url('/terms'); ?>">Kullanım Şartları</a>
-                    <span>•</span>
-                    <a href="<?= base_url('/privacy'); ?>">Gizlilik Politikası</a>
-                    <span>•</span>
-                    <a href="<?= base_url('/data-deletion'); ?>">Veri Silme Politikası</a>
-                </div>
             </form>
         </div>
     </div>
+</div>
+
+<div class="site-links">
+  <a href="<?= base_url('/terms'); ?>">Kullanım Şartları</a>
+  <span class="sep">•</span>
+  <a href="<?= base_url('/privacy'); ?>">Gizlilik Politikası</a>
+  <span class="sep">•</span>
+  <a href="<?= base_url('/data-deletion'); ?>">Veri Silme Politikası</a>
+  <span class="sep">•</span>
+  <a href="<?= base_url('/contact'); ?>">İletişim</a>
 </div>
 </body>
 </html>

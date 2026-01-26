@@ -607,7 +607,6 @@
             ${phoneMediaHtml(ttMedia, 'pv-ratio-9x16', ttOverlay)}
             <div class="mt-2">
               ${buildCaptionBox('Caption - Açıklama', caption)}
-              <div class="pv-disclaimer">Not: Bu ön izleme panel içinde gösterilir. Audit sürecinde faydalıdır.</div>
             </div>
           </div>
         </div>
