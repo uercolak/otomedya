@@ -226,8 +226,8 @@
         }
         .site-links{
             position: fixed;
-            right: 28px;
-            bottom: 18px;
+            right: 60px;
+            bottom: 25px;
             display:flex;
             gap:14px;
             align-items:center;
