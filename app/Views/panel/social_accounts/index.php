@@ -21,7 +21,55 @@
 
 <div class="row g-3">
   <!-- Sol: Instagram Wizard + Manuel Ekle -->
-  
+  <div class="col-lg-4">
+    <div class="card-soft p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="metric-label">Instagram Bağla</div>
+        <span class="metric-tag"><i class="bi bi-magic me-1"></i>Sihirbaz</span>
+      </div>
+
+      <div class="text-muted small mb-2">
+        Meta ile bağlan, Facebook Page üzerinden bağlı Instagram Business/Creator hesabını seçip kaydet.
+      </div>
+
+        <button type="button"
+                class="btn btn-outline-primary w-100 btn-sm"
+                style="border-radius:999px;"
+                data-bs-toggle="modal"
+                data-bs-target="#metaConsentModal">
+        <i class="bi bi-link-45deg me-1"></i> Instagram’ı Meta ile Bağla
+        </button>
+
+      <div class="text-muted small mt-2">
+        Not: IG hesabı Business/Creator olmalı ve bir Facebook Page’e bağlı olmalı.
+      </div>
+
+      <a href="<?= site_url('panel/social-accounts/meta/wizard') ?>"
+         class="btn btn-link btn-sm px-0 mt-2">
+        Sorun gider / Kontrol Et →
+      </a>
+    </div>
+
+    <div class="card-soft p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="metric-label">YouTube Bağla</div>
+        <span class="metric-tag"><i class="bi bi-youtube me-1"></i>Google</span>
+      </div>
+
+      <div class="text-muted small mb-2">
+        YouTube kanalını bağla. Böylece videoları panelden planlayıp yayınlayabilirsin.
+      </div>
+
+      <a href="<?= site_url('panel/social-accounts/youtube/connect') ?>"
+         class="btn btn-outline-danger w-100 btn-sm"
+         style="border-radius:999px;">
+        <i class="bi bi-youtube me-1"></i> YouTube’u Bağla
+      </a>
+
+      <div class="text-muted small mt-2">
+        Not: İlk bağlantıda Google “izin ver” ekranı açılır.
+      </div>
+    </div>
 
     <div class="card-soft p-3 mb-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -72,7 +120,7 @@
           <label class="form-label small text-muted mb-1">Hesap Adı</label>
           <input name="name" type="text" class="form-control form-control-sm"
                  value="<?= esc(old('name') ?? '') ?>"
-                 placeholder="Örn: Test Tiktok">
+                 placeholder="Örn: Test Instagram">
           <div class="text-muted small mt-1">Panelde görünecek ad.</div>
         </div>
 
@@ -80,7 +128,7 @@
           <label class="form-label small text-muted mb-1">Kullanıcı Adı (opsiyonel)</label>
           <input name="username" type="text" class="form-control form-control-sm"
                  value="<?= esc(old('username') ?? '') ?>"
-                 placeholder="Örn: test_tiktok">
+                 placeholder="Örn: test_ig">
         </div>
 
         <div class="mb-3">
