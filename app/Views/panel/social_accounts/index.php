@@ -21,8 +21,9 @@
 
 <div class="row g-3">
   <!-- Sol: Instagram Wizard + Manuel Ekle -->
+  
 
-    <div class="card-soft p-3 mb-3">
+      <div class="col-lg-4">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <div class="metric-label">TikTok Bağla</div>
             <span class="metric-tag"><i class="bi bi-link-45deg me-1"></i>TikTok</span>
