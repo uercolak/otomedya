@@ -147,30 +147,7 @@
       font-size: 12px;
     }
 
-    /* bottom-right site links */
-    .site-links{
-      position: fixed;
-      right: 28px;
-      bottom: 18px;
-      display:flex;
-      gap:14px;
-      align-items:center;
-      flex-wrap:wrap;
-      z-index: 10;
-      color: rgba(255,255,255,.55);
-      font-size: 12.5px;
-      padding-top:6px;
-    }
-    .site-links a{
-      color: rgba(255,255,255,.72);
-      text-decoration:none;
-      border-bottom: 1px solid rgba(255,255,255,.18);
-    }
-    .site-links a:hover{
-      color: rgba(255,255,255,.92);
-      border-bottom-color: rgba(255,255,255,.42);
-    }
-    .site-links .sep{ opacity:.55; }
+
 
     @media (max-width: 1100px){
       .auth-shell{ flex-direction:column; }
@@ -178,11 +155,6 @@
       .auth-left{ padding: 28px 20px 18px 20px; }
       .page-footer{ position: static; margin-top: 22px; }
       .hero h1{ font-size: 32px; }
-      .site-links{
-        position: static;
-        margin: 14px 20px 18px 20px;
-        justify-content:center;
-      }
     }
   </style>
 </head>
@@ -257,15 +229,6 @@
       </form>
     </div>
   </div>
-</div>
-  <div class="site-links">
-  <a href="<?= base_url('/terms'); ?>">Kullanım Şartları</a>
-  <span class="sep">•</span>
-  <a href="<?= base_url('/privacy'); ?>">Gizlilik Politikası</a>
-  <span class="sep">•</span>
-  <a href="<?= base_url('/data-deletion'); ?>">Veri Silme Politikası</a>
-  <span class="sep">•</span>
-  <a href="<?= base_url('/contact'); ?>">İletişim</a>
 </div>
 
 <script src="https://www.google.com/recaptcha/api.js?render=6Lc7MVcsAAAAACA7DWi66XwgT6PXQLrKKyhjKhIW"></script>
