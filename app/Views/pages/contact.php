@@ -38,21 +38,20 @@
 
     .brand{ display:flex; align-items:center; gap:14px; margin-bottom:28px; }
     .brand-logo{
-      width:110px; height:75px; border-radius:18px;
-      background: rgba(255,255,255,.14);
-      border: 1px solid rgba(255,255,255,.22);
-      display:flex; align-items:center; justify-content:center;
-      overflow:hidden;
-      box-shadow:
-        0 18px 45px rgba(0,0,0,.35),
-        0 0 0 6px rgba(255,255,255,.05),
-        0 0 40px rgba(168,85,247,.22);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+    width:110px;
+    height:75px;
+    border-radius: 0;     /* köşe yok */
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     }
     .brand-logo img{
-      width:110px; height:75px; object-fit:cover; display:block;
-      filter: saturate(1.15) contrast(1.15) brightness(1.05);
+    width:110px;
+    height:75px;
+    object-fit:contain;   
+    filter: none;         
     }
     .brand-title{ font-weight:700; letter-spacing:.2px; font-size:18px; line-height:1.1; }
     .brand-sub{ color:var(--muted2); font-size:13px; margin-top:2px; }
@@ -147,7 +146,13 @@
       font-size: 12px;
     }
 
-
+    .grecaptcha-badge{
+        bottom: 90px !important;   
+        right: 20px !important;
+        z-index: 9;
+        box-shadow: 0 8px 24px rgba(0,0,0,.35);
+        border-radius: 8px;
+    }
 
     @media (max-width: 1100px){
       .auth-shell{ flex-direction:column; }

@@ -50,39 +50,22 @@
             margin-bottom:34px;
         }
 
-        .brand-logo{
+            .brand-logo{
             width:110px;
             height:75px;
-            border-radius:18px;
-
-            /* daha belirgin yüzey */
-            background: rgba(255,255,255,.14);
-            border: 1px solid rgba(255,255,255,.22);
-
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            overflow:hidden;
-
-            /* daha kuvvetli gölge + glow */
-            box-shadow:
-                0 18px 45px rgba(0,0,0,.35),
-                0 0 0 6px rgba(255,255,255,.05),
-                0 0 40px rgba(168,85,247,.22);
-
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-
-        .brand-logo img{
+            border-radius: 0;     /* köşe yok */
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            }
+            .brand-logo img{
             width:110px;
             height:75px;
-            object-fit:cover; /* contain yerine cover logo2 için daha dolu görünür */
-            display:block;
-
-            /* logo daha canlı/okunaklı */
-            filter: saturate(1.15) contrast(1.15) brightness(1.05);
-        }
+            object-fit:contain;   
+            filter: none;         
+            }
 
         .brand-title{
             font-weight:700;
