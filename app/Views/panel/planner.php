@@ -1,6 +1,98 @@
 <?= $this->extend('layouts/panel') ?>
 <?= $this->section('content') ?>
 
+<style>
+  /* --- Preview UI --- */
+  .pv-card { background:#fff; }
+  .pv-grid { display:grid; gap:14px; }
+  @media (min-width: 992px){ .pv-grid { grid-template-columns: 1fr; } }
+
+  .pv-platform { border:1px solid rgba(0,0,0,.08); border-radius:16px; padding:14px; background:#fff; }
+  .pv-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+  .pv-title { font-weight:600; }
+  .pv-sub { color:#6c757d; font-size:12px; margin-top:2px; }
+
+  .pv-badges { display:flex; gap:6px; flex-wrap:wrap; }
+  .pv-badge { font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid rgba(0,0,0,.08); background:#f8f9fa; color:#111; }
+
+  /* Phone mock */
+  .pv-phone {
+    width: 320px;
+    max-width: 100%;
+    border-radius: 26px;
+    background: #0b0b0c;
+    padding: 12px;
+    border: 1px solid rgba(0,0,0,.15);
+    box-shadow: 0 10px 30px rgba(0,0,0,.08);
+  }
+  .pv-screen {
+    background:#111;
+    border-radius: 18px;
+    overflow:hidden;
+    position:relative;
+  }
+  .pv-ratio-9x16 { aspect-ratio: 9/16; }
+  .pv-ratio-4x5  { aspect-ratio: 4/5; }
+  .pv-ratio-1x1  { aspect-ratio: 1/1; }
+  .pv-ratio-16x9 { aspect-ratio: 16/9; }
+
+  .pv-media, .pv-media video, .pv-media img {
+    width:100%;
+    height:100%;
+    object-fit: cover;
+    display:block;
+  }
+
+  /* IG header */
+  .pv-ig-top {
+    position:absolute; top:10px; left:10px; right:10px;
+    display:flex; align-items:center; justify-content:space-between;
+    color:#fff; font-size:12px; text-shadow:0 1px 8px rgba(0,0,0,.5);
+    pointer-events:none;
+  }
+  .pv-ig-pill { background:rgba(0,0,0,.45); padding:4px 8px; border-radius:999px; }
+
+  /* TikTok overlay */
+  .pv-tt-left {
+    position:absolute; left:10px; bottom:12px; right:60px;
+    color:#fff; font-size:12px;
+    text-shadow:0 1px 10px rgba(0,0,0,.65);
+    pointer-events:none;
+  }
+  .pv-tt-user { font-weight:700; margin-bottom:6px; }
+  .pv-tt-caption { opacity:.95; white-space:pre-wrap; max-height:72px; overflow:hidden; }
+  .pv-tt-right {
+    position:absolute; right:10px; bottom:16px;
+    display:flex; flex-direction:column; gap:10px;
+    pointer-events:none;
+  }
+  .pv-tt-btn {
+    width:36px; height:36px; border-radius:999px;
+    background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.18);
+  }
+
+  /* Feed card (FB) */
+  .pv-feed {
+    border:1px solid rgba(0,0,0,.08);
+    border-radius:14px;
+    overflow:hidden;
+    background:#fff;
+  }
+  .pv-feed-head { padding:10px 12px; display:flex; align-items:center; gap:10px; }
+  .pv-avatar { width:28px; height:28px; border-radius:999px; background:#e9ecef; }
+  .pv-feed-name { font-size:12px; font-weight:600; line-height:1; }
+  .pv-feed-sub { font-size:11px; color:#6c757d; }
+  .pv-feed-body { padding:10px 12px; font-size:12px; white-space:pre-wrap; }
+
+  /* YT */
+  .pv-yt-title { font-weight:700; font-size:13px; margin-top:10px; }
+  .pv-yt-meta { color:#6c757d; font-size:11px; margin-top:2px; }
+
+  .pv-row { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start; }
+</style>
+
+
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
@@ -177,8 +269,6 @@
         <div id="previewWrap" class="vstack gap-3"></div>
     </div>
     </div>
-  </form>
-</div>
 
 <script>
 (function(){
@@ -240,38 +330,38 @@
     return { url: null, type: null };
   }
 
-  function mediaHtml(media){
-    if (!media.url || !media.type) return `<div class="text-muted small">Medya seçilmedi.</div>`;
-
-    if (media.type === 'image') {
-      return `
-        <img src="${escapeHtml(media.url)}"
-             style="width:100%;height:auto;border-radius:12px;display:block;border:1px solid rgba(0,0,0,.08);">
-      `;
+  function mediaHtml(media, ratioClass){
+    if (!media.url || !media.type) {
+        return `<div class="text-muted small">Medya seçilmedi.</div>`;
     }
 
-    // video
-    return `
-      <video controls muted playsinline
-             style="width:100%;border-radius:12px;display:block;border:1px solid rgba(0,0,0,.08);">
-        <source src="${escapeHtml(media.url)}">
-      </video>
-    `;
-  }
+    const inner = (media.type === 'image')
+        ? `<img src="${escapeHtml(media.url)}" alt="">`
+        : `<video controls muted playsinline><source src="${escapeHtml(media.url)}"></video>`;
 
-  function buildPlatformCard(title, subtitle, bodyHtml){
     return `
-      <div class="border rounded-3 p-3" style="background:#fff;">
-        <div class="d-flex align-items-start justify-content-between mb-2">
-          <div>
-            <div class="fw-semibold">${escapeHtml(title)}</div>
-            <div class="text-muted small">${escapeHtml(subtitle)}</div>
-          </div>
+        <div class="pv-phone">
+        <div class="pv-screen ${ratioClass}">
+            <div class="pv-media">${inner}</div>
         </div>
-        ${bodyHtml}
-      </div>
+        </div>
     `;
-  }
+    }
+
+    function buildPlatformCard(title, subtitle, badgesHtml, bodyHtml){
+        return `
+            <div class="pv-platform">
+            <div class="pv-head">
+                <div>
+                <div class="pv-title">${escapeHtml(title)}</div>
+                <div class="pv-sub">${escapeHtml(subtitle || '')}</div>
+                </div>
+                <div class="pv-badges">${badgesHtml || ''}</div>
+            </div>
+            ${bodyHtml}
+            </div>
+        `;
+    }
 
   function render(){
     // YouTube ayarlarını aç/kapa (eski davranış)
@@ -303,64 +393,147 @@
 
     // IG
     if (platforms.instagram?.length) {
-      const accounts = platforms.instagram.map(a => a.label).join(' • ');
-      const igBody = `
-        <div class="mb-2">
-          <span class="badge bg-light text-dark">Instagram</span>
-          <span class="badge bg-light text-dark ms-1">${escapeHtml(postType)}</span>
+    const accounts = platforms.instagram.map(a => a.label).join(' • ');
+    const ratio = (selectPostType?.value === 'story') ? 'pv-ratio-9x16'
+                : (media.type === 'video') ? 'pv-ratio-9x16'
+                : 'pv-ratio-4x5';
+
+    const badges = `
+        <span class="pv-badge">Instagram</span>
+        <span class="pv-badge">${escapeHtml(postType)}</span>
+    `;
+
+    const body = `
+        <div class="pv-row">
+        <div style="flex:0 0 auto;">
+            <div style="position:relative;">
+            ${mediaHtml(media, ratio)}
+            <div class="pv-ig-top">
+                <span class="pv-ig-pill">@${escapeHtml(platforms.instagram[0]?.label?.includes('@') ? '' : 'sosyalmedyaplanlama')}</span>
+                <span class="pv-ig-pill">${escapeHtml(postType)}</span>
+            </div>
+            </div>
         </div>
-        ${mediaHtml(media)}
-        <div class="mt-2" style="white-space:pre-wrap;">${escapeHtml(caption || '—')}</div>
-      `;
-      html += buildPlatformCard('Instagram Ön İzleme', accounts, igBody);
+        <div style="flex:1 1 240px;">
+            <div class="text-muted small mb-1">Caption</div>
+            <div style="white-space:pre-wrap;">${escapeHtml(caption || '—')}</div>
+        </div>
+        </div>
+    `;
+
+    html += buildPlatformCard('Instagram Ön İzleme', accounts, badges, body);
     }
 
     // FB
-    if (platforms.facebook?.length) {
-      const accounts = platforms.facebook.map(a => a.label).join(' • ');
-      const fbBody = `
-        <div class="mb-2">
-          <span class="badge bg-light text-dark">Facebook</span>
-        </div>
-        ${mediaHtml(media)}
-        <div class="mt-2" style="white-space:pre-wrap;">${escapeHtml(caption || '—')}</div>
-      `;
-      html += buildPlatformCard('Facebook Ön İzleme', accounts, fbBody);
-    }
+        if (platforms.facebook?.length) {
+        const accounts = platforms.facebook.map(a => a.label).join(' • ');
+        const badges = `<span class="pv-badge">Facebook</span>`;
+
+        const body = `
+            <div class="pv-feed" style="max-width:520px;">
+            <div class="pv-feed-head">
+                <div class="pv-avatar"></div>
+                <div>
+                <div class="pv-feed-name">Sosyal Medya Planlama</div>
+                <div class="pv-feed-sub">Just now • Public</div>
+                </div>
+            </div>
+            <div style="background:#111;">
+                <div class="pv-screen pv-ratio-4x5" style="border-radius:0;">
+                <div class="pv-media">
+                    ${(!media.url) ? '' : (media.type === 'image'
+                    ? `<img src="${escapeHtml(media.url)}" alt="">`
+                    : `<video controls muted playsinline><source src="${escapeHtml(media.url)}"></video>`
+                    )}
+                </div>
+                </div>
+            </div>
+            <div class="pv-feed-body">${escapeHtml(caption || '—')}</div>
+            </div>
+        `;
+
+        html += buildPlatformCard('Facebook Ön İzleme', accounts, badges, body);
+        }
 
     // TikTok
     if (platforms.tiktok?.length) {
-      const accounts = platforms.tiktok.map(a => a.label).join(' • ');
-      const ttBody = `
-        <div class="mb-2">
-          <span class="badge bg-light text-dark">TikTok</span>
-          <span class="badge bg-light text-dark ms-1">Video</span>
+    const accounts = platforms.tiktok.map(a => a.label).join(' • ');
+    const badges = `
+        <span class="pv-badge">TikTok</span>
+        <span class="pv-badge">Video</span>
+    `;
+
+    const body = `
+        <div class="pv-row">
+        <div style="flex:0 0 auto;">
+            <div style="position:relative; width:320px; max-width:100%;">
+            <div class="pv-phone">
+                <div class="pv-screen pv-ratio-9x16">
+                <div class="pv-media">
+                    ${
+                    (!media.url || media.type !== 'video')
+                        ? `<div class="text-muted small p-3">TikTok için video seçilmedi.</div>`
+                        : `<video controls muted playsinline><source src="${escapeHtml(media.url)}"></video>`
+                    }
+                </div>
+
+                <div class="pv-tt-left">
+                    <div class="pv-tt-user">@sosyalmedyaplanlama</div>
+                    <div class="pv-tt-caption">${escapeHtml(caption || '—')}</div>
+                </div>
+
+                <div class="pv-tt-right">
+                    <div class="pv-tt-btn"></div>
+                    <div class="pv-tt-btn"></div>
+                    <div class="pv-tt-btn"></div>
+                </div>
+                </div>
+            </div>
+            </div>
         </div>
-        ${mediaHtml(media)}
-        <div class="mt-2" style="white-space:pre-wrap;">${escapeHtml(caption || '—')}</div>
-        <div class="text-muted small mt-1">Not: TikTok Direct Post audit için ön izleme gösterilir.</div>
-      `;
-      html += buildPlatformCard('TikTok Ön İzleme', accounts, ttBody);
+
+        <div style="flex:1 1 240px;">
+            <div class="text-muted small mb-1">Caption</div>
+            <div style="white-space:pre-wrap;">${escapeHtml(caption || '—')}</div>
+            <div class="text-muted small mt-2">Audit için: Panel içinde TikTok ön izleme gösteriliyor ✅</div>
+        </div>
+        </div>
+    `;
+
+    html += buildPlatformCard('TikTok Ön İzleme', accounts, badges, body);
     }
 
     // YouTube
     if (platforms.youtube?.length) {
-      const accounts = platforms.youtube.map(a => a.label).join(' • ');
-      const ytFinalTitle = ytTitle || title || '—';
-      const ytBody = `
-        <div class="mb-2 d-flex gap-2 flex-wrap">
-          <span class="badge bg-light text-dark">YouTube</span>
-          <span class="badge bg-light text-dark">Privacy: ${escapeHtml(ytPriv)}</span>
+  const accounts = platforms.youtube.map(a => a.label).join(' • ');
+  const badges = `
+    <span class="pv-badge">YouTube</span>
+    <span class="pv-badge">Privacy: ${escapeHtml(ytPriv)}</span>
+  `;
+
+  const ytFinalTitle = ytTitle || title || '—';
+
+  const body = `
+    <div style="max-width:620px;">
+      <div class="pv-screen pv-ratio-16x9" style="background:#111; border-radius:16px;">
+        <div class="pv-media">
+          ${(!media.url) ? '' : (media.type === 'video'
+            ? `<video controls muted playsinline><source src="${escapeHtml(media.url)}"></video>`
+            : `<img src="${escapeHtml(media.url)}" alt="">`
+          )}
         </div>
-        <div class="mb-2">
-          <div class="fw-semibold">${escapeHtml(ytFinalTitle)}</div>
-          <div class="text-muted small">Başlık</div>
-        </div>
-        ${mediaHtml(media)}
-        <div class="mt-2" style="white-space:pre-wrap;">${escapeHtml(caption || '—')}</div>
-      `;
-      html += buildPlatformCard('YouTube Ön İzleme', accounts, ytBody);
-    }
+      </div>
+
+      <div class="pv-yt-title">${escapeHtml(ytFinalTitle)}</div>
+      <div class="pv-yt-meta">@burkaydoner • ${escapeHtml(ytPriv)}</div>
+
+      <div class="text-muted small mt-2">Açıklama</div>
+      <div style="white-space:pre-wrap; font-size:12px;">${escapeHtml(caption || '—')}</div>
+    </div>
+  `;
+
+  html += buildPlatformCard('YouTube Ön İzleme', accounts, badges, body);
+}
 
     previewWrap.innerHTML = html;
   }
