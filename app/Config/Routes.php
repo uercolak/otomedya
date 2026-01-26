@@ -12,6 +12,8 @@ $routes->get('/', function () {
     $routes->get('media/(:num)',                'MediaController::show/$1');
     $routes->post('deploy/webhook',             'DeployWebhookController::github', ['filter' => 'deploywebhook']);
     $routes->get('media/(:num)',                'MediaController::show/$1');
+    $routes->get('contact',                     'PagesController::contact');
+    $routes->post('contact',                    'PagesController::contactPost');
 
 $routes->group('auth', static function ($routes) {
     $routes->get('login',                       'Auth::loginForm');
