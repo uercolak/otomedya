@@ -53,7 +53,7 @@
             .brand-logo{
             width:110px;
             height:75px;
-            border-radius: 0;     /* köşe yok */
+            border-radius: 0;  
             background: transparent;
             border: 0;
             box-shadow: none;
@@ -61,7 +61,6 @@
             -webkit-backdrop-filter: none;
             }
             .brand-logo img{
-            width:110px;
             height:75px;
             object-fit:contain;   
             filter: none;         

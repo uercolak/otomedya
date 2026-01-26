@@ -146,14 +146,6 @@
       font-size: 12px;
     }
 
-    .grecaptcha-badge{
-        bottom: 90px !important;   
-        right: 20px !important;
-        z-index: 9;
-        box-shadow: 0 8px 24px rgba(0,0,0,.35);
-        border-radius: 8px;
-    }
-
     @media (max-width: 1100px){
       .auth-shell{ flex-direction:column; }
       .auth-right{ flex: 1 1 auto; padding: 16px 20px 26px 20px; }
