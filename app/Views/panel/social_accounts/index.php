@@ -72,7 +72,7 @@
           <label class="form-label small text-muted mb-1">Hesap Adı</label>
           <input name="name" type="text" class="form-control form-control-sm"
                  value="<?= esc(old('name') ?? '') ?>"
-                 placeholder="Örn: Test Instagram">
+                 placeholder="Örn: Test Tiktok">
           <div class="text-muted small mt-1">Panelde görünecek ad.</div>
         </div>
 
@@ -80,7 +80,7 @@
           <label class="form-label small text-muted mb-1">Kullanıcı Adı (opsiyonel)</label>
           <input name="username" type="text" class="form-control form-control-sm"
                  value="<?= esc(old('username') ?? '') ?>"
-                 placeholder="Örn: test_ig">
+                 placeholder="Örn: test_tiktok">
         </div>
 
         <div class="mb-3">
