@@ -204,10 +204,10 @@
 
     <div class="hero">
       <h1>İletişim</h1>
-      <p>
-        Bizimle şu adresten iletişime geçebilirsin:
+        <p>
+        Destek ve başvuru için bize e-posta gönderebilirsin:
         <a class="back-link" href="mailto:info@sosyalmedyaplanlama.com">info@sosyalmedyaplanlama.com</a>
-      </p>
+        </p>
     </div>
 
     <div class="page-footer">
@@ -217,8 +217,11 @@
 
   <div class="auth-right">
     <div class="card-auth">
-      <h2>Mesaj Gönder</h2>
-      <p class="sub">Formu doldurabilir ya da e-posta ile bize ulaşabilirsin.</p>
+      <h2>Destek & Başvuru</h2>
+            <p class="sub">
+            Destek talebi veya iş birliği / başvuru için bize yazabilirsin.
+            İstersen e-posta ile de ulaşabilirsin.
+            </p>
 
       <?php if (session('success')): ?>
         <div class="alert alert-success"><?= esc(session('success')) ?></div>
@@ -245,7 +248,7 @@
         <button type="submit" class="btn btn-gradient w-100">Gönder</button>
 
         <div class="mt-3 small-muted">
-          Not: Bu form destek talebi amacıyla kullanılır. Gerektiğinde ek doğrulama isteyebiliriz.
+            Not: Bu form destek ve başvuru talepleri içindir. Güvenlik amacıyla gerektiğinde ek doğrulama isteyebiliriz.
         </div>
       </form>
     </div>
