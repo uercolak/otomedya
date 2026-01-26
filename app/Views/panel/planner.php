@@ -161,21 +161,221 @@
         </div>
       </div>
     </div>
+
+    <!-- Ön İzleme -->
+    <div class="card mb-3" id="previewCard" style="display:none;">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+        <h5 class="card-title mb-0">Ön İzleme</h5>
+        <span class="badge bg-light text-dark">Seçilen platformlara göre</span>
+        </div>
+
+        <div class="text-muted small mb-3">
+        Gönderinizi Bu ön izleme ile nasıl gözükeceğini görebilirsiniz.
+        </div>
+
+        <div id="previewWrap" class="vstack gap-3"></div>
+    </div>
+    </div>
   </form>
 </div>
 
 <script>
 (function(){
-  const checks = Array.from(document.querySelectorAll('.account-check'));
-  const ytBox = document.getElementById('ytSettings');
+  const checks  = Array.from(document.querySelectorAll('.account-check'));
+  const ytBox   = document.getElementById('ytSettings');
 
-  function refresh() {
-    const hasYT = checks.some(ch => ch.checked && (ch.dataset.platform === 'youtube'));
-    if (ytBox) ytBox.style.display = hasYT ? 'block' : 'none';
+  const previewCard = document.getElementById('previewCard');
+  const previewWrap = document.getElementById('previewWrap');
+
+  const inputTitle     = document.querySelector('input[name="title"]');
+  const textareaBase   = document.querySelector('textarea[name="base_text"]');
+  const inputMedia     = document.querySelector('input[name="media"]');
+  const selectPostType = document.querySelector('select[name="post_type"]');
+
+  const inputYtTitle   = document.querySelector('input[name="youtube_title"]');
+  const selectYtPriv   = document.querySelector('select[name="youtube_privacy"]');
+
+  // Prefill medya varsa (şablondan geldiyse)
+  const PREFILL_MEDIA_URL  = <?= !empty($prefill['media_path']) ? json_encode(base_url($prefill['media_path'])) : 'null' ?>;
+  const PREFILL_MEDIA_TYPE = <?= !empty($prefill['media_type']) ? json_encode($prefill['media_type']) : 'null' ?>;
+
+  function escapeHtml(s){
+    return (s ?? '').toString()
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
   }
 
-  checks.forEach(ch => ch.addEventListener('change', refresh));
-  refresh();
+  function getSelectedPlatforms(){
+    const selected = checks.filter(ch => ch.checked);
+    const map = {}; // platform => [{id,label}]
+    selected.forEach(ch => {
+      const plat = (ch.dataset.platform || '').toLowerCase();
+      const label = (ch.closest('label')?.querySelector('span')?.innerText || '').trim();
+      if (!map[plat]) map[plat] = [];
+      map[plat].push({ id: ch.value, label });
+    });
+    return map;
+  }
+
+  function getMediaSource(){
+    // 1) prefill medya varsa onu kullan
+    if (PREFILL_MEDIA_URL && PREFILL_MEDIA_TYPE) {
+      return { url: PREFILL_MEDIA_URL, type: PREFILL_MEDIA_TYPE }; // image | video
+    }
+
+    // 2) dosya seçildiyse objectURL
+    if (inputMedia && inputMedia.files && inputMedia.files[0]) {
+      const f = inputMedia.files[0];
+      const mime = (f.type || '').toLowerCase();
+      let type = null;
+      if (mime.startsWith('image/')) type = 'image';
+      else if (mime.startsWith('video/')) type = 'video';
+      return { url: URL.createObjectURL(f), type };
+    }
+
+    return { url: null, type: null };
+  }
+
+  function mediaHtml(media){
+    if (!media.url || !media.type) return `<div class="text-muted small">Medya seçilmedi.</div>`;
+
+    if (media.type === 'image') {
+      return `
+        <img src="${escapeHtml(media.url)}"
+             style="width:100%;height:auto;border-radius:12px;display:block;border:1px solid rgba(0,0,0,.08);">
+      `;
+    }
+
+    // video
+    return `
+      <video controls muted playsinline
+             style="width:100%;border-radius:12px;display:block;border:1px solid rgba(0,0,0,.08);">
+        <source src="${escapeHtml(media.url)}">
+      </video>
+    `;
+  }
+
+  function buildPlatformCard(title, subtitle, bodyHtml){
+    return `
+      <div class="border rounded-3 p-3" style="background:#fff;">
+        <div class="d-flex align-items-start justify-content-between mb-2">
+          <div>
+            <div class="fw-semibold">${escapeHtml(title)}</div>
+            <div class="text-muted small">${escapeHtml(subtitle)}</div>
+          </div>
+        </div>
+        ${bodyHtml}
+      </div>
+    `;
+  }
+
+  function render(){
+    // YouTube ayarlarını aç/kapa (eski davranış)
+    const hasYT = checks.some(ch => ch.checked && (ch.dataset.platform === 'youtube'));
+    if (ytBox) ytBox.style.display = hasYT ? 'block' : 'none';
+
+    const platforms = getSelectedPlatforms();
+    const keys = Object.keys(platforms);
+
+    // preview card göster/gizle
+    if (!previewCard || !previewWrap) return;
+    if (keys.length === 0) {
+      previewCard.style.display = 'none';
+      previewWrap.innerHTML = '';
+      return;
+    }
+    previewCard.style.display = 'block';
+
+    const title = (inputTitle?.value || '').trim();
+    const caption = (textareaBase?.value || '').trim();
+    const postType = (selectPostType?.value || 'auto').toUpperCase();
+
+    const ytTitle = (inputYtTitle?.value || '').trim();
+    const ytPriv  = (selectYtPriv?.value || 'public').trim();
+
+    const media = getMediaSource();
+
+    let html = '';
+
+    // IG
+    if (platforms.instagram?.length) {
+      const accounts = platforms.instagram.map(a => a.label).join(' • ');
+      const igBody = `
+        <div class="mb-2">
+          <span class="badge bg-light text-dark">Instagram</span>
+          <span class="badge bg-light text-dark ms-1">${escapeHtml(postType)}</span>
+        </div>
+        ${mediaHtml(media)}
+        <div class="mt-2" style="white-space:pre-wrap;">${escapeHtml(caption || '—')}</div>
+      `;
+      html += buildPlatformCard('Instagram Ön İzleme', accounts, igBody);
+    }
+
+    // FB
+    if (platforms.facebook?.length) {
+      const accounts = platforms.facebook.map(a => a.label).join(' • ');
+      const fbBody = `
+        <div class="mb-2">
+          <span class="badge bg-light text-dark">Facebook</span>
+        </div>
+        ${mediaHtml(media)}
+        <div class="mt-2" style="white-space:pre-wrap;">${escapeHtml(caption || '—')}</div>
+      `;
+      html += buildPlatformCard('Facebook Ön İzleme', accounts, fbBody);
+    }
+
+    // TikTok
+    if (platforms.tiktok?.length) {
+      const accounts = platforms.tiktok.map(a => a.label).join(' • ');
+      const ttBody = `
+        <div class="mb-2">
+          <span class="badge bg-light text-dark">TikTok</span>
+          <span class="badge bg-light text-dark ms-1">Video</span>
+        </div>
+        ${mediaHtml(media)}
+        <div class="mt-2" style="white-space:pre-wrap;">${escapeHtml(caption || '—')}</div>
+        <div class="text-muted small mt-1">Not: TikTok Direct Post audit için ön izleme gösterilir.</div>
+      `;
+      html += buildPlatformCard('TikTok Ön İzleme', accounts, ttBody);
+    }
+
+    // YouTube
+    if (platforms.youtube?.length) {
+      const accounts = platforms.youtube.map(a => a.label).join(' • ');
+      const ytFinalTitle = ytTitle || title || '—';
+      const ytBody = `
+        <div class="mb-2 d-flex gap-2 flex-wrap">
+          <span class="badge bg-light text-dark">YouTube</span>
+          <span class="badge bg-light text-dark">Privacy: ${escapeHtml(ytPriv)}</span>
+        </div>
+        <div class="mb-2">
+          <div class="fw-semibold">${escapeHtml(ytFinalTitle)}</div>
+          <div class="text-muted small">Başlık</div>
+        </div>
+        ${mediaHtml(media)}
+        <div class="mt-2" style="white-space:pre-wrap;">${escapeHtml(caption || '—')}</div>
+      `;
+      html += buildPlatformCard('YouTube Ön İzleme', accounts, ytBody);
+    }
+
+    previewWrap.innerHTML = html;
+  }
+
+  // events
+  checks.forEach(ch => ch.addEventListener('change', render));
+  inputTitle?.addEventListener('input', render);
+  textareaBase?.addEventListener('input', render);
+  selectPostType?.addEventListener('change', render);
+  inputYtTitle?.addEventListener('input', render);
+  selectYtPriv?.addEventListener('change', render);
+  inputMedia?.addEventListener('change', render);
+
+  // init
+  render();
 })();
 </script>
 
