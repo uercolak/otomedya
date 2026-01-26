@@ -139,6 +139,47 @@
   .pv-yt-wrap{ max-width: 620px; }
   .pv-yt-title{ font-weight:700; font-size:13px; margin-top:10px; }
   .pv-yt-meta{ color:#6c757d; font-size:11px; margin-top:2px; }
+
+  .pv-tt-right{
+  position:absolute; right:10px; bottom:16px;
+  display:flex; flex-direction:column; gap:10px;
+  pointer-events:none;
+}
+
+/* Profil balonu */
+.pv-tt-avatar{
+  width:40px; height:40px; border-radius:999px;
+  background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.28);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 8px 18px rgba(0,0,0,.25);
+}
+.pv-tt-avatar::after{
+  content:"S";
+  font-weight:800;
+  font-size:14px;
+  color:#fff;
+}
+
+/* ikon butonları */
+.pv-tt-action{
+  width:38px; height:38px; border-radius:999px;
+  background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.22);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 8px 18px rgba(0,0,0,.22);
+}
+.pv-tt-action::after{
+  color:#fff;
+  font-size:16px;
+  line-height:1;
+  opacity:.95;
+}
+
+/* ikon içerikleri */
+.pv-tt-like::after{ content:"♥"; }
+.pv-tt-comment::after{ content:"💬"; }
+.pv-tt-share::after{ content:"↗"; }
 </style>
 
 <div class="container-fluid py-3">
@@ -550,10 +591,10 @@
           <div class="pv-tt-caption">${escapeHtml(caption || '—')}</div>
         </div>
         <div class="pv-tt-right">
-          <div class="pv-tt-btn pv-tt-avatar"></div>
-          <div class="pv-tt-btn"></div>
-          <div class="pv-tt-btn"></div>
-          <div class="pv-tt-btn"></div>
+            <div class="pv-tt-avatar"></div>
+            <div class="pv-tt-action pv-tt-like"></div>
+            <div class="pv-tt-action pv-tt-comment"></div>
+            <div class="pv-tt-action pv-tt-share"></div>
         </div>
       `;
 
