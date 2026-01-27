@@ -30,7 +30,6 @@
 
         <div class="text-muted small mb-2">
             TikTok hesabını bağla. Böylece videoları panelden planlayıp TikTok’a gönderebiliriz.
-            (Şu an Sandbox ile test ediyorsun, Prod onay gelince gerçek kullanıcılar bağlayabilecek.)
         </div>
 
         <a href="<?= site_url('panel/auth/tiktok') ?>"
