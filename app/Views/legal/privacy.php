@@ -32,7 +32,7 @@
     .back-link{color:rgba(255,255,255,.75);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.18);}
     .back-link:hover{color:rgba(255,255,255,.92);border-bottom-color:rgba(255,255,255,.42);}
     .page-footer{position:absolute;left:48px;bottom:20px;color:rgba(255,255,255,.45);font-size:12px;}
-    .site-links{position:fixed;right:28px;bottom:18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;z-index:10;color:rgba(255,255,255,.55);font-size:12.5px;padding-top:6px;}
+    .site-links{position:fixed;right:150px;bottom:15px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;z-index:10;color:rgba(255,255,255,.55);font-size:12.5px;padding-top:6px;}
     .site-links a{color:rgba(255,255,255,.72);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.18);}
     .site-links a:hover{color:rgba(255,255,255,.92);border-bottom-color:rgba(255,255,255,.42);}
     .site-links .sep{opacity:.55;}

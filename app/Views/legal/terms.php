@@ -94,8 +94,8 @@
 
     .site-links{
       position: fixed;
-      right: 28px;
-      bottom: 18px;
+      right: 150px;
+      bottom: 15px;
       display:flex;
       gap:14px;
       align-items:center;
