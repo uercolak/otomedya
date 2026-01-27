@@ -44,56 +44,6 @@
     </div>
 
 
-    <div class="card-soft p-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <div class="metric-label">Hesap Ekle</div>
-        <span class="metric-tag"><i class="bi bi-plus-lg me-1"></i>Manuel</span>
-      </div>
-
-      <form method="post" action="<?= site_url('panel/social-accounts') ?>">
-        <?= csrf_field() ?>
-
-        <div class="mb-2">
-          <label class="form-label small text-muted mb-1">Platform</label>
-          <select name="platform" class="form-select form-select-sm">
-            <?php
-              $platformOld = strtolower((string)(old('platform') ?? 'instagram'));
-              $platforms = ['instagram' => 'Instagram','facebook'=>'Facebook','tiktok'=>'TikTok','youtube'=>'YouTube'];
-            ?>
-            <?php foreach ($platforms as $k => $label): ?>
-              <option value="<?= esc($k) ?>" <?= $platformOld === $k ? 'selected' : '' ?>><?= esc($label) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-
-        <div class="mb-2">
-          <label class="form-label small text-muted mb-1">Hesap Adı</label>
-          <input name="name" type="text" class="form-control form-control-sm"
-                 value="<?= esc(old('name') ?? '') ?>"
-                 placeholder="Örn: Test Instagram">
-          <div class="text-muted small mt-1">Panelde görünecek ad.</div>
-        </div>
-
-        <div class="mb-2">
-          <label class="form-label small text-muted mb-1">Kullanıcı Adı (opsiyonel)</label>
-          <input name="username" type="text" class="form-control form-control-sm"
-                 value="<?= esc(old('username') ?? '') ?>"
-                 placeholder="Örn: test_ig">
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label small text-muted mb-1">External ID (opsiyonel)</label>
-          <input name="external_id" type="text" class="form-control form-control-sm"
-                 value="<?= esc(old('external_id') ?? '') ?>"
-                 placeholder="OAuth bağlayınca dolacak">
-        </div>
-
-        <button type="submit" class="btn btn-primary w-100 btn-sm"
-                style="border-radius:999px; background: linear-gradient(135deg,#6366f1,#ec4899); border:none;">
-          <i class="bi bi-check2-circle me-1"></i> Hesabı Kaydet
-        </button>
-      </form>
-    </div>
   </div>
 
   <!-- Sağ: Liste -->
