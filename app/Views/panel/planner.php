@@ -2,138 +2,41 @@
 <?= $this->section('content') ?>
 
 <style>
-  /* =========================
-     Premium Planner UI
-  ========================== */
-  :root{
-    --pv-border: rgba(17, 24, 39, .08);
-    --pv-muted: #6b7280;
-    --pv-ink: #111827;
-    --pv-card: #ffffff;
-    --pv-soft: rgba(99,102,241,.08);
-    --pv-soft2: rgba(236,72,153,.08);
+  /* ---------- Brand Buttons (mavi yok) ---------- */
+  .btn-brand{
+    border:0;
+    color:#fff;
+    background: linear-gradient(135deg, #7c3aed, #ec4899);
+    box-shadow: 0 10px 24px rgba(124,58,237,.18);
   }
-
-  .planner-wrap{ padding: 14px 0 22px; }
-  .planner-topbar{
-    display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
-    padding: 10px 12px; border:1px solid var(--pv-border);
-    background: linear-gradient(135deg, var(--pv-soft), var(--pv-soft2));
-    border-radius: 18px;
-  }
-  .planner-title{ margin:0; font-weight:800; letter-spacing:-.02em; color:var(--pv-ink); }
-  .planner-sub{ margin-top:4px; color: var(--pv-muted); font-size: 13px; }
-  .planner-actions .btn{ border-radius: 12px; }
-
-  /* Section card */
-  .p-card{
-    background: var(--pv-card);
-    border: 1px solid var(--pv-border);
-    border-radius: 18px;
-    overflow: hidden;
-    box-shadow: 0 18px 40px rgba(17,24,39,.04);
-  }
-  .p-card-head{
-    padding: 14px 16px;
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    border-bottom: 1px solid rgba(0,0,0,.06);
-    background: rgba(249,250,251,.6);
-  }
-  .p-card-head h5{ margin:0; font-weight:800; letter-spacing:-.01em; }
-  .p-pill{
-    display:inline-flex; align-items:center; gap:6px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    border:1px solid rgba(0,0,0,.08);
-    background:#fff;
-    font-size: 12px;
-    color:#111;
-    white-space: nowrap;
-  }
-  .p-card-body{ padding: 16px; }
-
-  /* Form elements polish */
-  .form-label{ font-weight:700; color:#111827; }
-  .form-text{ color: #6b7280; }
-  .form-control, .form-select{
-    border-radius: 14px;
-    border-color: rgba(0,0,0,.12);
-    padding: 10px 12px;
-  }
-  .form-control:focus, .form-select:focus{
-    box-shadow: 0 0 0 .2rem rgba(99,102,241,.12);
-    border-color: rgba(99,102,241,.45);
-  }
-
-  /* Media dropzone look */
-  .media-drop{
-    border: 1.5px dashed rgba(99,102,241,.35);
-    background: rgba(99,102,241,.06);
-    border-radius: 16px;
-    padding: 14px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-  }
-  .media-drop strong{ color:#111827; }
-  .media-hint{ font-size: 12px; color: var(--pv-muted); margin:0; }
-  .media-drop .btn{ border-radius: 12px; }
-
-  /* Accounts list */
-  .acc-list{ display:flex; flex-direction:column; gap:10px; }
-  .acc-item{
+  .btn-brand:hover{ filter: brightness(.98); transform: translateY(-1px); }
+  .btn-brand:active{ transform: translateY(0); }
+  .btn-soft{
     border:1px solid rgba(0,0,0,.10);
-    border-radius: 14px;
-    padding: 10px 12px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
+    background:#fff;
+    color:#111;
+  }
+  .btn-soft:hover{ background:#f8f9fa; }
+
+  /* Emoji menu style */
+  .btn-emoji{
+    width:36px; height:36px; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:10px;
+    border:1px solid rgba(0,0,0,.08);
     background:#fff;
   }
-  .acc-left{ display:flex; align-items:center; gap:10px; min-width: 0; }
-  .acc-plat{
-    font-size: 11px; font-weight: 800; letter-spacing:.02em;
-    padding: 5px 10px; border-radius: 999px;
-    border:1px solid rgba(0,0,0,.08);
-    white-space: nowrap;
-  }
-  .acc-plat.instagram{ background: rgba(225,48,108,.10); border-color: rgba(225,48,108,.22); }
-  .acc-plat.facebook { background: rgba(24,119,242,.10); border-color: rgba(24,119,242,.22); }
-  .acc-plat.tiktok   { background: rgba(0,242,234,.10); border-color: rgba(0,242,234,.22); }
-  .acc-plat.youtube  { background: rgba(255,0,0,.08);   border-color: rgba(255,0,0,.18); }
-
-  .acc-meta{ min-width:0; }
-  .acc-name{
-    font-weight: 800; font-size: 13px; color:#111827;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .acc-sub{ font-size: 12px; color: var(--pv-muted); }
-
-  /* Sticky sidebar */
-  @media (min-width: 992px){
-    .planner-sticky{ position: sticky; top: 14px; }
-  }
-
-  /* CTA button */
-  .btn-primary{
-    border-radius: 14px;
-    padding: 11px 14px;
-    font-weight: 800;
-  }
-
-  /* Preview section */
-  .preview-note{
-    color: var(--pv-muted);
-    font-size: 12px;
-    margin: 0;
+  .btn-emoji:hover{ background:#f8f9fa; }
+  .emoji-menu{
+    border-radius:14px;
+    border:1px solid rgba(0,0,0,.10);
+    box-shadow:0 18px 50px rgba(0,0,0,.12);
   }
 
   /* --- Preview UI (Premium) --- */
   .pv-platform { border:1px solid rgba(0,0,0,.08); border-radius:16px; padding:14px; background:#fff; }
   .pv-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; }
-  .pv-title { font-weight:800; }
+  .pv-title { font-weight:600; }
   .pv-sub { color:#6c757d; font-size:12px; margin-top:2px; }
 
   .pv-badges { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
@@ -207,7 +110,7 @@
     text-shadow:0 1px 12px rgba(0,0,0,.75);
     pointer-events:none;
   }
-  .pv-tt-user{ font-weight:800; margin-bottom:6px; }
+  .pv-tt-user{ font-weight:700; margin-bottom:6px; }
   .pv-tt-caption{
     opacity:.95;
     white-space:pre-wrap;
@@ -219,6 +122,8 @@
     display:flex; flex-direction:column; gap:10px;
     pointer-events:none;
   }
+
+  /* Profil balonu */
   .pv-tt-avatar{
     width:40px; height:40px; border-radius:999px;
     background:rgba(255,255,255,.18);
@@ -228,10 +133,12 @@
   }
   .pv-tt-avatar::after{
     content:"S";
-    font-weight:900;
+    font-weight:800;
     font-size:14px;
     color:#fff;
   }
+
+  /* ikon butonları */
   .pv-tt-action{
     width:38px; height:38px; border-radius:999px;
     background:rgba(255,255,255,.14);
@@ -239,7 +146,12 @@
     display:flex; align-items:center; justify-content:center;
     box-shadow:0 8px 18px rgba(0,0,0,.22);
   }
-  .pv-tt-action::after{ color:#fff; font-size:16px; line-height:1; opacity:.95; }
+  .pv-tt-action::after{
+    color:#fff;
+    font-size:16px;
+    line-height:1;
+    opacity:.95;
+  }
   .pv-tt-like::after{ content:"♥"; }
   .pv-tt-comment::after{ content:"💬"; }
   .pv-tt-share::after{ content:"↗"; }
@@ -254,6 +166,12 @@
   }
   .pv-caption-label{ color:#6c757d; font-size:12px; margin-bottom:6px; }
   .pv-caption-text{ font-size:12px; white-space:pre-wrap; }
+
+  .pv-disclaimer{
+    color:#6c757d;
+    font-size:11px;
+    margin-top:8px;
+  }
 
   /* --- Facebook feed card --- */
   .pv-feed{
@@ -270,39 +188,25 @@
     gap:10px;
   }
   .pv-avatar{ width:28px; height:28px; border-radius:999px; background:#e9ecef; }
-  .pv-feed-name{ font-size:12px; font-weight:800; line-height:1.1; }
+  .pv-feed-name{ font-size:12px; font-weight:600; line-height:1.1; }
   .pv-feed-sub{ font-size:11px; color:#6c757d; }
   .pv-feed-body{ padding:10px 12px; font-size:12px; white-space:pre-wrap; }
 
   /* --- YouTube --- */
   .pv-yt-wrap{ max-width: 620px; }
-  .pv-yt-title{ font-weight:900; font-size:13px; margin-top:10px; }
+  .pv-yt-title{ font-weight:700; font-size:13px; margin-top:10px; }
   .pv-yt-meta{ color:#6c757d; font-size:11px; margin-top:2px; }
-
-  /* small helpers */
-  .char-count{ font-size:12px; color: var(--pv-muted); }
-  .mini-tip{
-    font-size:12px; color: var(--pv-muted);
-    background: rgba(17,24,39,.03);
-    border:1px solid rgba(17,24,39,.06);
-    border-radius: 14px;
-    padding: 10px 12px;
-  }
 </style>
 
-<div class="container-fluid planner-wrap">
-  <div class="planner-topbar mb-3">
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
-      <h3 class="planner-title">Yeni Gönderi Planla</h3>
-      <div class="planner-sub">Tek ekrandan içerik oluştur, hesap seç, tarih belirle ve paylaşımı planla.</div>
+      <h3 class="mb-0">Yeni Gönderi Planla</h3>
+      <div class="text-muted">Tek ekrandan içerik oluştur, hesap seç, tarih belirle ve paylaşımı planla.</div>
     </div>
-    <div class="planner-actions d-flex gap-2">
-      <a href="<?= site_url('panel/calendar') ?>" class="btn btn-outline-secondary">
-        <i class="bi bi-calendar3 me-1"></i> Takvime Dön
-      </a>
-      <a href="<?= site_url('panel/templates') ?>" class="btn btn-outline-primary">
-        <i class="bi bi-grid-3x3-gap me-1"></i> Şablondan Oluştur
-      </a>
+    <div class="d-flex gap-2">
+      <a href="<?= site_url('panel/calendar') ?>" class="btn btn-soft">Takvime Dön</a>
+      <a href="<?= site_url('panel/templates') ?>" class="btn btn-brand">Şablondan Oluştur</a>
     </div>
   </div>
 
@@ -320,229 +224,212 @@
       <input type="hidden" name="content_id" value="<?= (int)$prefill['id'] ?>">
     <?php endif; ?>
 
-    <!-- LEFT -->
     <div class="col-lg-7">
-      <!-- CONTENT -->
-      <div class="p-card mb-3">
-        <div class="p-card-head">
-          <h5><i class="bi bi-pencil-square me-2"></i>İçerik</h5>
-          <span class="p-pill"><i class="bi bi-1-circle me-1"></i> Adım 1</span>
-        </div>
-        <div class="p-card-body">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title mb-3">İçerik</h5>
+
           <div class="mb-3">
             <label class="form-label">Başlık</label>
             <input type="text" name="title" class="form-control" value="<?= esc($prefill['title'] ?? '') ?>" placeholder="Örn: Yeni ürün duyurusu / Kampanya / Etkinlik">
             <div class="form-text">Kısa ve net bir başlık, içeriklerini daha kolay takip etmeni sağlar.</div>
           </div>
 
-          <div class="mb-2 d-flex align-items-center justify-content-between">
-            <label class="form-label mb-0">Açıklama (Caption)</label>
-            <div class="char-count" id="captionCount">0 karakter</div>
-          </div>
-          <textarea name="base_text" class="form-control" rows="7" placeholder="Gönderinin açıklamasını yaz..."><?= esc($prefill['base_text'] ?? '') ?></textarea>
-          <div class="form-text mt-2">
-            Bu açıklama seçtiğin platformlara göre kullanılır. (İstersen YouTube için ayrıca başlık belirleyebilirsin.)
+          <!-- Caption + Emoji -->
+          <div class="mb-3">
+            <div class="d-flex align-items-center justify-content-between">
+              <label class="form-label mb-0">Açıklama (Caption)</label>
+
+              <div class="dropdown">
+                <button
+                  class="btn btn-sm btn-soft dropdown-toggle"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                  title="Emoji ekle"
+                >
+                  😊 Emoji
+                </button>
+
+                <div class="dropdown-menu dropdown-menu-end p-2 emoji-menu" style="width: 320px;">
+                  <div class="small text-muted mb-2">Sık kullanılanlar</div>
+                  <div class="d-flex flex-wrap gap-1 mb-2" id="emojiRecent"></div>
+
+                  <div class="small text-muted mb-2">Emojiler</div>
+                  <div class="d-flex flex-wrap gap-1" id="emojiGrid">
+                    <?php
+                      $emojis = ['😀','😁','😂','🤣','😊','😍','😘','😎','🤩','😇','😅','😉','😌','🙂','🙃','🤗',
+                                 '🔥','✨','💯','✅','🎉','📌','📣','💬','📸','🎬','🎥','🎵','🧡','❤️','💙','💚',
+                                 '🙏','👏','🤝','🚀','⭐','⚡','📍','🕒','🗓️','🔗','🛒','🎁','🍀','🌸','☀️','🌙'];
+                      foreach ($emojis as $e):
+                    ?>
+                      <button type="button" class="btn btn-emoji" data-emoji="<?= esc($e) ?>"><?= esc($e) ?></button>
+                    <?php endforeach; ?>
+                  </div>
+
+                  <div class="mt-2 pt-2 border-top d-flex justify-content-between align-items-center">
+                    <div class="small text-muted">Seçtiğin emoji otomatik eklenir</div>
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none" id="emojiClearRecent">Temizle</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <textarea
+              name="base_text"
+              class="form-control"
+              rows="6"
+              id="captionText"
+              placeholder="Gönderinin açıklamasını yaz...
+#hashtag #örnek #kampanya"
+            ><?= esc($prefill['base_text'] ?? '') ?></textarea>
+
+            <div class="form-text">
+              Bu açıklama seçtiğin platformlara göre kullanılır. (İstersen YouTube için ayrıca başlık belirleyebilirsin.)
+            </div>
           </div>
 
-          <div class="mini-tip mt-3">
-            <i class="bi bi-lightbulb me-1"></i>
-            İpucu: Kısa paragraf + 3–5 hashtag genelde daha okunaklı olur.
+          <div class="mb-3">
+            <label class="form-label">Medya</label>
+
+            <?php if (!empty($prefill) && !empty($prefill['media_path'])): ?>
+              <div class="border rounded p-2 bg-light">
+                <div class="small text-muted mb-2">Şablondan üretilen medya:</div>
+
+                <?php if (($prefill['media_type'] ?? '') === 'image'): ?>
+                  <img src="<?= base_url($prefill['media_path']) ?>"
+                       style="max-width: 100%; height: auto; border-radius: 10px; display:block;">
+                <?php elseif (($prefill['media_type'] ?? '') === 'video'): ?>
+                  <video controls style="max-width:100%; border-radius:10px; display:block;">
+                    <source src="<?= base_url($prefill['media_path']) ?>">
+                  </video>
+                <?php else: ?>
+                  <div class="text-danger small">Medya tipi bulunamadı.</div>
+                <?php endif; ?>
+
+                <div class="small text-muted mt-2">
+                  Bu içerik hazır. Yeni dosya yükleme alanı gizlendi.
+                </div>
+              </div>
+            <?php else: ?>
+              <input type="file" name="media" class="form-control" accept="image/*,video/*">
+              <div class="form-text">
+                Instagram Post/Story ve YouTube için medya gerekir. YouTube seçersen video zorunlu.
+              </div>
+            <?php endif; ?>
           </div>
+
+          <div id="ytSettings" class="mt-4" style="display:none;">
+            <div class="d-flex align-items-center justify-content-between">
+              <h5 class="mb-2">YouTube Ayarları</h5>
+              <span class="badge bg-light text-dark">YouTube seçilince açılır</span>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">YouTube Başlık <span class="text-danger">*</span></label>
+              <input type="text" name="youtube_title" class="form-control" placeholder="YouTube video başlığı">
+              <div class="form-text">YouTube için başlık zorunlu.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Gizlilik</label>
+              <select name="youtube_privacy" class="form-select">
+                <option value="public" selected>Public (herkese açık)</option>
+                <option value="unlisted">Unlisted (liste dışı)</option>
+                <option value="private">Private (özel)</option>
+              </select>
+            </div>
+          </div>
+
         </div>
       </div>
+    </div>
 
-      <!-- MEDIA -->
-      <div class="p-card mb-3">
-        <div class="p-card-head">
-          <h5><i class="bi bi-image me-2"></i>Medya</h5>
-          <span class="p-pill"><i class="bi bi-2-circle me-1"></i> Adım 2</span>
-        </div>
-        <div class="p-card-body">
+    <div class="col-lg-5">
+      <div class="card mb-3">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Hedef Hesaplar</h5>
 
-          <?php if (!empty($prefill) && !empty($prefill['media_path'])): ?>
-            <div class="border rounded-4 p-3 bg-light">
-              <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-                <div class="fw-bold">Şablondan oluşturulan medya</div>
-                <span class="badge bg-white text-dark border">Hazır</span>
-              </div>
-
-              <?php if (($prefill['media_type'] ?? '') === 'image'): ?>
-                <img src="<?= base_url($prefill['media_path']) ?>"
-                     style="max-width: 100%; height: auto; border-radius: 14px; display:block;">
-              <?php elseif (($prefill['media_type'] ?? '') === 'video'): ?>
-                <video controls style="max-width:100%; border-radius:14px; display:block;">
-                  <source src="<?= base_url($prefill['media_path']) ?>">
-                </video>
-              <?php else: ?>
-                <div class="text-danger small">Medya tipi bulunamadı.</div>
-              <?php endif; ?>
-
-              <div class="small text-muted mt-2">
-                Bu içerik hazır. Yeni dosya yükleme alanı kapalı.
-              </div>
+          <?php if (empty($accounts)): ?>
+            <div class="alert alert-warning mb-0">
+              Henüz sosyal hesap yok. Önce <a href="<?= site_url('panel/social-accounts') ?>">Sosyal Hesaplar</a> bölümünden ekle.
             </div>
           <?php else: ?>
-            <div class="media-drop">
-              <div>
-                <strong>Görsel / Video yükle</strong>
-                <p class="media-hint">Instagram & Facebook için görsel/video, YouTube için video önerilir.</p>
-              </div>
-              <div class="text-end">
-                <label class="btn btn-outline-primary mb-0">
-                  <i class="bi bi-upload me-1"></i> Dosya Seç
-                  <input type="file" name="media" class="d-none" id="mediaInput" accept="image/*,video/*">
+            <div class="vstack gap-2">
+              <?php foreach ($accounts as $a): ?>
+                <?php
+                  $plat = strtoupper((string)$a['platform']);
+                  $label = $plat . ' — ';
+                  if (!empty($a['username'])) $label .= '@' . $a['username'];
+                  elseif (!empty($a['name'])) $label .= $a['name'];
+                  else $label .= 'Hesap #' . (int)$a['id'];
+                ?>
+                <label class="border rounded p-2 d-flex align-items-center justify-content-between">
+                  <span><?= esc($label) ?> <span class="text-muted">(ID: <?= (int)$a['id'] ?>)</span></span>
+                  <input
+                    class="form-check-input account-check"
+                    type="checkbox"
+                    name="account_ids[]"
+                    value="<?= (int)$a['id'] ?>"
+                    data-platform="<?= esc(strtolower((string)$a['platform'])) ?>"
+                  >
                 </label>
-              </div>
+              <?php endforeach; ?>
             </div>
-
-            <div class="form-text mt-2" id="mediaInfo">
-              Seçim yaptığında ön izleme otomatik güncellenir.
-            </div>
+            <div class="form-text mt-2">Birden fazla hesap seçersen aynı içerik seçilen tüm hesaplarda planlanır.</div>
           <?php endif; ?>
-
-          <div class="mini-tip mt-3" id="tiktokHint" style="display:none;">
-            <i class="bi bi-camera-video me-1"></i>
-            TikTok için <b>video</b> seçmelisin. Görsel seçilirse TikTok ön izleme boş görünebilir.
-          </div>
         </div>
       </div>
 
-      <!-- YOUTUBE SETTINGS -->
-      <div class="p-card mb-3" id="ytSettings" style="display:none;">
-        <div class="p-card-head">
-          <h5><i class="bi bi-youtube me-2"></i>YouTube Ayarları</h5>
-          <span class="p-pill"><i class="bi bi-3-circle me-1"></i> Opsiyonel</span>
-        </div>
-        <div class="p-card-body">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Zamanlama</h5>
+
           <div class="mb-3">
-            <label class="form-label">YouTube Başlık <span class="text-danger">*</span></label>
-            <input type="text" name="youtube_title" class="form-control" placeholder="YouTube video başlığı">
-            <div class="form-text">YouTube seçiliyse başlık girmeni isteyeceğiz.</div>
+            <label class="form-label">Instagram Paylaşım Tipi</label>
+            <select name="post_type" class="form-select" required>
+              <option value="auto" selected>AUTO (video→reels, görsel→post)</option>
+              <option value="post">Post</option>
+              <option value="reels">Reels</option>
+              <option value="story">Story</option>
+            </select>
+            <div class="form-text">
+              AUTO önerilir. (Video feed için Meta çoğu zaman reels ister.)
+            </div>
           </div>
 
-          <div class="mb-0">
-            <label class="form-label">Gizlilik</label>
-            <select name="youtube_privacy" class="form-select">
-              <option value="public" selected>Herkese Açık</option>
-              <option value="unlisted">Liste Dışı</option>
-              <option value="private">Özel</option>
-            </select>
+          <div class="mb-3">
+            <label class="form-label">Tarih/Saat</label>
+            <input type="datetime-local" name="schedule_at" class="form-control" required>
+            <div class="form-text">Kaydetmeden önce otomatik olarak Y-m-d H:i:s formatına çevrilir.</div>
           </div>
+
+          <button type="submit" class="btn btn-brand w-100">Planla</button>
         </div>
       </div>
+    </div>
 
-      <!-- PREVIEW -->
-      <div class="p-card" id="previewCard" style="display:none;">
-        <div class="p-card-head">
-          <h5><i class="bi bi-eye me-2"></i>Ön İzleme</h5>
-          <span class="p-pill"><i class="bi bi-stars me-1"></i> Canlı</span>
-        </div>
-        <div class="p-card-body">
-          <p class="preview-note mb-3">
-            Seçtiğin platformlara göre gönderinin yaklaşık görünümünü burada görebilirsin.
-            <span class="d-block mt-1">Not: Platformlarda küçük farklılıklar olabilir.</span>
-          </p>
+    <!-- Ön İzleme -->
+    <div class="col-12">
+      <div class="card mb-3" id="previewCard" style="display:none;">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h5 class="card-title mb-0">Ön İzleme</h5>
+            <span class="badge bg-light text-dark">Seçilen platformlara göre</span>
+          </div>
+
+          <div class="text-muted small mb-3">
+            Gönderini, seçtiğin platformlarda yaklaşık nasıl görüneceğini burada görebilirsin.
+            <span class="pv-disclaimer d-block mt-1">
+              Not: Bu bir ön izleme görünümüdür. Platform arayüzüne göre küçük farklılıklar olabilir.
+            </span>
+          </div>
+
           <div id="previewWrap" class="vstack gap-3"></div>
         </div>
       </div>
     </div>
 
-    <!-- RIGHT -->
-    <div class="col-lg-5">
-      <div class="planner-sticky">
-        <!-- ACCOUNTS -->
-        <div class="p-card mb-3">
-          <div class="p-card-head">
-            <h5><i class="bi bi-people me-2"></i>Hedef Hesaplar</h5>
-            <span class="p-pill"><i class="bi bi-check2-square me-1"></i> Seç</span>
-          </div>
-          <div class="p-card-body">
-            <?php if (empty($accounts)): ?>
-              <div class="alert alert-warning mb-0">
-                Henüz sosyal hesap eklenmemiş.
-                <a href="<?= site_url('panel/social-accounts') ?>">Sosyal Hesaplar</a> bölümünden ekleyebilirsin.
-              </div>
-            <?php else: ?>
-              <div class="acc-list">
-                <?php foreach ($accounts as $a): ?>
-                  <?php
-                    $plat = strtolower((string)$a['platform']);
-                    $platUp = strtoupper((string)$a['platform']);
-
-                    // kullanıcıya “ID” göstermiyoruz:
-                    $display = '';
-                    if (!empty($a['username'])) $display = '@' . $a['username'];
-                    elseif (!empty($a['name'])) $display = $a['name'];
-                    else $display = 'Bağlı hesap';
-                  ?>
-                  <label class="acc-item">
-                    <div class="acc-left">
-                      <span class="acc-plat <?= esc($plat) ?>"><?= esc($platUp) ?></span>
-                      <div class="acc-meta">
-                        <div class="acc-name"><?= esc($display) ?></div>
-                        <div class="acc-sub">Bu içerik bu hesaba planlanır</div>
-                      </div>
-                    </div>
-
-                    <input
-                      class="form-check-input account-check"
-                      type="checkbox"
-                      name="account_ids[]"
-                      value="<?= (int)$a['id'] ?>"
-                      data-platform="<?= esc($plat) ?>"
-                    >
-                  </label>
-                <?php endforeach; ?>
-              </div>
-
-              <div class="form-text mt-2">
-                Birden fazla hesap seçersen aynı içerik seçilen tüm hesaplarda planlanır.
-              </div>
-            <?php endif; ?>
-          </div>
-        </div>
-
-        <!-- SCHEDULING -->
-        <div class="p-card">
-          <div class="p-card-head">
-            <h5><i class="bi bi-clock-history me-2"></i>Zamanlama</h5>
-            <span class="p-pill"><i class="bi bi-calendar-check me-1"></i> Planla</span>
-          </div>
-          <div class="p-card-body">
-            <div class="mb-3">
-              <label class="form-label">Instagram Paylaşım Tipi</label>
-              <select name="post_type" class="form-select" required>
-                <option value="auto" selected>Otomatik (video → reels, görsel → post)</option>
-                <option value="post">Gönderi (Post)</option>
-                <option value="reels">Reels</option>
-                <option value="story">Hikâye (Story)</option>
-              </select>
-              <div class="form-text">Otomatik seçeneği, çoğu içerik için en pratik yöntemdir.</div>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">Tarih & Saat</label>
-              <input type="datetime-local" name="schedule_at" class="form-control" required>
-              <div class="form-text">Dilersen takvimden de sürükleyerek tarihi değiştirebilirsin.</div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100">
-              <i class="bi bi-send me-1"></i> Planla
-            </button>
-
-            <div class="mini-tip mt-3">
-              <i class="bi bi-shield-check me-1"></i>
-              Planlanan gönderiler “Paylaşımlar” bölümünde durumuyla birlikte görünür.
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- hidden inputs for prefill media (already in your JS below) -->
-    <?php if (!empty($prefill['id'])): ?>
-      <!-- no-op -->
-    <?php endif; ?>
   </form>
 </div>
 
@@ -556,17 +443,11 @@
 
   const inputTitle     = document.querySelector('input[name="title"]');
   const textareaBase   = document.querySelector('textarea[name="base_text"]');
-
-  // Bu view'de file input id değişti (dropzone görünümü için):
-  const inputMedia     = document.getElementById('mediaInput') || document.querySelector('input[name="media"]');
-
+  const inputMedia     = document.querySelector('input[name="media"]');
   const selectPostType = document.querySelector('select[name="post_type"]');
 
   const inputYtTitle   = document.querySelector('input[name="youtube_title"]');
   const selectYtPriv   = document.querySelector('select[name="youtube_privacy"]');
-
-  const captionCount = document.getElementById('captionCount');
-  const tiktokHint = document.getElementById('tiktokHint');
 
   // Prefill medya varsa (şablondan geldiyse)
   const PREFILL_MEDIA_URL  = <?= !empty($prefill['media_path']) ? json_encode(base_url($prefill['media_path'])) : 'null' ?>;
@@ -583,17 +464,12 @@
       .replace(/'/g,'&#039;');
   }
 
-  function updateCaptionCount(){
-    const n = (textareaBase?.value || '').length;
-    if (captionCount) captionCount.textContent = n + ' karakter';
-  }
-
   function getSelectedPlatforms(){
     const selected = checks.filter(ch => ch.checked);
     const map = {}; // platform => [{id,label}]
     selected.forEach(ch => {
       const plat = (ch.dataset.platform || '').toLowerCase();
-      const label = (ch.closest('label')?.querySelector('.acc-name')?.innerText || '').trim();
+      const label = (ch.closest('label')?.querySelector('span')?.innerText || '').trim();
       if (!map[plat]) map[plat] = [];
       map[plat].push({ id: ch.value, label });
     });
@@ -614,6 +490,7 @@
       if (mime.startsWith('image/')) type = 'image';
       else if (mime.startsWith('video/')) type = 'video';
 
+      // revoke previous
       if (lastObjectUrl) {
         try { URL.revokeObjectURL(lastObjectUrl); } catch(e){}
         lastObjectUrl = null;
@@ -623,6 +500,7 @@
       return { url: lastObjectUrl, type };
     }
 
+    // revoke if no media now
     if (lastObjectUrl) {
       try { URL.revokeObjectURL(lastObjectUrl); } catch(e){}
       lastObjectUrl = null;
@@ -672,15 +550,7 @@
     `;
   }
 
-  function truncate(s, n){
-    s = (s || '').trim();
-    if (!s) return '';
-    return s.length > n ? s.slice(0, n) + '…' : s;
-  }
-
   function render(){
-    updateCaptionCount();
-
     // YouTube ayarlarını aç/kapa
     const hasYT = checks.some(ch => ch.checked && (ch.dataset.platform === 'youtube'));
     if (ytBox) ytBox.style.display = hasYT ? 'block' : 'none';
@@ -692,7 +562,6 @@
     if (keys.length === 0) {
       previewCard.style.display = 'none';
       previewWrap.innerHTML = '';
-      if (tiktokHint) tiktokHint.style.display = 'none';
       return;
     }
     previewCard.style.display = 'block';
@@ -706,12 +575,6 @@
     const ytPriv  = (selectYtPriv?.value || 'public').trim();
 
     const media = getMediaSource();
-
-    // TikTok seçiliyse video öner
-    const hasTiktok = !!platforms.tiktok?.length;
-    if (tiktokHint) {
-      tiktokHint.style.display = (hasTiktok && media.type === 'image') ? 'block' : 'none';
-    }
 
     let html = '';
 
@@ -730,7 +593,7 @@
 
       const igOverlay = `
         <div class="pv-ig-top">
-          <span class="pv-ig-pill">Ön İzleme</span>
+          <span class="pv-ig-pill">@sosyalmedyaplanlama</span>
           <span class="pv-ig-pill">${escapeHtml(postType)}</span>
         </div>
       `;
@@ -739,12 +602,12 @@
         <div class="pv-row">
           <div style="flex:0 0 auto;">
             ${phoneMediaHtml(media, ratio, igOverlay)}
-            <div class="mt-2">${buildCaptionBox('Açıklama', caption)}</div>
+            <div class="mt-2">${buildCaptionBox('Caption', caption)}</div>
           </div>
         </div>
       `;
 
-      html += buildPlatformCard('Instagram', accounts, badges, body);
+      html += buildPlatformCard('Instagram Ön İzleme', accounts, badges, body);
     }
 
     // Facebook
@@ -755,7 +618,7 @@
       const mediaInner = (!media.url || !media.type)
         ? `<div class="text-muted small p-3">Medya seçilmedi.</div>`
         : (media.type === 'image')
-          ? `<img src="${escapeHtml(media.url)}" alt="">`
+          ? `<img src="${escapeHtml(media.url)}" avoid="">`
           : `<video controls muted playsinline><source src="${escapeHtml(media.url)}"></video>`;
 
       const body = `
@@ -763,8 +626,8 @@
           <div class="pv-feed-head">
             <div class="pv-avatar"></div>
             <div>
-              <div class="pv-feed-name">Gönderi Ön İzleme</div>
-              <div class="pv-feed-sub">Herkese açık</div>
+              <div class="pv-feed-name">Sosyal Medya Planlama</div>
+              <div class="pv-feed-sub">Az önce • Herkese açık</div>
             </div>
           </div>
           <div class="pv-screen pv-ratio-4x5" style="border-radius:0;">
@@ -774,7 +637,7 @@
         </div>
       `;
 
-      html += buildPlatformCard('Facebook', accounts, badges, body);
+      html += buildPlatformCard('Facebook Ön İzleme', accounts, badges, body);
     }
 
     // TikTok
@@ -788,13 +651,13 @@
       const ttOverlay = `
         <div class="pv-tt-left">
           <div class="pv-tt-user">@sosyalmedyaplanlama</div>
-          <div class="pv-tt-caption">${escapeHtml(truncate(caption || '—', 140))}</div>
+          <div class="pv-tt-caption">${escapeHtml(caption || '—')}</div>
         </div>
         <div class="pv-tt-right">
-          <div class="pv-tt-avatar"></div>
-          <div class="pv-tt-action pv-tt-like"></div>
-          <div class="pv-tt-action pv-tt-comment"></div>
-          <div class="pv-tt-action pv-tt-share"></div>
+            <div class="pv-tt-avatar"></div>
+            <div class="pv-tt-action pv-tt-like"></div>
+            <div class="pv-tt-action pv-tt-comment"></div>
+            <div class="pv-tt-action pv-tt-share"></div>
         </div>
       `;
 
@@ -804,12 +667,14 @@
         <div class="pv-row">
           <div style="flex:0 0 auto;">
             ${phoneMediaHtml(ttMedia, 'pv-ratio-9x16', ttOverlay)}
-            <div class="mt-2">${buildCaptionBox('Açıklama', caption)}</div>
+            <div class="mt-2">
+              ${buildCaptionBox('Caption - Açıklama', caption)}
+            </div>
           </div>
         </div>
       `;
 
-      html += buildPlatformCard('TikTok', accounts, badges, body);
+      html += buildPlatformCard('TikTok Ön İzleme', accounts, badges, body);
     }
 
     // YouTube
@@ -817,7 +682,7 @@
       const accounts = platforms.youtube.map(a => a.label).join(' • ');
       const badges = `
         <span class="pv-badge">YouTube</span>
-        <span class="pv-badge">${escapeHtml(ytPriv)}</span>
+        <span class="pv-badge">Gizlilik: ${escapeHtml(ytPriv)}</span>
       `;
 
       const ytFinalTitle = ytTitle || title || '—';
@@ -835,20 +700,19 @@
           </div>
 
           <div class="pv-yt-title">${escapeHtml(ytFinalTitle)}</div>
-          <div class="pv-yt-meta">Gizlilik: ${escapeHtml(ytPriv)}</div>
+          <div class="pv-yt-meta">@sosyalmedyaplanlama • ${escapeHtml(ytPriv)}</div>
 
           <div class="text-muted small mt-2">Açıklama</div>
           <div style="white-space:pre-wrap; font-size:12px;">${escapeHtml(caption || '—')}</div>
         </div>
       `;
 
-      html += buildPlatformCard('YouTube', accounts, badges, body);
+      html += buildPlatformCard('YouTube Ön İzleme', accounts, badges, body);
     }
 
     previewWrap.innerHTML = html;
   }
 
-  // events
   checks.forEach(ch => ch.addEventListener('change', render));
   inputTitle?.addEventListener('input', render);
   textareaBase?.addEventListener('input', render);
@@ -857,8 +721,74 @@
   selectYtPriv?.addEventListener('change', render);
   inputMedia?.addEventListener('change', render);
 
-  // init
   render();
+})();
+</script>
+
+<!-- Emoji insert script -->
+<script>
+(function(){
+  const ta = document.getElementById('captionText');
+  if (!ta) return;
+
+  const recentKey = 'smp_recent_emojis_v1';
+  const recentWrap = document.getElementById('emojiRecent');
+  const clearBtn = document.getElementById('emojiClearRecent');
+
+  function loadRecent(){
+    try{
+      const arr = JSON.parse(localStorage.getItem(recentKey) || '[]');
+      return Array.isArray(arr) ? arr : [];
+    }catch(e){ return []; }
+  }
+  function saveRecent(arr){
+    try{ localStorage.setItem(recentKey, JSON.stringify(arr.slice(0, 16))); }catch(e){}
+  }
+  function renderRecent(){
+    if (!recentWrap) return;
+    const arr = loadRecent();
+    recentWrap.innerHTML = arr.length
+      ? arr.map(e => `<button type="button" class="btn btn-emoji" data-emoji="${e}">${e}</button>`).join('')
+      : `<div class="small text-muted">Henüz yok</div>`;
+  }
+
+  function insertAtCursor(textarea, text){
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end   = textarea.selectionEnd ?? textarea.value.length;
+    const before = textarea.value.substring(0, start);
+    const after  = textarea.value.substring(end);
+    textarea.value = before + text + after;
+    const pos = start + text.length;
+    textarea.setSelectionRange(pos, pos);
+    textarea.focus();
+    textarea.dispatchEvent(new Event('input', { bubbles:true }));
+  }
+
+  function handleEmojiClick(e){
+    const btn = e.target.closest('[data-emoji]');
+    if (!btn) return;
+    const emoji = btn.getAttribute('data-emoji');
+    if (!emoji) return;
+
+    insertAtCursor(ta, emoji);
+
+    const arr = loadRecent().filter(x => x !== emoji);
+    arr.unshift(emoji);
+    saveRecent(arr);
+    renderRecent();
+  }
+
+  document.addEventListener('click', function(e){
+    if (e.target.closest('#emojiGrid')) handleEmojiClick(e);
+    if (e.target.closest('#emojiRecent')) handleEmojiClick(e);
+  });
+
+  clearBtn?.addEventListener('click', function(){
+    try{ localStorage.removeItem(recentKey); }catch(e){}
+    renderRecent();
+  });
+
+  renderRecent();
 })();
 </script>
 
