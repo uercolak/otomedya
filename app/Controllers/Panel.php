@@ -22,12 +22,12 @@ class Panel extends BaseController
         $db = \Config\Database::connect();
 
         // Bu haftanın başlangıç / bitişi (Pzt->Paz)
-        $start = (new \DateTime('monday this week'))->setTime(0,0,0)->format('Y-m-d H:i:s');
-        $end   = (new \DateTime('sunday this week'))->setTime(23,59,59)->format('Y-m-d H:i:s');
+        $start = (new \DateTime('monday this week'))->setTime(0, 0, 0)->format('Y-m-d H:i:s');
+        $end   = (new \DateTime('sunday this week'))->setTime(23, 59, 59)->format('Y-m-d H:i:s');
 
         $plannedThisWeek = $db->table('publishes')
             ->where('user_id', $userId)
-            ->whereIn('status', ['queued','scheduled'])
+            ->whereIn('status', ['queued', 'scheduled'])
             ->where('schedule_at >=', $start)
             ->where('schedule_at <=', $end)
             ->countAllResults();
@@ -47,7 +47,7 @@ class Panel extends BaseController
             ->join('contents c', 'c.id = p.content_id', 'left')
             ->join('social_accounts sa', 'sa.id = p.account_id', 'left')
             ->where('p.user_id', $userId)
-            ->whereIn('p.status', ['queued','scheduled'])
+            ->whereIn('p.status', ['queued', 'scheduled'])
             ->orderBy('p.schedule_at', 'ASC')
             ->limit(5)
             ->get()->getResultArray();
@@ -58,7 +58,7 @@ class Panel extends BaseController
             ->join('contents c', 'c.id = p.content_id', 'left')
             ->join('social_accounts sa', 'sa.id = p.account_id', 'left')
             ->where('p.user_id', $userId)
-            ->whereIn('p.status', ['published','failed','canceled'])
+            ->whereIn('p.status', ['published', 'failed', 'canceled'])
             ->orderBy('p.updated_at', 'DESC')
             ->limit(5)
             ->get()->getResultArray();
@@ -71,7 +71,7 @@ class Panel extends BaseController
             ->limit(5)
             ->get()->getResultArray();
 
-        // Aktif şablonlar (mini liste) - file_path YOK!
+        // Aktif şablonlar (mini liste)
         $templates = [];
         if ($db->tableExists('templates')) {
             $templates = $db->table('templates')
@@ -82,37 +82,58 @@ class Panel extends BaseController
                 ->get()->getResultArray();
         }
 
-        // Mini takvim: bu ay planlı gönderiler gün bazında adet
-        $monthStart = (new \DateTime('first day of this month'))->setTime(0,0,0)->format('Y-m-d H:i:s');
-        $monthEnd   = (new \DateTime('last day of this month'))->setTime(23,59,59)->format('Y-m-d H:i:s');
+        // Mini takvim: bu ay planlı + yayınlanan gün bazında adet
+        $monthStart = (new \DateTime('first day of this month'))->setTime(0, 0, 0)->format('Y-m-d H:i:s');
+        $monthEnd   = (new \DateTime('last day of this month'))->setTime(23, 59, 59)->format('Y-m-d H:i:s');
 
-        $dayCountsRows = $db->table('publishes')
+        // Planlı (schedule_at)
+        $scheduledRows = $db->table('publishes')
             ->select("DATE(schedule_at) as d, COUNT(*) as c")
             ->where('user_id', $userId)
-            ->whereIn('status', ['queued','scheduled'])
+            ->whereIn('status', ['queued', 'scheduled'])
             ->where('schedule_at >=', $monthStart)
             ->where('schedule_at <=', $monthEnd)
             ->groupBy("DATE(schedule_at)")
             ->get()->getResultArray();
 
-        $dayCounts = [];
-        foreach ($dayCountsRows as $r) {
-            $dayCounts[(string)$r['d']] = (int)$r['c'];
+        $dayCountsScheduled = [];
+        foreach ($scheduledRows as $r) {
+            $dayCountsScheduled[(string)$r['d']] = (int)$r['c'];
+        }
+
+        // Yayınlanan (published_at)
+        $publishedRows = $db->table('publishes')
+            ->select("DATE(published_at) as d, COUNT(*) as c")
+            ->where('user_id', $userId)
+            ->where('status', 'published')
+            ->where('published_at IS NOT NULL', null, false)
+            ->where('published_at >=', $monthStart)
+            ->where('published_at <=', $monthEnd)
+            ->groupBy("DATE(published_at)")
+            ->get()->getResultArray();
+
+        $dayCountsPublished = [];
+        foreach ($publishedRows as $r) {
+            $dayCountsPublished[(string)$r['d']] = (int)$r['c'];
         }
 
         return view('panel/dashboard', [
             'headerVariant' => 'dashboard',
             'pageTitle'     => 'Gösterge Paneli',
-            'pageSubtitle'  => 'Planlı gönderilerin, bağlı hesapların ve son işlemlerin özeti.',
+            'pageSubtitle'  => 'Planlarınız, bağlı hesaplarınız ve son aktivitelerinizin özeti.',
+
             'plannedThisWeek' => $plannedThisWeek,
             'accountsCount'   => $accountsCount,
             'templatesCount'  => $templatesCount,
+
             'upcoming'        => $upcoming,
             'recent'          => $recent,
             'accounts'        => $accounts,
             'templates'       => $templates,
-            'monthStart'      => $monthStart,
-            'dayCounts'       => $dayCounts,
+
+            'monthStart'        => $monthStart,
+            'dayCountsScheduled'=> $dayCountsScheduled,
+            'dayCountsPublished'=> $dayCountsPublished,
         ]);
     }
 
@@ -122,7 +143,7 @@ class Panel extends BaseController
 
         return view('panel/calendar', [
             'pageTitle'      => 'Takvim ve Planlama',
-            'pageSubtitle'   => 'Tüm platformlardaki planlı gönderilerini tek bir takvim üzerinden yönet.',
+            'pageSubtitle'   => 'Tüm platformlardaki paylaşımlarınızı tek bir takvim üzerinden planlayın ve yönetin.',
             'headerVariant'  => 'compact',
         ]);
     }
