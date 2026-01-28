@@ -221,7 +221,7 @@ if ($thumbUrl === '' && $mediaUrl !== '' && $mediaType === 'image') {
           </div>
         </div>
       <?php endif; ?>
-<?php dd($row['content_media_type'] ?? null, $row['content_media_path'] ?? null); ?>
+
       <div class="media-meta d-flex justify-content-between align-items-center">
         <div>
           <div class="fw-semibold"><?= esc($contentLabel) ?></div>
