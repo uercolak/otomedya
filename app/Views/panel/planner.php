@@ -794,5 +794,23 @@
   renderRecent();
 })();
 </script>
+<script>
+(function(){
+  const ta = document.getElementById('captionText');
+  const counter = document.getElementById('captionCounter');
+  if (!ta || !counter) return;
 
+  const format = (n) => `${n} karakter`;
+
+  function update(){
+    // trim istemiyorsan kaldırabilirsin
+    const len = (ta.value || '').length;
+    counter.textContent = format(len);
+  }
+
+  ta.addEventListener('input', update);
+  // sayfa ilk açıldığında da yazsın
+  update();
+})();
+</script>
 <?= $this->endSection() ?>
