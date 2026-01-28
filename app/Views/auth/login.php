@@ -276,11 +276,8 @@
 
         <div class="hero">
             <h1>Tek panelden tüm içeriklerini yönet.</h1>
-            <p> <!--  Facebook, Instagram, YouTube ve TikTok gönderilerini tek takvim üzerinden planla,
-                otomatik olarak yayınla ve süreçlerini takip et. -->
-
-                TikTok gönderilerini tek takvim üzerinden planla , yönet ve takip et.
-
+            <p>  Facebook, Instagram, YouTube ve TikTok gönderilerini tek takvim üzerinden planla,
+                otomatik olarak yayınla ve süreçlerini takip et.
             </p> 
 
             <div class="feature-row">
