@@ -292,8 +292,8 @@
 
       <div class="feature-row">
         <div class="pill"><span class="dot"></span> Planlama & Takvim</div>
-        <div class="pill"><span class="dot"></span> Çoklu Hesap Yönetimi</div>
-        <div class="pill"><span class="dot"></span> Yayın Durumu & Takip</div>
+        <div class="pill"><span class="dot"></span> Otomatik Yayınlama</div>
+        <div class="pill"><span class="dot"></span> Yayın Akışı Takibi</div>
       </div>
     </div>
 
