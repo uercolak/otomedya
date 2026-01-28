@@ -85,6 +85,7 @@ class Panel extends BaseController
                 ->get()->getResultArray();
         }
 
+
         $monthStart = (new \DateTime('first day of this month'))->setTime(0, 0, 0)->format('Y-m-d H:i:s');
         $monthEnd   = (new \DateTime('last day of this month'))->setTime(23, 59, 59)->format('Y-m-d H:i:s');
 
