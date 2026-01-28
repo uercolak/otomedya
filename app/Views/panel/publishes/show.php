@@ -187,7 +187,6 @@ $mediaType = $mediaUrl !== '' ? guess_media_type($mediaUrl) : '';
       <span class="pill">Platform: <strong><?= esc($platform) ?></strong></span>
       <span class="pill">Hesap: <strong><?= esc($accLabel) ?></strong></span>
       <span class="pill">Durum: <?= view('partials/status_badge', ['status' => $status]) ?></span>
-      <span><?php print_r($row) ?></span>
     </div>
   </div>
 

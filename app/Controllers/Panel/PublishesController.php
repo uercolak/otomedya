@@ -11,7 +11,6 @@ class PublishesController extends BaseController
         if (!session('is_logged_in')) {
             return redirect()->to(site_url('auth/login'));
         }
-        // user role kontrolün varsa burada ekleyebilirsin
         return null;
     }
 
@@ -45,29 +44,33 @@ class PublishesController extends BaseController
         }
 
         if ($platform !== '') $builder->where('p.platform', $platform);
-        if ($status !== '') $builder->where('p.status', $status);
+        if ($status !== '')   $builder->where('p.status', $status);
 
+        // Tarih filtreleri (created_at üzerinden)
         if ($dateFrom !== '') $builder->where('p.created_at >=', $dateFrom . ' 00:00:00');
         if ($dateTo !== '')   $builder->where('p.created_at <=', $dateTo . ' 23:59:59');
 
         $builder->orderBy('p.id', 'DESC');
 
-        // basit pagination
+        // Pagination
         $perPage = 15;
         $page = max(1, (int)($this->request->getGet('page') ?? 1));
         $offset = ($page - 1) * $perPage;
 
+        // countAllResults(false) -> builder reset olmasın
         $total = (clone $builder)->countAllResults(false);
         $rows  = $builder->limit($perPage, $offset)->get()->getResultArray();
 
         $platforms = $db->table('publishes')
-            ->select('platform')->distinct()
+            ->select('platform')
+            ->distinct()
             ->where('user_id', $userId)
             ->orderBy('platform', 'ASC')
             ->get()->getResultArray();
-        $platformOptions = array_values(array_filter(array_map(fn($r)=> (string)$r['platform'], $platforms)));
 
-        $statusOptions = ['queued','publishing','published','failed','canceled'];
+        $platformOptions = array_values(array_filter(array_map(fn($r)=> (string)($r['platform'] ?? ''), $platforms)));
+
+        $statusOptions = ['queued','scheduled','publishing','published','failed','canceled'];
 
         return view('panel/publishes/index', [
             'rows' => $rows,
@@ -84,7 +87,7 @@ class PublishesController extends BaseController
                 'total' => $total,
                 'perPage' => $perPage,
                 'page' => $page,
-                'pages' => (int)ceil($total / $perPage),
+                'pages' => (int)ceil(($total ?: 0) / $perPage),
             ],
         ]);
     }
@@ -99,19 +102,35 @@ class PublishesController extends BaseController
         $row = $db->table('publishes p')
             ->select('p.*')
             ->select('sa.name as sa_name, sa.username as sa_username')
+
+            // içerik metni + medya alanları (ALIAS ile show.php standart okur)
             ->select('c.title as content_title, c.base_text as content_text')
+            ->select('c.media_path as content_media_path')     // ✅ varsa: uploads/.... (relative)
+            ->select('c.media_kind as content_media_kind')     // ✅ image/video (varsa)
+            ->select('c.thumb_path as content_thumb_path')     // ✅ varsa
             ->join('social_accounts sa', 'sa.id = p.account_id', 'left')
             ->join('contents c', 'c.id = p.content_id', 'left')
             ->where('p.id', $id)
-            ->where('p.user_id', $userId) // güvenlik: sadece kendi kaydı
+            ->where('p.user_id', $userId)
             ->get()->getRowArray();
 
         if (!$row) {
             return redirect()->to(site_url('panel/publishes'))->with('error', 'Paylaşım kaydı bulunamadı.');
         }
 
-        $previewUrl = null;
-        if (($row['status'] ?? '') === 'published') {
+        // ✅ Öncelik: meta_json içindeki permalink (sende YouTube/IG/FB var)
+        $previewUrl = $this->extractPermalinkFromMetaJson((string)($row['meta_json'] ?? ''));
+
+        // fallback: remote_id URL ise onu kullan
+        if (!$previewUrl) {
+            $remoteId = trim((string)($row['remote_id'] ?? ''));
+            if ($remoteId !== '' && preg_match('~^https?://~i', $remoteId)) {
+                $previewUrl = $remoteId;
+            }
+        }
+
+        // En son fallback: eski kaba mapping (isteğe bağlı)
+        if (!$previewUrl && (($row['status'] ?? '') === 'published')) {
             $previewUrl = $this->buildPreviewUrl(
                 (string)($row['platform'] ?? ''),
                 (string)($row['remote_id'] ?? ''),
@@ -123,6 +142,35 @@ class PublishesController extends BaseController
             'row' => $row,
             'previewUrl' => $previewUrl,
         ]);
+    }
+
+    /**
+     * meta_json içinden permalink çek (Meta/YouTube/IG/FB için)
+     * Örn:
+     * {"meta":{"permalink":"https://youtu.be/..."}} veya {"meta":{"permalink":"https://instagram.com/reel/..."}} vb.
+     * TikTok örneğinde permalink yok (published_without_post_id) -> null döner.
+     */
+    private function extractPermalinkFromMetaJson(string $metaJson): ?string
+    {
+        $metaJson = trim($metaJson);
+        if ($metaJson === '') return null;
+
+        $arr = json_decode($metaJson, true);
+        if (!is_array($arr)) return null;
+
+        // Sende örnek: {"meta":{"permalink":"..."}} (IG/YT/FB)
+        if (!empty($arr['meta']['permalink']) && is_string($arr['meta']['permalink'])) {
+            $u = trim($arr['meta']['permalink']);
+            if ($u !== '' && preg_match('~^https?://~i', $u)) return $u;
+        }
+
+        // bazı durumlarda platform kökünde olabilir
+        if (!empty($arr['permalink']) && is_string($arr['permalink'])) {
+            $u = trim($arr['permalink']);
+            if ($u !== '' && preg_match('~^https?://~i', $u)) return $u;
+        }
+
+        return null;
     }
 
     private function buildPreviewUrl(?string $platform, ?string $remoteId, ?string $username = null): ?string
@@ -138,27 +186,30 @@ class PublishesController extends BaseController
             return $remoteId;
         }
 
-        // platform bazlı kaba mapping (gerekirse sonra genişletiriz)
         switch ($platform) {
             case 'x':
             case 'twitter':
-                // tweet id
                 return 'https://x.com/i/web/status/' . rawurlencode($remoteId);
 
             case 'instagram':
-                // çoğu entegrasyonda remote_id shortcode olur (p/SHORTCODE)
+                // NOT: Sende gerçek permalink meta_json'da var; burası fallback
                 return 'https://www.instagram.com/p/' . rawurlencode($remoteId) . '/';
 
             case 'facebook':
+                // NOT: Sende gerçek permalink meta_json'da var; burası fallback
                 return 'https://www.facebook.com/' . rawurlencode($remoteId);
 
+            case 'youtube':
+                // remoteId video id ise
+                return 'https://youtu.be/' . rawurlencode($remoteId);
+
             case 'linkedin':
-                // bazen URN/ID gelir; burada “en azından link üret” yaklaşımı
                 return 'https://www.linkedin.com/feed/update/' . rawurlencode($remoteId);
 
             case 'tiktok':
-                // tiktoK çoğu zaman video id; username varsa daha iyi
-                if ($username !== '') {
+                // TikTok remote_id çoğu zaman publish_id oluyor (post id değil) -> link üretmek yanlış olabilir.
+                // username + videoId varsa kullanılabilir; yoksa null.
+                if ($username !== '' && preg_match('~^\d+$~', $remoteId)) {
                     return 'https://www.tiktok.com/@' . rawurlencode($username) . '/video/' . rawurlencode($remoteId);
                 }
                 return null;
@@ -168,7 +219,7 @@ class PublishesController extends BaseController
         }
     }
 
-   public function cancel(int $id)
+    public function cancel(int $id)
     {
         if ($r = $this->ensureUser()) return $r;
 
@@ -186,19 +237,16 @@ class PublishesController extends BaseController
         }
 
         $status = (string)($row['status'] ?? '');
-
-        // ✅ queued + scheduled iptal edilebilir (istersen scheduled'ı çıkarabilirsin)
         $cancelable = in_array($status, ['queued', 'scheduled'], true);
 
         if (!$cancelable) {
             return redirect()->to(site_url('panel/publishes/' . $id))
-                ->with('error', 'Bu paylaşım iptal edilemez. (Sadece queued/scheduled)');
+                ->with('error', 'Bu paylaşım iptal edilemez. (Sadece sıradaki/planlanan paylaşımlar iptal edilebilir)');
         }
 
         $now = date('Y-m-d H:i:s');
         $db->transStart();
 
-        // 1) Publish'i iptal et
         $db->table('publishes')
             ->where('id', $id)
             ->where('user_id', $userId)
@@ -207,12 +255,11 @@ class PublishesController extends BaseController
                 'updated_at' => $now,
             ]);
 
-        // 2) Job queued ise cancel et (best-effort)
         $jobId = (int)($row['job_id'] ?? 0);
         if ($jobId > 0) {
             $db->table('jobs')
                 ->where('id', $jobId)
-                ->where('status', 'queued') // sadece bekleyen işi iptal et
+                ->where('status', 'queued')
                 ->update([
                     'status'     => 'canceled',
                     'last_error' => 'Canceled by user',
