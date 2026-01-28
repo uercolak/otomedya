@@ -162,11 +162,6 @@ class PlannerController extends BaseController
             $mediaPath = 'uploads/' . $subdir . '/' . $newName;
         }
 
-        // =========================
-        // VALIDASYONLAR
-        // =========================
-
-        // Instagram seçiliyse:
         if ($hasInstagram) {
             // Story her zaman medya ister
             if ($postType === 'story' && $mediaType === null) {
@@ -180,8 +175,6 @@ class PlannerController extends BaseController
                     ->with('error', 'Instagram Reels için video yüklemelisin.');
             }
 
-            // Post için medya zorunlu değil (istersen text-only’a izin verebilirsin)
-            // ama senin sistemde genelde medya ile çalışıyoruz:
             if ($postType === 'post' && $mediaType === null) {
                 return redirect()->to(site_url('panel/planner'))
                     ->with('error', 'Instagram Post için en az 1 medya yüklemelisin.');
@@ -237,10 +230,8 @@ class PlannerController extends BaseController
 
         // 1) content
          if ($existingContent) {
-            // var olan content'i kullanacağız
             $contentId = (int)$existingContent['id'];
 
-            // İstersen başlık/metin güncelle (kullanıcı planner'da değiştirdiyse)
             $db->table('contents')
                 ->where('id', $contentId)
                 ->where('user_id', $userId)

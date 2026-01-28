@@ -46,28 +46,25 @@ class PublishesController extends BaseController
         if ($platform !== '') $builder->where('p.platform', $platform);
         if ($status !== '')   $builder->where('p.status', $status);
 
-        // Tarih filtreleri (created_at üzerinden)
+        // created_at üzerinden filtre
         if ($dateFrom !== '') $builder->where('p.created_at >=', $dateFrom . ' 00:00:00');
         if ($dateTo !== '')   $builder->where('p.created_at <=', $dateTo . ' 23:59:59');
 
         $builder->orderBy('p.id', 'DESC');
 
-        // Pagination
+        // basit pagination
         $perPage = 15;
         $page = max(1, (int)($this->request->getGet('page') ?? 1));
         $offset = ($page - 1) * $perPage;
 
-        // countAllResults(false) -> builder reset olmasın
         $total = (clone $builder)->countAllResults(false);
         $rows  = $builder->limit($perPage, $offset)->get()->getResultArray();
 
         $platforms = $db->table('publishes')
-            ->select('platform')
-            ->distinct()
+            ->select('platform')->distinct()
             ->where('user_id', $userId)
             ->orderBy('platform', 'ASC')
             ->get()->getResultArray();
-
         $platformOptions = array_values(array_filter(array_map(fn($r)=> (string)($r['platform'] ?? ''), $platforms)));
 
         $statusOptions = ['queued','scheduled','publishing','published','failed','canceled'];
@@ -103,11 +100,11 @@ class PublishesController extends BaseController
             ->select('p.*')
             ->select('sa.name as sa_name, sa.username as sa_username')
 
-            // içerik metni + medya alanları (ALIAS ile show.php standart okur)
+            // ✅ Planner ile aynı kolonlar:
             ->select('c.title as content_title, c.base_text as content_text')
-            ->select('c.media_path as content_media_path')     // ✅ varsa: uploads/.... (relative)
-            ->select('c.media_kind as content_media_kind')     // ✅ image/video (varsa)
-            ->select('c.thumb_path as content_thumb_path')     // ✅ varsa
+            ->select('c.media_type as content_media_type')
+            ->select('c.media_path as content_media_path')
+            ->select('c.meta_json as content_meta_json')
             ->join('social_accounts sa', 'sa.id = p.account_id', 'left')
             ->join('contents c', 'c.id = p.content_id', 'left')
             ->where('p.id', $id)
@@ -118,10 +115,10 @@ class PublishesController extends BaseController
             return redirect()->to(site_url('panel/publishes'))->with('error', 'Paylaşım kaydı bulunamadı.');
         }
 
-        // ✅ Öncelik: meta_json içindeki permalink (sende YouTube/IG/FB var)
+        // ✅ Öncelik: publishes.meta_json -> permalink
         $previewUrl = $this->extractPermalinkFromMetaJson((string)($row['meta_json'] ?? ''));
 
-        // fallback: remote_id URL ise onu kullan
+        // fallback: remote_id URL ise
         if (!$previewUrl) {
             $remoteId = trim((string)($row['remote_id'] ?? ''));
             if ($remoteId !== '' && preg_match('~^https?://~i', $remoteId)) {
@@ -129,8 +126,8 @@ class PublishesController extends BaseController
             }
         }
 
-        // En son fallback: eski kaba mapping (isteğe bağlı)
-        if (!$previewUrl && (($row['status'] ?? '') === 'published')) {
+        // en son fallback: kaba mapping (çok lazım olmayacak)
+        if (!$previewUrl && ((string)($row['status'] ?? '') === 'published')) {
             $previewUrl = $this->buildPreviewUrl(
                 (string)($row['platform'] ?? ''),
                 (string)($row['remote_id'] ?? ''),
@@ -145,10 +142,9 @@ class PublishesController extends BaseController
     }
 
     /**
-     * meta_json içinden permalink çek (Meta/YouTube/IG/FB için)
-     * Örn:
-     * {"meta":{"permalink":"https://youtu.be/..."}} veya {"meta":{"permalink":"https://instagram.com/reel/..."}} vb.
-     * TikTok örneğinde permalink yok (published_without_post_id) -> null döner.
+     * publish.meta_json içinden permalink çek
+     * Sende örnek:
+     * {"meta":{"permalink":"https://youtu.be/..."}} veya {"meta":{"permalink":"https://www.instagram.com/reel/..."}}
      */
     private function extractPermalinkFromMetaJson(string $metaJson): ?string
     {
@@ -158,13 +154,11 @@ class PublishesController extends BaseController
         $arr = json_decode($metaJson, true);
         if (!is_array($arr)) return null;
 
-        // Sende örnek: {"meta":{"permalink":"..."}} (IG/YT/FB)
         if (!empty($arr['meta']['permalink']) && is_string($arr['meta']['permalink'])) {
             $u = trim($arr['meta']['permalink']);
             if ($u !== '' && preg_match('~^https?://~i', $u)) return $u;
         }
 
-        // bazı durumlarda platform kökünde olabilir
         if (!empty($arr['permalink']) && is_string($arr['permalink'])) {
             $u = trim($arr['permalink']);
             if ($u !== '' && preg_match('~^https?://~i', $u)) return $u;
@@ -181,37 +175,30 @@ class PublishesController extends BaseController
 
         if ($remoteId === '') return null;
 
-        // remote_id bazen zaten URL olabilir
         if (preg_match('~^https?://~i', $remoteId)) {
             return $remoteId;
         }
 
         switch ($platform) {
-            case 'x':
-            case 'twitter':
-                return 'https://x.com/i/web/status/' . rawurlencode($remoteId);
+            case 'youtube':
+                return 'https://youtu.be/' . rawurlencode($remoteId);
 
             case 'instagram':
-                // NOT: Sende gerçek permalink meta_json'da var; burası fallback
+                // çoğu zaman p/SHORTCODE fallback; sende genelde permalink meta_json’da var
                 return 'https://www.instagram.com/p/' . rawurlencode($remoteId) . '/';
 
             case 'facebook':
-                // NOT: Sende gerçek permalink meta_json'da var; burası fallback
                 return 'https://www.facebook.com/' . rawurlencode($remoteId);
 
-            case 'youtube':
-                // remoteId video id ise
-                return 'https://youtu.be/' . rawurlencode($remoteId);
+            case 'x':
+            case 'twitter':
+                return 'https://x.com/i/web/status/' . rawurlencode($remoteId);
 
             case 'linkedin':
                 return 'https://www.linkedin.com/feed/update/' . rawurlencode($remoteId);
 
             case 'tiktok':
-                // TikTok remote_id çoğu zaman publish_id oluyor (post id değil) -> link üretmek yanlış olabilir.
-                // username + videoId varsa kullanılabilir; yoksa null.
-                if ($username !== '' && preg_match('~^\d+$~', $remoteId)) {
-                    return 'https://www.tiktok.com/@' . rawurlencode($username) . '/video/' . rawurlencode($remoteId);
-                }
+                // TikTok remote_id çoğu zaman publish_id (post linki değil). Zorlamayalım.
                 return null;
 
             default:
@@ -237,6 +224,7 @@ class PublishesController extends BaseController
         }
 
         $status = (string)($row['status'] ?? '');
+
         $cancelable = in_array($status, ['queued', 'scheduled'], true);
 
         if (!$cancelable) {
