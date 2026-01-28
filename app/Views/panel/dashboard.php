@@ -2,7 +2,6 @@
 <?= $this->section('content') ?>
 
 <style>
-  /* dashboard sadece kendi içinde – layout’a dokunmuyoruz */
   .dash-grid{ display:grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap:14px; }
 
   .dash-card{
@@ -14,10 +13,8 @@
   }
   .dash-pad{ padding:14px; }
 
-  /* soft tipografi */
   .dash-title{ font-weight:750; letter-spacing:-.2px; margin:0; color: rgba(17,24,39,.82); }
   .dash-muted{ color: rgba(17,24,39,.55); font-weight:500; }
-
   .dash-kpi{ font-size:30px; font-weight:800; letter-spacing:-.5px; color: rgba(17,24,39,.78); }
 
   .dash-chip{
@@ -113,7 +110,6 @@
   .mini-cal-day:last-child, .mini-cal-dow:last-child{ border-right:none; }
   .mini-cal-day.is-off{ background:#fcfcfc; color: rgba(17,24,39,.25); }
 
-  /* tek rozet: o gün toplam aktivite (planlı+yayınlanan) */
   .mini-cal-badge{
     position:absolute; top:8px; right:8px;
     min-width:20px; height:20px;
@@ -126,32 +122,6 @@
     background: rgba(124,58,237,.12);
     border:1px solid rgba(124,58,237,.18);
   }
-
-  /* küçük legend noktaları */
-  .mini-cal-marks{
-    position:absolute;
-    left:8px;
-    right:8px;
-    bottom:7px;
-    display:flex;
-    gap:6px;
-    align-items:center;
-    opacity:.95;
-  }
-  .mk{
-    width:8px; height:8px; border-radius:999px;
-    border:1px solid rgba(0,0,0,.10);
-    background: rgba(0,0,0,.10);
-  }
-  .mk.scheduled{ background: rgba(124,58,237,.85); border-color: rgba(124,58,237,.25); }
-  .mk.published{ background: rgba(34,197,94,.90); border-color: rgba(34,197,94,.25); }
-
-  .mini-legend{
-    display:flex; gap:12px; align-items:center; justify-content:flex-end;
-    font-weight:650; font-size:12px;
-    color: rgba(17,24,39,.62);
-  }
-  .mini-legend span{ display:inline-flex; gap:6px; align-items:center; }
 
   @media (max-width: 1200px){ .dash-grid{ grid-template-columns: repeat(6, minmax(0,1fr)); } }
   @media (max-width: 768px){ .dash-grid{ grid-template-columns: repeat(1, minmax(0,1fr)); } }
@@ -166,9 +136,6 @@
   $recent    = $recent ?? [];
   $accounts  = $accounts ?? [];
   $templates = $templates ?? [];
-
-  $dayCountsScheduled = $dayCountsScheduled ?? [];
-  $dayCountsPublished = $dayCountsPublished ?? [];
 
   $platformLabel = function($p){
     $p = strtoupper((string)$p);
@@ -197,22 +164,21 @@
     $s = (string)$s;
     return match($s){
       'published' => ['Yayınlandı', 'ok'],
-      'failed'    => ['Dikkat Gerekiyor', 'bad'],
+      'failed'    => ['Hata', 'bad'],
       'canceled'  => ['İptal', 'gray'],
       'queued'    => ['Sırada', 'wait'],
-      'scheduled' => ['Planlandı', 'wait'],
+      'scheduled' => ['Planlı', 'wait'],
       default     => [$s ? ucfirst($s) : '—', 'gray'],
     };
   };
 
-  // Template thumb: base_media_id üzerinden
   $thumbUrl = function($tpl){
     $baseMediaId = (int)($tpl['base_media_id'] ?? 0);
     return $baseMediaId > 0 ? site_url('media/' . $baseMediaId) : '';
   };
 
-  // mini takvim
   $calNow = new \DateTime('now');
+  $countsMap = $dayCounts ?? [];
 
   $monthNameTr = function(int $m){
     return [
@@ -239,20 +205,20 @@
       <div>
         <div class="dash-muted" style="font-weight:750; letter-spacing:.14em; font-size:11px;">BU HAFTA PLANLI</div>
         <div class="dash-kpi"><?= $plannedThisWeek ?></div>
-        <div class="dash-muted">Bu hafta için planlanan paylaşım adedi.</div>
+        <div class="dash-muted">Bu hafta için planladığın gönderi sayısı.</div>
       </div>
       <span class="dash-chip"><i class="bi bi-calendar2-week"></i> Takvim</span>
     </div>
 
     <div class="dash-pad pt-0">
-      <div class="dash-muted" style="font-weight:800; font-size:11px; letter-spacing:.12em;">YAKLAŞAN PAYLAŞIMLAR</div>
+      <div class="dash-muted" style="font-weight:800; font-size:11px; letter-spacing:.12em;">YAKLAŞANLAR</div>
 
       <div class="dash-list">
         <?php if (empty($upcoming)): ?>
           <div class="dash-item">
             <div>
-              <b>Henüz planlı paylaşım yok</b>
-              <small>Takvimden yeni bir paylaşım planlayarak başlayabilirsiniz.</small>
+              <b>Henüz planlı gönderi yok</b>
+              <small>İstersen hemen yeni bir plan oluşturabilirsin.</small>
             </div>
             <span class="pill gray"><i class="bi bi-info-circle"></i> Bilgi</span>
           </div>
@@ -275,8 +241,8 @@
       </div>
 
       <div class="d-flex mt-3" style="gap:10px;">
-        <a href="<?= site_url('panel/publishes') ?>" class="btn-soft"><i class="bi bi-list-ul me-1"></i> Tüm paylaşımlar</a>
-        <a href="<?= site_url('panel/planner') ?>" class="btn-grad"><i class="bi bi-plus-lg me-1"></i> Yeni paylaşım planla</a>
+        <a href="<?= site_url('panel/publishes') ?>" class="btn-soft"><i class="bi bi-list-ul me-1"></i> Paylaşımlar</a>
+        <a href="<?= site_url('panel/planner') ?>" class="btn-grad"><i class="bi bi-plus-lg me-1"></i> Yeni gönderi planla</a>
       </div>
     </div>
   </section>
@@ -287,7 +253,7 @@
       <div>
         <div class="dash-muted" style="font-weight:750; letter-spacing:.14em; font-size:11px;">BAĞLI SOSYAL HESAP</div>
         <div class="dash-kpi"><?= $accountsCount ?></div>
-        <div class="dash-muted">Bağlı hesaplarınızın kısa özeti.</div>
+        <div class="dash-muted">Yayın yapabileceğin bağlı hesap sayısı.</div>
       </div>
       <span class="dash-chip"><i class="bi bi-share"></i> Hesaplar</span>
     </div>
@@ -297,8 +263,8 @@
         <?php if (empty($accounts)): ?>
           <div class="dash-item">
             <div>
-              <b>Henüz hesap bağlı değil</b>
-              <small>Sosyal hesaplarınızı bağlayarak paylaşım planlamaya başlayın.</small>
+              <b>Henüz hesap bağlanmadı</b>
+              <small>Sosyal hesaplarını bağlayarak yayınlamaya başlayabilirsin.</small>
             </div>
             <span class="pill gray"><i class="bi bi-link-45deg"></i> Bağla</span>
           </div>
@@ -327,7 +293,7 @@
       <div>
         <div class="dash-muted" style="font-weight:750; letter-spacing:.14em; font-size:11px;">AKTİF ŞABLON</div>
         <div class="dash-kpi"><?= $templatesCount ?></div>
-        <div class="dash-muted">Kullanıma açık şablon sayısı.</div>
+        <div class="dash-muted">Hazır tasarımlarla hızlı içerik oluştur.</div>
       </div>
       <span class="dash-chip"><i class="bi bi-images"></i> Şablonlar</span>
     </div>
@@ -337,7 +303,7 @@
         <div class="dash-item">
           <div>
             <b>Henüz şablon yok</b>
-            <small>Şablonlar ile paylaşımlarınızı çok daha hızlı hazırlayabilirsiniz.</small>
+            <small>Şablon ekleyerek içerik üretimini hızlandırabilirsin.</small>
           </div>
           <span class="pill gray"><i class="bi bi-info-circle"></i> Bilgi</span>
         </div>
@@ -376,20 +342,16 @@
     <div class="dash-pad d-flex align-items-center justify-content-between">
       <div>
         <h4 class="dash-title" style="font-size:15px;">Takvim özeti</h4>
-        <div class="dash-muted">Bu ayın planlı ve yayınlanan paylaşımlarını hızlıca görün.</div>
+        <div class="dash-muted">Ay içindeki paylaşımlarını gün bazında hızlıca gör.</div>
       </div>
-      <div class="mini-legend">
-        <span><i class="mk scheduled"></i> Planlı</span>
-        <span><i class="mk published"></i> Yayınlandı</span>
-        <a href="<?= site_url('panel/calendar') ?>" class="dash-chip"><i class="bi bi-lightning-charge"></i> Hızlı erişim</a>
-      </div>
+      <a href="<?= site_url('panel/calendar') ?>" class="dash-chip"><i class="bi bi-lightning-charge"></i> Takvimi aç</a>
     </div>
 
     <div class="dash-pad pt-0">
       <div class="mini-cal">
         <div class="mini-cal-head">
           <div><?= esc($monthNameTr($month)) ?> <?= $year ?></div>
-          <div class="dash-muted" style="font-weight:750; font-size:11px;">Günlerdeki toplam aktivite rozetlenir</div>
+          <div class="dash-muted" style="font-weight:750; font-size:11px;">Rozet: o günkü toplam kayıt</div>
         </div>
 
         <div class="mini-cal-grid">
@@ -404,34 +366,21 @@
           <?php for ($d=1; $d<=$daysInMonth; $d++): ?>
             <?php
               $dateStr = sprintf('%04d-%02d-%02d', $year, $month, $d);
-
-              $cntSch = (int)($dayCountsScheduled[$dateStr] ?? 0);
-              $cntPub = (int)($dayCountsPublished[$dateStr] ?? 0);
-              $total  = $cntSch + $cntPub;
-
-              $title = [];
-              if ($cntSch > 0) $title[] = "Planlı: {$cntSch}";
-              if ($cntPub > 0) $title[] = "Yayınlanan: {$cntPub}";
-              $titleAttr = !empty($title) ? implode(' • ', $title) : '';
+              $cnt = (int)($countsMap[$dateStr] ?? 0);
             ?>
-            <a class="mini-cal-day" href="<?= site_url('panel/calendar?date='.$dateStr) ?>" style="text-decoration:none; color:inherit;" title="<?= esc($titleAttr) ?>">
+            <div class="mini-cal-day">
               <?= $d ?>
-
-              <?php if ($total > 0): ?>
-                <span class="mini-cal-badge"><?= $total ?></span>
-                <div class="mini-cal-marks">
-                  <?php if ($cntSch > 0): ?><span class="mk scheduled"></span><?php endif; ?>
-                  <?php if ($cntPub > 0): ?><span class="mk published"></span><?php endif; ?>
-                </div>
+              <?php if ($cnt > 0): ?>
+                <span class="mini-cal-badge"><?= $cnt ?></span>
               <?php endif; ?>
-            </a>
+            </div>
           <?php endfor; ?>
         </div>
       </div>
 
       <div class="mt-3 d-flex" style="gap:10px;">
         <a href="<?= site_url('panel/calendar') ?>" class="btn-soft"><i class="bi bi-calendar3 me-1"></i> Takvime git</a>
-        <a href="<?= site_url('panel/templates') ?>" class="btn-soft"><i class="bi bi-easel2 me-1"></i> Şablonlardan oluştur</a>
+        <a href="<?= site_url('panel/planner') ?>" class="btn-soft"><i class="bi bi-plus-circle me-1"></i> Yeni plan oluştur</a>
       </div>
     </div>
   </section>
@@ -440,10 +389,10 @@
   <section class="dash-card" style="grid-column: span 4;">
     <div class="dash-pad d-flex align-items-center justify-content-between">
       <div>
-        <h4 class="dash-title" style="font-size:15px;">Son aktiviteler</h4>
-        <div class="dash-muted">Son yayınlar ve işlem geçmişi.</div>
+        <h4 class="dash-title" style="font-size:15px;">Son işlemler</h4>
+        <div class="dash-muted">En son gerçekleşen yayın hareketleri.</div>
       </div>
-      <a href="<?= site_url('panel/publishes') ?>" class="dash-chip"><i class="bi bi-clock-history"></i> Kayıtlar</a>
+      <a href="<?= site_url('panel/publishes') ?>" class="dash-chip"><i class="bi bi-clock-history"></i> Tümünü gör</a>
     </div>
 
     <div class="dash-pad pt-0">
@@ -451,8 +400,8 @@
         <?php if (empty($recent)): ?>
           <div class="dash-item">
             <div>
-              <b>Henüz aktivite yok</b>
-              <small>Paylaşım planladıkça burada son durumlar görüntülenir.</small>
+              <b>Henüz kayıt yok</b>
+              <small>İlk planlamanı yaptığında burada görünür.</small>
             </div>
             <span class="pill gray">Bilgi</span>
           </div>
@@ -477,8 +426,8 @@
         <?php endif; ?>
       </div>
 
-      <div class="mt-3">
-        <a href="<?= site_url('panel/publishes') ?>" class="btn-soft"><i class="bi bi-search me-1"></i> Tüm kayıtları görüntüle</a>
+      <div class="dash-muted mt-3">
+        Detay için “Paylaşımlar” bölümünden tüm kayıtlarına ulaşabilirsin.
       </div>
     </div>
   </section>

@@ -32,6 +32,10 @@
     text-align:left;
   }
   .fc-tooltip-light .tooltip-arrow::before{ border-top-color:#fff !important; }
+
+  .cal-help li{ margin-bottom:8px; }
+  .cal-shortcuts{ display:flex; gap:10px; flex-wrap:wrap; }
+  .cal-shortcuts a{ border-radius:999px; }
 </style>
 
 <?php if (session()->getFlashdata('error')): ?>
@@ -53,7 +57,7 @@
       <div id="calendar"></div>
 
       <div class="text-muted small mt-2">
-        İpucu: <b>Sıraya Alınmış / Planlanmış</b> gönderileri sürükleyerek tarih ve saat değiştirebilirsin.
+        İpucu: <b>Sırada</b> veya <b>Planlı</b> olan gönderileri sürükleyip bırakarak tarih/saatini kolayca güncelleyebilirsin.
       </div>
     </div>
   </div>
@@ -66,14 +70,37 @@
       </div>
 
       <div class="text-muted small">
-        Planlama ekranı gerçek <b>content + publishes + jobs</b> üretir ✅<br>
-        Takvim tarafı sürükle-bırak ile <code>schedule_at</code> günceller.
+        İçeriklerini tek ekrandan planla, uygun saate yerleştir ve yayın akışını düzenli tut.
       </div>
 
       <hr>
 
-      <div class="small text-muted">
-        Not: “sürükle-bırak” sadece <b>Sıraya Alınmış / Planlanmış</b> kayıtlar için açık.
+      <div class="small cal-help">
+        <div class="fw-semibold mb-2">Hızlı kullanım</div>
+        <ul class="mb-0 ps-3">
+          <li>Gönderinin üzerine gel: hızlı özet görüntüle</li>
+          <li>Gönderiye tıkla: detay sayfasını aç</li>
+          <li>“Sırada / Planlı” olanlar: takvimde sürüklenebilir</li>
+        </ul>
+      </div>
+
+      <hr>
+
+      <div class="fw-semibold small mb-2">Kısayollar</div>
+      <div class="cal-shortcuts">
+        <a class="btn btn-outline-secondary btn-sm" href="<?= site_url('panel/publishes') ?>">
+          <i class="bi bi-list-ul me-1"></i> Paylaşımlar
+        </a>
+        <a class="btn btn-outline-secondary btn-sm" href="<?= site_url('panel/social-accounts') ?>">
+          <i class="bi bi-share me-1"></i> Sosyal Hesaplar
+        </a>
+        <a class="btn btn-outline-secondary btn-sm" href="<?= site_url('panel/templates') ?>">
+          <i class="bi bi-images me-1"></i> Hazır Şablonlar
+        </a>
+      </div>
+
+      <div class="text-muted small mt-3">
+        Daha düzenli bir takvim için haftalık paylaşım hedefi belirleyip içeriklerini günlere yaymanı öneririz.
       </div>
     </div>
   </div>
@@ -110,7 +137,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
     locale: 'tr',
-
     buttonText: { month: 'Ay', week: 'Hafta', day: 'Gün' },
 
     headerToolbar: {
@@ -149,11 +175,10 @@ document.addEventListener('DOMContentLoaded', function () {
       return { html: `<i class="bi ${icon} me-1"></i>${time}${platform}` };
     },
 
-    // ✅ Zengin tooltip: platform + status + hesap + content title + kısa metin + medya
+    // Tooltip: platform + durum + hesap + içerik başlığı + kısa metin + medya linki
     eventDidMount: function(info){
       const ep = info.event.extendedProps || {};
-      const st = ep.status || '';
-      const stLabel = ep.statusLabel || st;
+      const stLabel = ep.statusLabel || (ep.status || '');
 
       const title = escapeHtml(ep.contentTitle || '');
       const text  = escapeHtml(truncate(ep.contentText || '', 120));
@@ -165,11 +190,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (mediaUrl) {
         const icon = (mediaType === 'video') ? 'bi-camera-video' : 'bi-image';
-        const label = (mediaType === 'video') ? 'Video' : 'Görsel';
+        const label = (mediaType === 'video') ? 'Videoyu aç' : 'Görseli aç';
         mediaHtml = `
           <div class="mt-2">
             <a href="${escapeHtml(mediaUrl)}" target="_blank" rel="noopener" class="text-decoration-none">
-              <i class="bi ${icon} me-1"></i>${label}yi aç
+              <i class="bi ${icon} me-1"></i>${label}
             </a>
           </div>
         `;
@@ -181,12 +206,9 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="fw-semibold">${escapeHtml(ep.platform || '')}</div>
             <span class="badge bg-light text-dark border">${escapeHtml(stLabel)}</span>
           </div>
-
           <div class="small text-muted mb-1">${acc}</div>
-
           <div class="small fw-semibold">${title}</div>
           ${text ? `<div class="small text-muted mt-1">${text}</div>` : ''}
-
           ${mediaHtml}
         </div>
       `;
@@ -223,46 +245,42 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Drag drop -> POST update
     eventDrop: async function(info){
-        const ep = info.event.extendedProps || {};
-        const st = ep.status || '';
-        if (!['queued','scheduled'].includes(st)) { info.revert(); return; }
+      const ep = info.event.extendedProps || {};
+      const st = ep.status || '';
+      if (!['queued','scheduled'].includes(st)) { info.revert(); return; }
 
-        const dt = info.event.start;
-        const pad = (n) => String(n).padStart(2,'0');
-        const scheduleAt =
-            dt.getFullYear() + '-' + pad(dt.getMonth()+1) + '-' + pad(dt.getDate()) +
-            ' ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes()) + ':00';
+      const dt = info.event.start;
+      const pad = (n) => String(n).padStart(2,'0');
+      const scheduleAt =
+        dt.getFullYear() + '-' + pad(dt.getMonth()+1) + '-' + pad(dt.getDate()) +
+        ' ' + pad(dt.getHours()) + ':' + pad(dt.getMinutes()) + ':00';
 
-        try {
-            const res = await fetch("<?= site_url('panel/calendar') ?>", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-            body: new URLSearchParams({
-                '<?= csrf_token() ?>': '<?= csrf_hash() ?>',
-                publish_id: info.event.id,
-                schedule_at: scheduleAt
-            })
-            });
+      try {
+        const res = await fetch("<?= site_url('panel/calendar') ?>", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          body: new URLSearchParams({
+            '<?= csrf_token() ?>': '<?= csrf_hash() ?>',
+            publish_id: info.event.id,
+            schedule_at: scheduleAt
+          })
+        });
 
-            const json = await res.json().catch(() => null);
+        const json = await res.json().catch(() => null);
 
-            if (!res.ok || !json || json.ok !== true) {
-            info.revert();
-            alert((json && json.message) ? json.message : 'Güncelleme başarısız.');
-            return;
-            }
-
-            if (json.status) {
-            info.event.setExtendedProp('status', json.status);
-            }
-            if (json.statusLabel) {
-            info.event.setExtendedProp('statusLabel', json.statusLabel);
-            }
-
-        } catch (e) {
-            info.revert();
-            alert('Bağlantı hatası.');
+        if (!res.ok || !json || json.ok !== true) {
+          info.revert();
+          alert((json && json.message) ? json.message : 'Güncelleme başarısız.');
+          return;
         }
+
+        if (json.status) info.event.setExtendedProp('status', json.status);
+        if (json.statusLabel) info.event.setExtendedProp('statusLabel', json.statusLabel);
+
+      } catch (e) {
+        info.revert();
+        alert('Bağlantı hatası.');
+      }
     }
   });
 
