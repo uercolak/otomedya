@@ -54,7 +54,6 @@ if ($publishedAt === '' && $status === 'published') {
   $publishedAt = (string)($row['updated_at'] ?? '');
 }
 
-// -------------------- Media extraction (robust) --------------------
 $mediaUrl  = '';
 $thumbUrl  = '';
 $permalink = '';
@@ -65,55 +64,31 @@ if (!empty($row['meta_json'])) {
   if (is_array($tmp)) $meta = $tmp;
 }
 
-// 1) Direct columns (varsa)
-foreach (['content_media_url','media_url','content_media','media','file_url','asset_url'] as $k) {
-  $v = trim((string)($row[$k] ?? ''));
-  if ($v !== '' && is_url($v)) { $mediaUrl = $v; break; }
+// 0) Öncelik: içerik tablosundaki dosya yolu (contents.media_path)
+$contentMediaPath = trim((string)($row['content_media_path'] ?? ''));
+$contentMediaType = trim((string)($row['content_media_type'] ?? ''));
+
+// media_path URL olabilir veya "uploads/..." gibi relative olabilir
+if ($contentMediaPath !== '') {
+  $mediaUrl = is_url($contentMediaPath) ? $contentMediaPath : base_url($contentMediaPath);
 }
 
-// 2) JSON alanları (varsa)
-if ($mediaUrl === '') {
-  foreach (['content_media_json','media_json','content_json'] as $k) {
-    $raw = $row[$k] ?? '';
-    if (!$raw) continue;
-    $arr = json_decode((string)$raw, true);
-    if (!is_array($arr)) continue;
+// medya tipi içerikten geliyorsa onu kullan (image/video)
+$mediaType = $contentMediaType !== '' ? strtolower($contentMediaType) : ($mediaUrl !== '' ? guess_media_type($mediaUrl) : '');
 
-    // olası anahtarlar
-    foreach (['media_url','url','src','file','path'] as $mk) {
-      $v = trim((string)($arr[$mk] ?? ''));
-      if ($v !== '' && is_url($v)) { $mediaUrl = $v; break 2; }
-    }
-    // dizi ise ilk eleman
-    if (isset($arr[0]) && is_array($arr[0])) {
-      foreach (['media_url','url','src','file','path'] as $mk) {
-        $v = trim((string)($arr[0][$mk] ?? ''));
-        if ($v !== '' && is_url($v)) { $mediaUrl = $v; break 2; }
-      }
-    }
-  }
-}
-
-// 3) meta_json içinden olası alanlar
+// 1) publish.meta_json içinden permalink
 if ($permalink === '' && !empty($meta['meta']['permalink'])) {
   $permalink = (string)$meta['meta']['permalink'];
 }
-if ($mediaUrl === '' && !empty($meta['meta']['media_url'])) {
-  $mediaUrl = (string)$meta['meta']['media_url'];
-}
-if ($thumbUrl === '' && !empty($meta['meta']['thumbnail_url'])) {
-  $thumbUrl = (string)$meta['meta']['thumbnail_url'];
-}
 
-// 4) Published ise remoteId URL olabilir (permalink gibi)
+// 2) fallback: remote_id URL ise permalink gibi kullan
 if ($permalink === '' && $isUrl) $permalink = $remoteId;
 
-// 5) thumb yoksa media url ile aynı olabilir (image ise)
-if ($thumbUrl === '' && $mediaUrl !== '' && guess_media_type($mediaUrl) === 'image') {
+// 3) thumb istersen: image ise aynı url yeterli
+if ($thumbUrl === '' && $mediaUrl !== '' && $mediaType === 'image') {
   $thumbUrl = $mediaUrl;
 }
 
-$mediaType = $mediaUrl !== '' ? guess_media_type($mediaUrl) : '';
 ?>
 
 <style>
@@ -246,7 +221,7 @@ $mediaType = $mediaUrl !== '' ? guess_media_type($mediaUrl) : '';
           </div>
         </div>
       <?php endif; ?>
-
+<?php dd($row['content_media_type'] ?? null, $row['content_media_path'] ?? null); ?>
       <div class="media-meta d-flex justify-content-between align-items-center">
         <div>
           <div class="fw-semibold"><?= esc($contentLabel) ?></div>
