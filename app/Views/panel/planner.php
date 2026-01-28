@@ -238,20 +238,23 @@
           <!-- Caption + Emoji -->
           <div class="mb-3">
             <div class="d-flex align-items-center justify-content-between">
-              <label class="form-label mb-0">Açıklama (Caption)</label>
+                <label class="form-label mb-0">Açıklama (Caption)</label>
 
-              <div class="dropdown">
-                <button
-                  class="btn btn-sm btn-soft dropdown-toggle"
-                  type="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                  title="Emoji ekle"
-                >
-                  😊 Emoji
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="small text-muted" id="captionCounter">0 karakter</div>
 
-                <div class="dropdown-menu dropdown-menu-end p-2 emoji-menu" style="width: 320px;">
+                    <div class="dropdown">
+                    <button
+                        class="btn btn-sm btn-soft dropdown-toggle"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        title="Emoji ekle"
+                    >
+                        😊 Emoji
+                    </button>
+
+                    <div class="dropdown-menu dropdown-menu-end p-2 emoji-menu" style="width: 320px;">
                   <div class="small text-muted mb-2">Sık kullanılanlar</div>
                   <div class="d-flex flex-wrap gap-1 mb-2" id="emojiRecent"></div>
 
