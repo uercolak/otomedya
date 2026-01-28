@@ -128,9 +128,20 @@
 
   @media (max-width: 1200px){ .dash-grid{ grid-template-columns: repeat(6, minmax(0,1fr)); } }
   @media (max-width: 768px){ .dash-grid{ grid-template-columns: repeat(1, minmax(0,1fr)); } }
+
+  .dash-item{
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    }
+    .dash-item:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(0,0,0,.06);
+    border-color: rgba(124,58,237,.18);
+    }
 </style>
 
 <?php
+  $showDebugIds = (ENVIRONMENT !== 'production');
+
   $plannedThisWeek = (int)($plannedThisWeek ?? 0);
   $accountsCount   = (int)($accountsCount ?? 0);
   $templatesCount  = (int)($templatesCount ?? 0);
@@ -138,7 +149,7 @@
   $upcoming  = $upcoming ?? [];
   $recent    = $recent ?? [];
   $accounts  = $accounts ?? [];
-  $templates = $templates ?? [];   // controller'dan templates geliyor
+  $templates = $templates ?? [];   
 
   $platformLabel = function($p){
     $p = strtoupper((string)$p);
@@ -280,7 +291,10 @@
                 <b><?= esc($platformLabel($a['platform'] ?? '')) ?></b>
                 <small><?= esc($a['username'] ?: ($a['name'] ?: '')) ?></small>
               </div>
-              <span class="pill gray">ID: <?= (int)($a['id'] ?? 0) ?></span>
+              
+                <?php if ($showDebugIds): ?>
+                    <span class="pill gray">ID: <?= (int)($a['id'] ?? 0) ?></span>
+                <?php endif; ?>
             </div>
           <?php endforeach; ?>
         <?php endif; ?>
@@ -374,10 +388,10 @@
               $cnt = (int)($countsMap[$dateStr] ?? 0);
             ?>
             <div class="mini-cal-day">
-              <?= $d ?>
-              <?php if ($cnt > 0): ?>
-                <span class="mini-cal-badge"><?= $cnt ?></span>
-              <?php endif; ?>
+              <a href="<?= site_url('panel/calendar?date=' . $dateStr) ?>" class="mini-cal-day" style="text-decoration:none;">
+                <?= $d ?>
+                <?php if ($cnt > 0): ?><span class="mini-cal-badge"><?= $cnt ?></span><?php endif; ?>
+              </a>
             </div>
           <?php endfor; ?>
         </div>
