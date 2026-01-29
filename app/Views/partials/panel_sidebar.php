@@ -40,9 +40,8 @@
         <i class="bi bi-share"></i> <span>Sosyal Hesaplar</span>
     </a>
 
-    <a href="<?= site_url('panel/settings') ?>"
-        class="nav-link disabled"
-        tabindex="-1" aria-disabled="true">
+    <a href="<?= site_url('panel/settings'); ?>"
+        class="nav-link <?= ($seg1 === 'panel' && $seg2 === 'settings') ? 'active' : '' ?>">
         <i class="bi bi-gear"></i> <span>Ayarlar</span>
     </a>
 
