@@ -2,179 +2,173 @@
 <?= $this->section('content') ?>
 
 <style>
-    /* Canva-like layout */
-    .tpl-page { background: #f6f7fb; }
-    .tpl-shell { display:flex; gap:16px; }
-    .tpl-sidebar {
-        width: 260px; flex: 0 0 260px;
-        background: #fff; border: 1px solid rgba(0,0,0,.06);
-        border-radius: 16px; padding: 14px;
-        position: sticky; top: 16px; height: calc(100vh - 32px); overflow:auto;
-    }
-    .tpl-main { flex: 1; background: transparent; }
+  .tpl-page { background: #f6f7fb; }
+  .tpl-shell { display:flex; gap:16px; }
+  .tpl-sidebar {
+    width: 260px; flex: 0 0 260px;
+    background: #fff; border: 1px solid rgba(0,0,0,.06);
+    border-radius: 16px; padding: 14px;
+    position: sticky; top: 16px; height: calc(100vh - 32px); overflow:auto;
+  }
+  .tpl-main { flex: 1; background: transparent; }
 
-    .tpl-title { font-weight: 700; letter-spacing: -.2px; }
-    .tpl-sub { color: rgba(0,0,0,.55); }
+  .tpl-searchbar { padding: 14px; }
 
-    .tpl-searchbar { padding: 14px; }
+  .tpl-searchrow{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
 
-    .tpl-searchrow{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
+  .tpl-searchleft{
+    flex: 1 1 520px;
+    min-width: 280px;
+  }
 
-    .tpl-searchleft{
-        flex: 1 1 520px;
-        min-width: 280px;
-    }
+  .tpl-searchinput{ position: relative; }
+  .tpl-searchinput .bi{
+    position:absolute;
+    left:14px;
+    top:50%;
+    transform:translateY(-50%);
+    opacity:.55;
+  }
+  .tpl-searchinput input{
+    padding-left: 40px;
+    height: 46px;
+    border-radius: 14px;
+  }
 
-    .tpl-searchinput{ position: relative; }
+  .tpl-searchright{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex: 0 0 auto;
+  }
 
-    .tpl-searchinput .bi{
-        position:absolute;
-        left:14px;
-        top:50%;
-        transform:translateY(-50%);
-        opacity:.55;
-    }
+  .tpl-searchright .btn{
+    height: 46px;
+    border-radius: 999px;
+    padding: 0 18px;
+    font-weight: 600;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
 
-    .tpl-searchinput input{
-        padding-left: 40px;
-        height: 46px;
-        border-radius: 14px;
-    }
+  .tpl-searchright .btn.btn-primary{
+    border:0;
+    background: linear-gradient(135deg, #6d28d9, #ec4899);
+    box-shadow: 0 12px 26px rgba(236,72,153,.18);
+  }
 
-    .tpl-searchright{
-        display:flex;
-        gap:10px;
-        align-items:center;
-        flex: 0 0 auto;
-    }
+  @media (max-width: 992px){
+    .tpl-searchleft{ flex: 1 1 100%; }
+    .tpl-searchright{ flex: 1 1 100%; justify-content:flex-start; }
+  }
 
-    .tpl-searchright .btn{
-        height: 46px;
-        border-radius: 999px;
-        padding: 0 18px;
-        font-weight: 600;
-        white-space: nowrap;
-        display: inline-flex;       /* ✅ Temizle ortalama */
-        align-items: center;        /* ✅ Temizle ortalama */
-        justify-content: center;    /* ✅ Temizle ortalama */
-        line-height: 1;             /* ✅ Temizle ortalama */
-    }
+  .tpl-chip {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 10px 12px; border-radius: 12px;
+    border: 1px solid rgba(0,0,0,.06);
+    background:#fff; cursor:pointer;
+    transition: all .15s ease;
+    font-size: 14px;
+  }
+  .tpl-chip:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.06); }
+  .tpl-chip.active {
+    border-color: rgba(99,102,241,.45);
+    background: rgba(99,102,241,.06);
+    font-weight: 600;
+  }
+  .tpl-chip small { opacity:.75; font-weight: 600; }
 
-    /* Canva-like primary button */
-    .tpl-searchright .btn.btn-primary{
-        border:0;
-        background: linear-gradient(135deg, #6d28d9, #ec4899);
-        box-shadow: 0 12px 26px rgba(236,72,153,.18);
-    }
+  .tpl-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
 
-    @media (max-width: 992px){
-        .tpl-searchleft{ flex: 1 1 100%; }
-        .tpl-searchright{ flex: 1 1 100%; justify-content:flex-start; }
-    }
+  @media (max-width: 1400px) { .tpl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 992px)  { .tpl-shell { flex-direction: column; } .tpl-sidebar { position:relative; width:100%; height:auto; } .tpl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 576px)  { .tpl-grid { grid-template-columns: 1fr; } }
 
-    .tpl-chip {
-        display:flex; align-items:center; justify-content:space-between;
-        padding: 10px 12px; border-radius: 12px;
-        border: 1px solid rgba(0,0,0,.06);
-        background:#fff; cursor:pointer;
-        transition: all .15s ease;
-        font-size: 14px;
-    }
-    .tpl-chip:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.06); }
-    .tpl-chip.active {
-        border-color: rgba(99,102,241,.45);
-        background: rgba(99,102,241,.06);
-        font-weight: 600;
-    }
-    .tpl-chip small { opacity:.75; font-weight: 600; } /* ✅ sayı daha net */
+  .tpl-card {
+    position: relative;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.06);
+    overflow: hidden;
+    transition: transform .15s ease, box-shadow .15s ease;
+    box-shadow: 0 10px 24px rgba(0,0,0,.04);
+  }
+  .tpl-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px rgba(0,0,0,.08);
+  }
 
-    .tpl-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 16px;
-    }
+  .tpl-thumb {
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    background: linear-gradient(135deg, rgba(99,102,241,.10), rgba(236,72,153,.10));
+    display:flex; align-items:center; justify-content:center;
+    position: relative;
+  }
+  .tpl-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display:block;
+  }
 
-    @media (max-width: 1400px) { .tpl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-    @media (max-width: 992px)  { .tpl-shell { flex-direction: column; } .tpl-sidebar { position:relative; width:100%; height:auto; } .tpl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 576px)  { .tpl-grid { grid-template-columns: 1fr; } }
+  .tpl-card-meta { padding: 10px 12px 12px 12px; }
+  .tpl-name { font-weight: 700; margin: 0; font-size: 14px; line-height: 1.25; }
+  .tpl-info { margin: 4px 0 0 0; font-size: 12px; color: rgba(0,0,0,.55); }
 
-    .tpl-card {
-        position: relative;
-        border-radius: 16px;
-        background: #fff;
-        border: 1px solid rgba(0,0,0,.06);
-        overflow: hidden;
-        transition: transform .15s ease, box-shadow .15s ease;
-        box-shadow: 0 10px 24px rgba(0,0,0,.04);
-    }
-    .tpl-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 14px 34px rgba(0,0,0,.08);
-    }
+  .tpl-hover {
+    position:absolute; inset:0;
+    background: rgba(0,0,0,.35);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; transition: opacity .15s ease;
+  }
+  .tpl-card:hover .tpl-hover { opacity: 1; }
 
-    .tpl-thumb {
-        aspect-ratio: 1 / 1;
-        width: 100%;
-        background: linear-gradient(135deg, rgba(99,102,241,.10), rgba(236,72,153,.10));
-        display:flex; align-items:center; justify-content:center;
-        position: relative;
-    }
-    .tpl-thumb img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display:block;
-    }
+  .tpl-hover .btn {
+    border-radius: 999px;
+    padding: 10px 16px;
+    font-weight: 600;
+    box-shadow: 0 12px 30px rgba(0,0,0,.25);
+  }
 
-    .tpl-card-meta { padding: 10px 12px 12px 12px; }
-    .tpl-name { font-weight: 700; margin: 0; font-size: 14px; line-height: 1.25; }
-    .tpl-info { margin: 4px 0 0 0; font-size: 12px; color: rgba(0,0,0,.55); }
+  .tpl-hover .btn.btn-primary{
+    border:0;
+    background: linear-gradient(135deg, #6d28d9, #ec4899);
+  }
 
-    .tpl-hover {
-        position:absolute; inset:0;
-        background: rgba(0,0,0,.35);
-        display:flex; align-items:center; justify-content:center;
-        opacity:0; transition: opacity .15s ease;
-    }
-    .tpl-card:hover .tpl-hover { opacity: 1; }
-
-    .tpl-hover .btn {
-        border-radius: 999px;
-        padding: 10px 16px;
-        font-weight: 600;
-        box-shadow: 0 12px 30px rgba(0,0,0,.25);
-    }
-
-    .tpl-empty {
-        background:#fff; border:1px dashed rgba(0,0,0,.18);
-        border-radius: 16px; padding: 24px; text-align:center;
-        color: rgba(0,0,0,.55);
-    }
-
-    .tpl-hover .btn.btn-primary{
-        border:0;
-        background: linear-gradient(135deg, #6d28d9, #ec4899);
-    }
+  .tpl-empty {
+    background:#fff; border:1px dashed rgba(0,0,0,.18);
+    border-radius: 16px; padding: 24px; text-align:center;
+    color: rgba(0,0,0,.55);
+  }
 </style>
 
 <?php
-  // mevcut filters
-  $q      = (string)($filters['q'] ?? '');
-  $scope  = (string)($filters['scope'] ?? '');
-  $format = (string)($filters['format'] ?? '');
-  $type   = (string)($filters['type'] ?? '');
+  $q          = (string)($filters['q'] ?? '');
+  $scope      = (string)($filters['scope'] ?? '');
+  $format     = (string)($filters['format'] ?? '');
+  $type       = (string)($filters['type'] ?? '');
+  $collection = (string)($filters['collection'] ?? '');
 
   $scopes = $scopeOptions ?? [];
 
-  // ✅ controller’dan geliyor
-  $categoryCounts = $categoryCounts ?? [];
-  $totalCount = (int)($totalCount ?? 0);
+  $categoryCounts   = $categoryCounts ?? [];
+  $collectionCounts = $collectionCounts ?? [];
+  $collections      = $collections ?? [];
+  $totalCount       = (int)($totalCount ?? 0);
 
   $scopeLabel = function($k){
     $k = (string)$k;
@@ -199,20 +193,46 @@
 
 <div class="tpl-page p-3 p-lg-4">
   <div class="tpl-shell">
+
     <!-- Sidebar -->
     <aside class="tpl-sidebar">
       <div class="d-flex align-items-center justify-content-between mb-2">
-        <div class="fw-semibold">Kategoriler</div>
+        <div class="fw-semibold">Filtreler</div>
         <button id="btnClearFilters" type="button" class="btn btn-sm btn-outline-secondary" style="border-radius:999px;">
           Sıfırla
         </button>
       </div>
 
-      <div class="d-grid gap-2">
-        <?php $isAll = ($scope === ''); ?>
+      <!-- Koleksiyonlar -->
+      <div class="fw-semibold mb-2">Koleksiyonlar</div>
+      <div class="d-grid gap-2 mb-3">
+        <?php $isAllCol = ($collection === ''); ?>
+        <div class="tpl-chip <?= $isAllCol ? 'active' : '' ?>" data-collection="">
+          <span>Hepsi</span>
+          <small><?= (int)$totalCount ?></small>
+        </div>
 
-        <!-- ✅ Hepsi sayısı: totalCount -->
-        <div class="tpl-chip <?= $isAll ? 'active' : '' ?>" data-scope="">
+        <?php foreach ($collections as $c): ?>
+          <?php
+            $slug = (string)($c['slug'] ?? '');
+            $cid  = (int)($c['id'] ?? 0);
+            $active = ($collection === $slug);
+            $cnt = (int)($collectionCounts[$cid] ?? 0);
+          ?>
+          <div class="tpl-chip <?= $active ? 'active' : '' ?>" data-collection="<?= esc($slug) ?>">
+            <span><?= esc($c['name'] ?? '') ?></span>
+            <small><?= $cnt ?></small>
+          </div>
+        <?php endforeach; ?>
+      </div>
+
+      <hr class="my-3">
+
+      <!-- Platformlar -->
+      <div class="fw-semibold mb-2">Platformlar</div>
+      <div class="d-grid gap-2">
+        <?php $isAllScope = ($scope === ''); ?>
+        <div class="tpl-chip <?= $isAllScope ? 'active' : '' ?>" data-scope="">
           <span>Hepsi</span>
           <small><?= (int)$totalCount ?></small>
         </div>
@@ -221,7 +241,7 @@
           <?php
             $sKey = (string)$s;
             $active = ($scope === $sKey);
-            $cnt = (int)($categoryCounts[$sKey] ?? 0); // ✅ • yerine gerçek sayı
+            $cnt = (int)($categoryCounts[$sKey] ?? 0);
           ?>
           <div class="tpl-chip <?= $active ? 'active' : '' ?>" data-scope="<?= esc($sKey) ?>">
             <span><?= esc($scopeLabel($sKey)) ?></span>
@@ -243,8 +263,8 @@
     <main class="tpl-main">
       <form id="tplFilterForm" class="tpl-searchbar mb-3" method="get" action="<?= site_url('panel/templates') ?>">
         <input type="hidden" name="scope" id="inScope" value="<?= esc($scope) ?>">
+        <input type="hidden" name="collection" id="inCollection" value="<?= esc($collection) ?>">
 
-        <!-- (Controller’da duruyor diye format/type hidden bırakalım; UI’da yok) -->
         <?php if ($format !== ''): ?><input type="hidden" name="format" value="<?= esc($format) ?>"><?php endif; ?>
         <?php if ($type !== ''): ?><input type="hidden" name="type" value="<?= esc($type) ?>"><?php endif; ?>
 
@@ -270,7 +290,6 @@
         </div>
       </form>
 
-      <!-- Grid -->
       <?php if (empty($rows)): ?>
         <div class="tpl-empty">
           <div class="fw-semibold mb-1">Şablon bulunamadı</div>
@@ -293,32 +312,30 @@
             <div class="tpl-card">
               <div class="tpl-thumb">
                 <?php if ($thumb !== ''): ?>
-                    <?php if (($tpl['type'] ?? '') === 'video'): ?>
-                        <video
-                        src="<?= esc($thumb) ?>"
-                        muted
-                        preload="metadata"
-                        playsinline
-                        style="width:100%;height:100%;object-fit:cover;display:block;"
-                        ></video>
-                    <?php else: ?>
-                        <img src="<?= esc($thumb) ?>" alt="<?= esc($name) ?>" loading="lazy">
-                    <?php endif; ?>
-                    <?php else: ?>
-                    <div class="text-muted small">Önizleme yok</div>
+                  <?php if (($tpl['type'] ?? '') === 'video'): ?>
+                    <video
+                      src="<?= esc($thumb) ?>"
+                      muted
+                      preload="metadata"
+                      playsinline
+                      style="width:100%;height:100%;object-fit:cover;display:block;"
+                    ></video>
+                  <?php else: ?>
+                    <img src="<?= esc($thumb) ?>" alt="<?= esc($name) ?>" loading="lazy">
+                  <?php endif; ?>
+                <?php else: ?>
+                  <div class="text-muted small">Önizleme yok</div>
                 <?php endif; ?>
 
                 <div class="tpl-hover">
-                    <div class="d-flex flex-column gap-2">
+                  <div class="d-flex flex-column gap-2">
                     <?php if (($tpl['type'] ?? '') === 'video'): ?>
-                    <a href="<?= site_url('panel/templates/'.$id.'/use-video') ?>" class="btn btn-primary">
-                        Planla
-                    </a>
+                      <a href="<?= site_url('panel/templates/'.$id.'/use-video') ?>" class="btn btn-primary">Planla</a>
                     <?php else: ?>
-                    <a href="<?= esc($editUrl) ?>" class="btn btn-light">Düzenle</a>
-                    <a href="<?= esc($editUrl . '?autoplan=1') ?>" class="btn btn-primary">Hızlı Planla</a>
+                      <a href="<?= esc($editUrl) ?>" class="btn btn-light">Düzenle</a>
+                      <a href="<?= esc($editUrl . '?autoplan=1') ?>" class="btn btn-primary">Hızlı Planla</a>
                     <?php endif; ?>
-                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -339,15 +356,26 @@
 
 <script>
 (function(){
-  const chips = document.querySelectorAll('.tpl-chip[data-scope]');
-  const inScope = document.getElementById('inScope');
   const form = document.getElementById('tplFilterForm');
   const btnClear = document.getElementById('btnClearFilters');
 
-  chips.forEach(ch => {
+  const inScope = document.getElementById('inScope');
+  const inCollection = document.getElementById('inCollection');
+
+  // scope chip
+  document.querySelectorAll('.tpl-chip[data-scope]').forEach(ch => {
     ch.addEventListener('click', () => {
       const scope = ch.getAttribute('data-scope') || '';
       if (inScope) inScope.value = scope;
+      if (form) form.submit();
+    });
+  });
+
+  // collection chip
+  document.querySelectorAll('.tpl-chip[data-collection]').forEach(ch => {
+    ch.addEventListener('click', () => {
+      const col = ch.getAttribute('data-collection') || '';
+      if (inCollection) inCollection.value = col;
       if (form) form.submit();
     });
   });
@@ -359,13 +387,14 @@
       const q = form.querySelector('input[name="q"]');
       if (q) q.value = '';
 
-      // hidden olarak kalsa bile temizlemek istersek:
       const format = form.querySelector('input[name="format"]');
       const type   = form.querySelector('input[name="type"]');
       if (format) format.value = '';
       if (type) type.value = '';
 
       if (inScope) inScope.value = '';
+      if (inCollection) inCollection.value = '';
+
       form.submit();
     });
   }

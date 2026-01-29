@@ -22,10 +22,29 @@ class TemplatesController extends BaseController
 
         $db = \Config\Database::connect();
 
-        $q      = trim((string)($this->request->getGet('q') ?? ''));
-        $scope  = trim((string)($this->request->getGet('scope') ?? ''));   // instagram/facebook/universal
-        $format = trim((string)($this->request->getGet('format') ?? ''));  // ig_post_1_1...
-        $type   = trim((string)($this->request->getGet('type') ?? ''));    // image/video
+        $q          = trim((string)($this->request->getGet('q') ?? ''));
+        $scope      = trim((string)($this->request->getGet('scope') ?? ''));      
+        $format     = trim((string)($this->request->getGet('format') ?? ''));    
+        $type       = trim((string)($this->request->getGet('type') ?? ''));   
+        $collection = trim((string)($this->request->getGet('collection') ?? ''));  
+
+        $collections = $db->table('template_collections')
+            ->select('id, name, slug')
+            ->where('is_active', 1)
+            ->orderBy('sort_order', 'ASC')
+            ->orderBy('name', 'ASC')
+            ->get()->getResultArray();
+
+        // slug -> id
+        $collectionId = 0;
+        if ($collection !== '') {
+            $row = $db->table('template_collections')
+                ->select('id')
+                ->where('slug', $collection)
+                ->where('is_active', 1)
+                ->get()->getRowArray();
+            $collectionId = (int)($row['id'] ?? 0);
+        }
 
         $countBuilder = $db->table('templates')
             ->select('platform_scope, COUNT(*) AS cnt')
@@ -37,6 +56,7 @@ class TemplatesController extends BaseController
                 ->orLike('description', $q)
             ->groupEnd();
         }
+        if ($collectionId > 0) $countBuilder->where('collection_id', $collectionId);
         if ($format !== '') $countBuilder->where('format_key', $format);
         if ($type !== '')   $countBuilder->where('type', $type);
 
@@ -55,6 +75,31 @@ class TemplatesController extends BaseController
             }
         }
 
+        $colCountBuilder = $db->table('templates t')
+            ->select('t.collection_id, COUNT(*) AS cnt')
+            ->where('t.is_active', 1);
+
+        if ($q !== '') {
+            $colCountBuilder->groupStart()
+                ->like('t.name', $q)
+                ->orLike('t.description', $q)
+            ->groupEnd();
+        }
+        if ($scope !== '')  $colCountBuilder->where('t.platform_scope', $scope);
+        if ($format !== '') $colCountBuilder->where('t.format_key', $format);
+        if ($type !== '')   $colCountBuilder->where('t.type', $type);
+
+        $colCountRows = $colCountBuilder
+            ->groupBy('t.collection_id')
+            ->get()->getResultArray();
+
+        $collectionCounts = [];
+        foreach ($colCountRows as $r) {
+            $cid = (int)($r['collection_id'] ?? 0);
+            $cnt = (int)($r['cnt'] ?? 0);
+            if ($cid > 0) $collectionCounts[$cid] = $cnt;
+        }
+
         $builder = $db->table('templates')
             ->where('is_active', 1);
 
@@ -64,22 +109,31 @@ class TemplatesController extends BaseController
                 ->orLike('description', $q)
             ->groupEnd();
         }
-        if ($scope !== '')  $builder->where('platform_scope', $scope);
-        if ($format !== '') $builder->where('format_key', $format);
-        if ($type !== '')   $builder->where('type', $type);
+        if ($collectionId > 0) $builder->where('collection_id', $collectionId);
+        if ($scope !== '')     $builder->where('platform_scope', $scope);
+        if ($format !== '')    $builder->where('format_key', $format);
+        if ($type !== '')      $builder->where('type', $type);
 
         $rows = $builder->orderBy('id', 'DESC')->get()->getResultArray();
 
         $scopeOptions = ['universal','instagram','facebook','tiktok','youtube'];
 
         return view('panel/templates/index', [
-            'pageTitle'       => 'Hazır Şablonlar',
-            'headerVariant'   => 'compact',
-            'rows'            => $rows,
-            'filters'         => ['q'=>$q,'scope'=>$scope,'format'=>$format,'type'=>$type],
-            'scopeOptions'    => $scopeOptions,
-            'categoryCounts'  => $categoryCounts,
-            'totalCount'      => $totalCount,
+            'pageTitle'        => 'Hazır Şablonlar',
+            'headerVariant'    => 'compact',
+            'rows'             => $rows,
+            'filters'          => [
+                'q' => $q,
+                'scope' => $scope,
+                'format' => $format,
+                'type' => $type,
+                'collection' => $collection,
+            ],
+            'scopeOptions'     => $scopeOptions,
+            'categoryCounts'   => $categoryCounts,
+            'totalCount'       => $totalCount,
+            'collections'      => $collections,
+            'collectionCounts' => $collectionCounts,
         ]);
     }
 
