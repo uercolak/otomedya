@@ -26,6 +26,8 @@ $routes->get('panel/social-accounts/meta/health', 'Panel\MetaOAuthController::he
 
 $routes->group('panel', ['filter' => 'auth'], static function ($routes) {
     $routes->get('/',                                               'Panel::index');
+    $routes->get('settings',                                        'Panel\SettingsController::index');
+    $routes->post('settings/password',                              'Panel\SettingsController::updatePassword');
     $routes->get('calendar',                                        'Panel\CalendarController::index');
     $routes->post('calendar',                                       'Panel\CalendarController::store');
     $routes->get('publishes',                                       'Panel\PublishesController::index');
