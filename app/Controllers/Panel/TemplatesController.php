@@ -70,17 +70,7 @@ class TemplatesController extends BaseController
 
         $rows = $builder->orderBy('id', 'DESC')->get()->getResultArray();
 
-        $scopes = $db->table('templates')
-            ->select('platform_scope')
-            ->where('is_active', 1)
-            ->distinct()
-            ->orderBy('platform_scope', 'ASC')
-            ->get()->getResultArray();
-
-        $scopeOptions = array_values(array_filter(array_map(
-            fn($r)=>(string)($r['platform_scope'] ?? ''),
-            $scopes
-        )));
+        $scopeOptions = ['universal','instagram','facebook','tiktok','youtube'];
 
         return view('panel/templates/index', [
             'pageTitle'       => 'Hazır Şablonlar',
@@ -292,4 +282,60 @@ class TemplatesController extends BaseController
             'csrfHash'  => csrf_hash(),
         ]);
     }
+
+    public function useVideo(int $id)
+    {
+        if ($r = $this->ensureUser()) return $r;
+
+        $userId = (int)session('user_id');
+        $db = \Config\Database::connect();
+        $now = date('Y-m-d H:i:s');
+
+        $tpl = (new TemplateModel())->find($id);
+        if (!$tpl || (int)($tpl['is_active'] ?? 0) !== 1) {
+            return redirect()->to(site_url('panel/templates'))->with('error', 'Şablon bulunamadı.');
+        }
+
+        if (($tpl['type'] ?? '') !== 'video') {
+            return redirect()->to(site_url('panel/templates/'.$id.'/edit'));
+        }
+
+        $baseMediaId = (int)($tpl['base_media_id'] ?? 0);
+        if ($baseMediaId <= 0) {
+            return redirect()->to(site_url('panel/templates'))->with('error', 'Video dosyası yok.');
+        }
+
+        // media tablosundan dosya yolu
+        $media = $db->table('media')->where('id', $baseMediaId)->get()->getRowArray();
+        $mediaPath = (string)($media['file_path'] ?? '');
+        if ($mediaPath === '') {
+            return redirect()->to(site_url('panel/templates'))->with('error', 'Video path bulunamadı.');
+        }
+
+        $meta = [
+            'post_type' => 'reels',
+            'template' => [
+                'template_id' => (int)$id,
+                'design_id'   => null,
+                'format_key'  => (string)($tpl['format_key'] ?? ''),
+            ],
+        ];
+
+        $db->table('contents')->insert([
+            'user_id'     => $userId,
+            'title'       => (string)($tpl['name'] ?? '') ?: null,
+            'base_text'   => null,
+            'media_type'  => 'video',
+            'media_path'  => $mediaPath,
+            'template_id' => (int)$id,
+            'meta_json'   => json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'created_at'  => $now,
+            'updated_at'  => $now,
+        ]);
+
+        $contentId = (int)$db->insertID();
+
+        return redirect()->to(site_url('panel/planner?content_id=' . $contentId));
+    }
+
 }

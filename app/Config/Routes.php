@@ -57,11 +57,7 @@ $routes->group('panel', ['filter' => 'auth'], static function ($routes) {
     $routes->get('templates/(:num)/edit',                           'Panel\TemplatesController::edit/$1');
     $routes->post('templates/(:num)/save',                          'Panel\TemplatesController::save/$1');
     $routes->post('templates/(:num)/export',                        'Panel\TemplatesController::export/$1');
-    
-
-    $routes->get('social-accounts/meta/publish-test',               'Panel\MetaOAuthController::publishTestForm');
-    $routes->post('social-accounts/meta/test-publish',              'Panel\MetaOAuthController::testPublish');
-    $routes->get('panel/test-tiktok-refresh',                       'Panel\DevController::testTikTokRefresh', ['filter' => 'auth']);
+    $routes->get('panel/templates/(:num)/use-video',                'Panel\TemplatesController::useVideo/$1');
 
 });
 

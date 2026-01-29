@@ -310,13 +310,14 @@
 
                 <div class="tpl-hover">
                     <div class="d-flex flex-column gap-2">
-                        <a href="<?= esc($editUrl) ?>" class="btn btn-light">
-                        Düzenle
-                        </a>
-
-                        <a href="<?= esc($editUrl . '?autoplan=1') ?>" class="btn btn-primary">
-                        Hızlı Planla
-                        </a>
+                    <?php if (($tpl['type'] ?? '') === 'video'): ?>
+                    <a href="<?= site_url('panel/templates/'.$id.'/use-video') ?>" class="btn btn-primary">
+                        Planla
+                    </a>
+                    <?php else: ?>
+                    <a href="<?= esc($editUrl) ?>" class="btn btn-light">Düzenle</a>
+                    <a href="<?= esc($editUrl . '?autoplan=1') ?>" class="btn btn-primary">Hızlı Planla</a>
+                    <?php endif; ?>
                     </div>
                 </div>
               </div>
