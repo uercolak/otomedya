@@ -39,6 +39,8 @@
         class="nav-link <?= ($seg1 === 'panel' && $seg2 === 'social-accounts') ? 'active' : '' ?>">
         <i class="bi bi-share"></i> <span>Sosyal Hesaplar</span>
     </a>
+    
+    <div class="nav-section-label">Güvenlik</div>
 
     <a href="<?= site_url('panel/settings'); ?>"
         class="nav-link <?= ($seg1 === 'panel' && $seg2 === 'settings') ? 'active' : '' ?>">
