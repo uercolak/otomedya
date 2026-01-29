@@ -57,7 +57,7 @@ $routes->group('panel', ['filter' => 'auth'], static function ($routes) {
     $routes->get('templates/(:num)/edit',                           'Panel\TemplatesController::edit/$1');
     $routes->post('templates/(:num)/save',                          'Panel\TemplatesController::save/$1');
     $routes->post('templates/(:num)/export',                        'Panel\TemplatesController::export/$1');
-    $routes->get('panel/templates/(:num)/use-video',                'Panel\TemplatesController::useVideo/$1');
+    $routes->get('templates/(:num)/use-video',                'Panel\TemplatesController::useVideo/$1');
 
 });
 
