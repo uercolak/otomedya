@@ -49,6 +49,11 @@ $seg3 = $segments[2] ?? '';
     <span class="me-2">🧩</span> Hazır Şablonlar
   </a>
 
+  <a href="<?= site_url('admin/template-collections'); ?>"
+   class="nav-link <?= ($seg1 === 'admin' && $seg2 === 'template-collections') ? 'active' : '' ?>">
+   <span class="me-2">🏷️</span> Temalar (Koleksiyonlar)
+  </a>
+
   <a href="#" class="nav-link">
     <i class="bi bi-gear"></i> <span>Sistem Ayarları</span>
   </a>

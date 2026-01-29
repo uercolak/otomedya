@@ -19,16 +19,20 @@ class TemplatesController extends BaseController
     {
         $db = \Config\Database::connect();
 
-        $q      = trim((string)($this->request->getGet('q') ?? ''));
-        $type   = trim((string)($this->request->getGet('type') ?? ''));
-        $scope  = trim((string)($this->request->getGet('scope') ?? ''));
-        $format = trim((string)($this->request->getGet('format') ?? ''));
-        $active = trim((string)($this->request->getGet('active') ?? ''));
+        $q           = trim((string)($this->request->getGet('q') ?? ''));
+        $type        = trim((string)($this->request->getGet('type') ?? ''));
+        $scope       = trim((string)($this->request->getGet('scope') ?? ''));
+        $format      = trim((string)($this->request->getGet('format') ?? ''));
+        $active      = trim((string)($this->request->getGet('active') ?? ''));
+        $collection  = trim((string)($this->request->getGet('collection') ?? '')); 
+        $featured    = trim((string)($this->request->getGet('featured') ?? ''));   
 
         $builder = $db->table('templates t')
             ->select('t.*')
             ->select('m.file_path as media_file_path, m.mime_type as media_mime_type, m.width as media_width, m.height as media_height')
+            ->select('c.name as collection_name, c.slug as collection_slug') 
             ->join('media m', 'm.id = t.base_media_id', 'left')
+            ->join('template_collections c', 'c.id = t.collection_id', 'left')
             ->orderBy('t.id', 'DESC');
 
         if ($q !== '') {
@@ -42,22 +46,48 @@ class TemplatesController extends BaseController
         if ($format !== '') $builder->where('t.format_key', $format);
         if ($active !== '') $builder->where('t.is_active', (int)$active);
 
+        if ($collection !== '') {
+            $builder->where('t.collection_id', (int)$collection);
+        }
+        if ($featured !== '') {
+            $builder->where('t.is_featured', (int)$featured);
+        }
+
         $rows = $builder->get()->getResultArray();
 
+        // ✅ Tema listesi (dropdown için)
+        $collections = $db->table('template_collections')
+            ->select('id, name, slug, is_active, sort_order')
+            ->where('is_active', 1)
+            ->orderBy('sort_order', 'ASC')
+            ->orderBy('name', 'ASC')
+            ->get()->getResultArray();
+
         return view('admin/templates/index', [
-            'pageTitle' => 'Hazır Şablonlar',
-            'rows'      => $rows,
-            'filters'   => compact('q','type','scope','format','active'),
-            'formats'   => $this->formats,
+            'pageTitle'    => 'Hazır Şablonlar',
+            'rows'         => $rows,
+            'filters'      => compact('q','type','scope','format','active','collection','featured'),
+            'formats'      => $this->formats,
+            'collections'  => $collections,
         ]);
     }
 
     public function create()
     {
+        $db = \Config\Database::connect();
+
+        $collections = $db->table('template_collections')
+            ->select('id, name, slug, is_active, sort_order')
+            ->where('is_active', 1)
+            ->orderBy('sort_order', 'ASC')
+            ->orderBy('name', 'ASC')
+            ->get()->getResultArray();
+
         return view('admin/templates/create', [
-            'pageTitle' => 'Yeni Şablon Yükle',
-            'formats'   => $this->formats,
-            'errors'    => session()->getFlashdata('errors') ?? [],
+            'pageTitle'    => 'Yeni Şablon Yükle',
+            'formats'      => $this->formats,
+            'collections'  => $collections,
+            'errors'       => session()->getFlashdata('errors') ?? [],
         ]);
     }
 
@@ -65,11 +95,16 @@ class TemplatesController extends BaseController
     {
         helper(['form', 'url']);
 
-        $type  = (string)$this->request->getPost('type');
-        $scope = (string)$this->request->getPost('platform_scope');
-        $formatKey = (string)($this->request->getPost('format_key') ?? '');
-        $name  = trim((string)$this->request->getPost('name'));
-        $desc  = trim((string)$this->request->getPost('description'));
+        $type        = (string)$this->request->getPost('type');
+        $scope       = (string)$this->request->getPost('platform_scope');
+        $formatKey   = (string)($this->request->getPost('format_key') ?? '');
+        $name        = trim((string)$this->request->getPost('name'));
+        $desc        = trim((string)$this->request->getPost('description'));
+
+        // ✅ yeni alanlar
+        $collectionId = (int)($this->request->getPost('collection_id') ?? 0);
+        $isFeatured   = (int)($this->request->getPost('is_featured') ?? 0);
+        $isActive     = (int)($this->request->getPost('is_active') ?? 1);
 
         if ($name === '') {
             return redirect()->back()->withInput()->with('error', 'Başlık zorunlu.');
@@ -79,6 +114,16 @@ class TemplatesController extends BaseController
         }
         if (!in_array($scope, ['universal','instagram','facebook'], true)) {
             return redirect()->back()->withInput()->with('error', 'Platform scope geçersiz.');
+        }
+
+        // ✅ Tema kontrol (aktif tema seçilmeli)
+        if ($collectionId <= 0) {
+            return redirect()->back()->withInput()->with('error', 'Tema seçmelisin.');
+        }
+        $db = \Config\Database::connect();
+        $col = $db->table('template_collections')->select('id')->where('id', $collectionId)->where('is_active', 1)->get()->getRowArray();
+        if (!$col) {
+            return redirect()->back()->withInput()->with('error', 'Seçilen tema geçersiz veya pasif.');
         }
 
         $file = $this->request->getFile('file');
@@ -151,6 +196,7 @@ class TemplatesController extends BaseController
         $tplId = (new TemplateModel())->insert([
             'name'           => $name,
             'description'    => $desc ?: null,
+            'collection_id'  => $collectionId,           
             'platform_type'  => null,
             'type'           => $type,
             'platform_scope' => $scope,
@@ -159,7 +205,8 @@ class TemplatesController extends BaseController
             'height'         => $height,
             'base_media_id'  => (int)$mediaId,
             'thumb_path'     => null,
-            'is_active'      => 1,
+            'is_active'      => $isActive ? 1 : 0,       
+            'is_featured'    => $isFeatured ? 1 : 0,     
             'created_at'     => $now,
             'updated_at'     => $now,
         ], true);

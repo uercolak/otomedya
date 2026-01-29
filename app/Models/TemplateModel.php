@@ -12,18 +12,20 @@ class TemplateModel extends Model
     protected $useTimestamps    = false;
 
     protected $allowedFields = [
-        'name',
-        'description',
-        'platform_type',
-        'type',
-        'platform_scope',
-        'format_key',
-        'width',
-        'height',
-        'base_media_id',
-        'thumb_path',
-        'is_active',
-        'created_at',
-        'updated_at',
+    'name',
+    'description',
+    'collection_id',  
+    'platform_type',
+    'type',
+    'platform_scope',
+    'format_key',
+    'width',
+    'height',
+    'base_media_id',
+    'thumb_path',
+    'is_active',
+    'is_featured',     
+    'created_at',
+    'updated_at',
     ];
 }

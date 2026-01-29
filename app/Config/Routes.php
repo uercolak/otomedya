@@ -94,8 +94,15 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->post('publishes/(:num)/check',         'PublishesController::check/$1');
     $routes->post('publishes/(:num)/reset-job',     'PublishesController::resetJob/$1');
 
-    $routes->get('templates',                       'TemplatesController::index');
-    $routes->get('templates/new',                   'TemplatesController::create');
-    $routes->post('templates',                      'TemplatesController::store');
-    $routes->post('templates/(:num)/toggle',        'TemplatesController::toggle/$1');
+    $routes->get('templates',                               'TemplatesController::index');
+    $routes->get('templates/new',                           'TemplatesController::create');
+    $routes->post('templates',                              'TemplatesController::store');
+    $routes->post('templates/(:num)/toggle',                'TemplatesController::toggle/$1');
+
+    $routes->get('template-collections',                    'TemplateCollectionsController::index');
+    $routes->get('template-collections/new',                'TemplateCollectionsController::create');
+    $routes->post('template-collections',                   'TemplateCollectionsController::store');
+    $routes->get('template-collections/(:num)/edit',        'TemplateCollectionsController::edit/$1');
+    $routes->put('template-collections/(:num)',             'TemplateCollectionsController::update/$1');
+    $routes->post('template-collections/(:num)/toggle',     'TemplateCollectionsController::toggle/$1');
 });

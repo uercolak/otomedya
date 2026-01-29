@@ -20,6 +20,40 @@
           <textarea class="form-control" name="description" rows="2"><?= esc(old('description')) ?></textarea>
         </div>
 
+        <!-- ✅ Tema + Durum + Öne çıkan -->
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">Tema (Koleksiyon)</label>
+            <select class="form-select" name="collection_id" required>
+              <option value="">Tema seç</option>
+              <?php foreach (($collections ?? []) as $c): ?>
+                <option value="<?= (int)$c['id'] ?>" <?= (old('collection_id') == (string)$c['id']) ? 'selected' : '' ?>>
+                  <?= esc($c['name']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label">Durum</label>
+            <select class="form-select" name="is_active">
+              <option value="1" <?= (old('is_active','1')==='1')?'selected':'' ?>>Aktif</option>
+              <option value="0" <?= (old('is_active')==='0')?'selected':'' ?>>Pasif</option>
+            </select>
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label d-block">Öne çıkan</label>
+            <div class="form-check mt-2">
+              <input class="form-check-input" type="checkbox" name="is_featured" value="1" id="is_featured"
+                <?= (old('is_featured')==='1') ? 'checked' : '' ?>>
+              <label class="form-check-label" for="is_featured">
+                Öne çıkar
+              </label>
+            </div>
+          </div>
+        </div>
+
         <div class="row g-2 mb-3">
           <div class="col-md-4">
             <label class="form-label">Tür</label>
