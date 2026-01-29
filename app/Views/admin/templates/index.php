@@ -106,10 +106,23 @@
             <td><?= (int)$r['id'] ?></td>
             <td style="width:110px;">
               <?php if (!empty($r['base_media_id'])): ?>
-                <img src="<?= site_url('media/'.(int)$r['base_media_id']) ?>" style="width:96px;height:auto;border-radius:10px;border:1px solid #eee;">
-              <?php else: ?>
+                <?php if (($r['type'] ?? '') === 'video'): ?>
+                    <video
+                    src="<?= site_url('media/'.(int)$r['base_media_id']) ?>"
+                    style="width:96px;height:64px;border-radius:10px;border:1px solid #eee;object-fit:cover;"
+                    muted
+                    preload="metadata"
+                    playsinline
+                    ></video>
+                <?php else: ?>
+                    <img
+                    src="<?= site_url('media/'.(int)$r['base_media_id']) ?>"
+                    style="width:96px;height:auto;border-radius:10px;border:1px solid #eee;"
+                    >
+                <?php endif; ?>
+                <?php else: ?>
                 <span class="text-muted">-</span>
-              <?php endif; ?>
+                <?php endif; ?>
             </td>
 
             <td>
