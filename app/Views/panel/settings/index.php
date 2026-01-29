@@ -85,7 +85,7 @@
           </div>
 
           <div class="alert alert-warning mb-0">
-            <strong>Yakında:</strong> 2FA eklemesini bir sonraki adımda yapacağız.
+            <strong>Yakında:</strong> 2FA eklemesi kısa süre içerisinde aktif olacaktır.
             (QR kod, doğrulama, yedek kodlar)
           </div>
         </div>
