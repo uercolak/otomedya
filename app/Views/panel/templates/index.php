@@ -293,9 +293,19 @@
             <div class="tpl-card">
               <div class="tpl-thumb">
                 <?php if ($thumb !== ''): ?>
-                  <img src="<?= esc($thumb) ?>" alt="<?= esc($name) ?>" loading="lazy">
-                <?php else: ?>
-                  <div class="text-muted small">Önizleme yok</div>
+                    <?php if (($tpl['type'] ?? '') === 'video'): ?>
+                        <video
+                        src="<?= esc($thumb) ?>"
+                        muted
+                        preload="metadata"
+                        playsinline
+                        style="width:100%;height:100%;object-fit:cover;display:block;"
+                        ></video>
+                    <?php else: ?>
+                        <img src="<?= esc($thumb) ?>" alt="<?= esc($name) ?>" loading="lazy">
+                    <?php endif; ?>
+                    <?php else: ?>
+                    <div class="text-muted small">Önizleme yok</div>
                 <?php endif; ?>
 
                 <div class="tpl-hover">
