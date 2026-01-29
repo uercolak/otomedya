@@ -14,7 +14,6 @@ class TemplateModel extends Model
     protected $allowedFields = [
     'name',
     'description',
-    'collection_id',  
     'platform_type',
     'type',
     'platform_scope',
@@ -23,8 +22,9 @@ class TemplateModel extends Model
     'height',
     'base_media_id',
     'thumb_path',
+    'collection_id',
+    'is_featured',
     'is_active',
-    'is_featured',     
     'created_at',
     'updated_at',
     ];

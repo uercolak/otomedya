@@ -69,6 +69,9 @@
               <option value="universal" <?= (old('platform_scope','universal')==='universal')?'selected':'' ?>>Universal</option>
               <option value="instagram" <?= (old('platform_scope')==='instagram')?'selected':'' ?>>Instagram</option>
               <option value="facebook" <?= (old('platform_scope')==='facebook')?'selected':'' ?>>Facebook</option>
+              <option value="tiktok"  <?= (old('platform_scope')==='tiktok')?'selected':'' ?>>TikTok</option>
+              <option value="youtube" <?= (old('platform_scope')==='youtube')?'selected':'' ?>>YouTube</option>
+
             </select>
           </div>
 

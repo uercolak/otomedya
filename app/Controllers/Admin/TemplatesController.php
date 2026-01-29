@@ -9,10 +9,22 @@ use App\Models\MediaModel;
 class TemplatesController extends BaseController
 {
     private array $formats = [
-        'ig_post_1_1'   => ['label' => 'Instagram Post (1:1)',   'w' => 1080, 'h' => 1080],
-        'ig_post_4_5'   => ['label' => 'Instagram Post (4:5)',   'w' => 1080, 'h' => 1350],
-        'ig_story_9_16' => ['label' => 'Instagram Story (9:16)', 'w' => 1080, 'h' => 1920],
-        'ig_reels_9_16' => ['label' => 'Instagram Reels (9:16)', 'w' => 1080, 'h' => 1920],
+    // Instagram
+    'ig_post_1_1'   => ['label' => 'Instagram Post (1:1)',   'w' => 1080, 'h' => 1080],
+    'ig_post_4_5'   => ['label' => 'Instagram Post (4:5)',   'w' => 1080, 'h' => 1350],
+    'ig_story_9_16' => ['label' => 'Instagram Story (9:16)', 'w' => 1080, 'h' => 1920],
+    'ig_reels_9_16' => ['label' => 'Instagram Reels (9:16)', 'w' => 1080, 'h' => 1920],
+
+    // Facebook (pratik)
+    'fb_post_1_1'   => ['label' => 'Facebook Post (1:1)',    'w' => 1080, 'h' => 1080],
+    'fb_story_9_16' => ['label' => 'Facebook Story (9:16)',  'w' => 1080, 'h' => 1920],
+
+    // TikTok
+    'tt_video_9_16' => ['label' => 'TikTok (9:16)',          'w' => 1080, 'h' => 1920],
+
+    // YouTube
+    'yt_thumb_16_9' => ['label' => 'YouTube Thumbnail (16:9)','w' => 1280, 'h' => 720],
+    'yt_short_9_16' => ['label' => 'YouTube Shorts (9:16)',  'w' => 1080, 'h' => 1920],
     ];
 
     public function index()
@@ -112,7 +124,7 @@ class TemplatesController extends BaseController
         if (!in_array($type, ['image','video'], true)) {
             return redirect()->back()->withInput()->with('error', 'Type geçersiz.');
         }
-        if (!in_array($scope, ['universal','instagram','facebook'], true)) {
+        if (!in_array($scope, ['universal','instagram','facebook','tiktok','youtube'], true)) {
             return redirect()->back()->withInput()->with('error', 'Platform scope geçersiz.');
         }
 
