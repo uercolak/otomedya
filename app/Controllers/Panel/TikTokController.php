@@ -85,6 +85,15 @@ class TikTokController extends BaseController
         $openId       = (string) ($token['open_id'] ?? '');
         $scopeStr     = (string) ($token['scope'] ?? '');
         $expiresIn    = (int) ($token['expires_in'] ?? 0);
+        $userInfo = $this->fetchUserInfo($accessToken);
+
+        $ttName     = trim((string)($userInfo['display_name'] ?? ''));
+        $ttUsername = trim((string)($userInfo['username'] ?? ''));
+        $ttAvatar   = trim((string)($userInfo['avatar_url'] ?? ''));
+
+        // fallback: hiçbiri yoksa en azından open_id gösterelim
+        if ($ttName === '' && $ttUsername !== '') $ttName = '@' . $ttUsername;
+        if ($ttName === '' && $ttUsername === '') $ttName = 'TikTok (' . substr($openId, 0, 8) . '...)';
 
         if ($accessToken === '' || $openId === '') {
             return $this->response->setStatusCode(500)->setBody('TikTok token alınamadı: ' . json_encode($token));
@@ -111,24 +120,27 @@ class TikTokController extends BaseController
             $db->table('social_accounts')
                 ->where('id', $accountId)
                 ->update([
-                    'access_token'     => $accessToken,
-                    'token_expires_at' => $expiresAt,
-                    'updated_at'       => $now,
+                'access_token'     => $accessToken,
+                'token_expires_at' => $expiresAt,
+                'name'             => $ttName,
+                'username'         => $ttUsername ?: null,
+                'avatar_url'       => $ttAvatar ?: null,
+                'updated_at'       => $now,
                 ]);
         } else {
-            $db->table('social_accounts')->insert([
+                $db->table('social_accounts')->insert([
                 'user_id'          => $userId,
                 'platform'         => 'tiktok',
                 'external_id'      => $openId,
                 'meta_page_id'     => null,
                 'access_token'     => $accessToken,
                 'token_expires_at' => $expiresAt,
-                'name'             => null,
-                'username'         => null,
-                'avatar_url'       => null,
+                'name'             => $ttName,
+                'username'         => $ttUsername ?: null,
+                'avatar_url'       => $ttAvatar ?: null,
                 'created_at'       => $now,
                 'updated_at'       => $now,
-            ]);
+                ]);
 
             $accountId = (int) $db->insertID();
         }
@@ -197,5 +209,39 @@ class TikTokController extends BaseController
         return $json;
     }
 
+    private function fetchUserInfo(string $accessToken): array
+    {
+        $url = 'https://open.tiktokapis.com/v2/user/info/?' . http_build_query([
+            // TikTok v2 alanları: bazı hesaplarda hepsi dönmeyebilir, problem değil
+            'fields' => 'open_id,union_id,avatar_url,display_name,username',
+        ]);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $accessToken,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_TIMEOUT => 30,
+        ]);
+
+        $resp = curl_exec($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+
+        if ($resp === false || $http < 200 || $http >= 300) {
+            // user info gelmezse akış bozulmasın, boş dön
+            return [];
+        }
+
+        $json = json_decode((string)$resp, true);
+        if (!is_array($json)) return [];
+
+        // çoğu response: { data: { user: {...} } }
+        $user = $json['data']['user'] ?? null;
+        return is_array($user) ? $user : [];
+    }
 
 }

@@ -297,7 +297,7 @@ class MetaOAuthController extends BaseController
     }
 
 
-    private function upsertSocialAccountFacebookPage(int $userId, string $pageId, string $pageName): int
+    private function upsertSocialAccountFacebookPage(int $userId, string $pageId, string $pageName, ?string $pageUsername = null, ?string $pageAvatar = null): int
     {
         $db = \Config\Database::connect();
         $now = date('Y-m-d H:i:s');
@@ -315,8 +315,8 @@ class MetaOAuthController extends BaseController
             'external_id' => $pageId,   // page_id
             'meta_page_id'=> $pageId,   // tutarlılık için aynı
             'name'        => $pageName ?: ('Facebook Page ' . $pageId),
-            'username'    => null,
-            'avatar_url'  => null,
+            'username'   => $pageUsername ?: null,
+            'avatar_url' => $pageAvatar ?: null,
             'updated_at'  => $now,
         ];
 
@@ -885,6 +885,16 @@ class MetaOAuthController extends BaseController
 
         $pageToken = (string) $bundle['access_token'];
         $pageName  = (string) ($bundle['name'] ?? $pageName);
+        $pageDetails = $this->httpGetJson(
+            $this->graphUrl($cfg, $pageId, [
+                'fields' => 'id,name,username,picture.type(large){url}',
+                'access_token' => $pageToken,
+            ]),
+            $cfg
+        );
+
+        $pageUsername = trim((string)($pageDetails['username'] ?? ''));
+        $pageAvatar   = trim((string)($pageDetails['picture']['data']['url'] ?? ''));
 
         $igDetails = $this->httpGetJson(
             $this->graphUrl($cfg, $igId, [
@@ -916,7 +926,7 @@ class MetaOAuthController extends BaseController
         $igAccountId = $this->upsertSocialAccountInstagram($userId, $igDetails, $pageId, $pageName);
 
         // Facebook 
-        $fbAccountId = $this->upsertSocialAccountFacebookPage($userId, $pageId, $pageName);
+        $fbAccountId = $this->upsertSocialAccountFacebookPage($userId, $pageId, $pageName, $pageUsername ?: null, $pageAvatar ?: null);
 
         // 3) Aynı page token’ı her iki hesap için de tokens tablosuna yaz
         $this->upsertMetaPageToken($igAccountId, $pageToken, $pageExpiresAt, [

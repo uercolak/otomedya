@@ -3,7 +3,8 @@
 
 <style>
   .sa-page-title{ font-size:36px; letter-spacing:-.6px; }
-  .sa-sub{ max-width: 720px; }
+  .sa-sub{ max-width: 760px; }
+
   .sa-connect-card{
     border: 1px solid rgba(0,0,0,.06);
     border-radius: 18px;
@@ -20,16 +21,17 @@
     padding:7px 10px; border-radius:999px;
     background: rgba(0,0,0,.04);
     border: 1px solid rgba(0,0,0,.06);
-    font-size:12px; font-weight:600;
+    font-size:12px; font-weight:700;
     white-space:nowrap;
   }
   .sa-connect-body{ padding:0 14px 14px 14px; }
   .sa-connect-desc{ color: rgba(0,0,0,.62); font-size: 13px; line-height: 1.4; }
+
   .btn-brand{
     background: linear-gradient(90deg, #6a5cff, #ff4fd8);
     border: 0;
     color: #fff;
-    font-weight: 700;
+    font-weight: 800;
     border-radius: 999px;
   }
   .btn-brand:hover{ filter: brightness(.98); color:#fff; }
@@ -37,16 +39,15 @@
     border-radius: 999px;
     border: 1px solid rgba(0,0,0,.10);
     background: #fff;
-    font-weight: 700;
+    font-weight: 800;
   }
-  .btn-soft:hover{
-    background: rgba(0,0,0,.03);
-  }
+  .btn-soft:hover{ background: rgba(0,0,0,.03); }
 
   .sa-list-card{
     border: 1px solid rgba(0,0,0,.06);
     border-radius: 18px;
     background: #fff;
+    overflow:hidden;
   }
 
   .sa-item{
@@ -58,6 +59,7 @@
     border-top: 1px solid rgba(0,0,0,.06);
   }
   .sa-item:first-child{ border-top:0; }
+
   .sa-left{ display:flex; align-items:center; gap:12px; min-width:0; }
   .sa-icon{
     width:42px; height:42px; border-radius:12px;
@@ -67,27 +69,23 @@
     flex: 0 0 auto;
     font-size:18px;
   }
+
   .sa-meta{ min-width:0; }
-  .sa-name{ font-weight:800; line-height:1.15; }
+  .sa-name{ font-weight:900; line-height:1.15; }
   .sa-subline{ color: rgba(0,0,0,.55); font-size: 12.5px; }
-  .sa-kv{
-    display:flex; flex-wrap:wrap; gap:8px;
-    margin-top:6px;
-  }
-  .sa-pill{
-    display:inline-flex; align-items:center; gap:6px;
-    padding:6px 10px; border-radius:999px;
+
+  .sa-status{
+    display:inline-flex; align-items:center; gap:7px;
+    padding:6px 10px;
+    border-radius:999px;
     border: 1px solid rgba(0,0,0,.07);
     background: rgba(0,0,0,.02);
-    font-size: 12px;
-    max-width: 100%;
+    font-size:12px;
+    font-weight:800;
+    margin-top:8px;
+    width: fit-content;
   }
-  .sa-pill code{
-    font-size: 12px;
-    color: rgba(0,0,0,.7);
-    background: transparent;
-    padding:0;
-  }
+
   .sa-actions{ display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 
   .sa-empty{
@@ -109,11 +107,11 @@
   <div>
     <div class="sa-page-title fw-bold">Sosyal Hesaplar</div>
     <div class="text-muted sa-sub">
-      Hesaplarını bağla, planlı paylaşımlarda kullan. Bu ekranda sadece bağlantı yaparsın — paylaşım planlama Takvim &amp; Planlama ekranındadır.
+      Hesaplarını bağla ve planlı paylaşımlarda kullan. Paylaşım planlama <b>Takvim &amp; Planlama</b> ekranındadır.
     </div>
   </div>
 
-  <a href="<?= site_url('panel/calendar') ?>" class="btn btn-soft btn-sm" style="border-radius:999px;">
+  <a href="<?= site_url('panel/calendar') ?>" class="btn btn-soft btn-sm">
     <i class="bi bi-calendar3 me-1"></i> Takvime Git
   </a>
 </div>
@@ -131,19 +129,19 @@
   <div class="col-lg-4">
     <div class="sa-connect-card h-100">
       <div class="sa-connect-head">
-        <div class="fw-bold">Instagram &amp; Facebook (Meta)</div>
-        <span class="sa-connect-badge"><i class="bi bi-shield-check"></i> En önerilen</span>
+        <div class="fw-bold">Instagram &amp; Facebook</div>
+        <span class="sa-connect-badge"><i class="bi bi-shield-check"></i> Önerilen</span>
       </div>
       <div class="sa-connect-body">
         <div class="sa-connect-desc mb-3">
-          Bu bağlantı ile <b>Facebook Sayfanı</b> ve o sayfaya bağlı <b>Instagram Business/Creator</b> hesabını tek akışta ekleyebilirsin.
+          Tek bağlantıyla <b>Facebook Sayfanı</b> ve o sayfaya bağlı <b>Instagram</b> hesabını ekleyebilirsin.
         </div>
 
         <button type="button"
                 class="btn btn-brand w-100 btn-sm"
                 data-bs-toggle="modal"
                 data-bs-target="#metaConsentModal">
-          <i class="bi bi-link-45deg me-1"></i> Meta ile Bağla
+          <i class="bi bi-link-45deg me-1"></i> Instagram &amp; Facebook’u Bağla
         </button>
 
         <div class="text-muted small mt-2">
@@ -172,7 +170,7 @@
 
         <a href="<?= site_url('panel/social-accounts/youtube/connect') ?>"
            class="btn btn-outline-danger w-100 btn-sm"
-           style="border-radius:999px; font-weight:800;">
+           style="border-radius:999px; font-weight:900;">
           <i class="bi bi-youtube me-1"></i> YouTube’u Bağla
         </a>
 
@@ -192,12 +190,12 @@
       </div>
       <div class="sa-connect-body">
         <div class="sa-connect-desc mb-3">
-          TikTok hesabını bağla. Videoları panelden planlayıp TikTok’a gönderebilirsin.
+          TikTok hesabını bağla. Videoları panelden planlayıp TikTok’ta paylaşabilirsin.
         </div>
 
         <a href="<?= site_url('panel/auth/tiktok') ?>"
            class="btn btn-dark w-100 btn-sm"
-           style="border-radius:999px; font-weight:800;">
+           style="border-radius:999px; font-weight:900;">
           <i class="bi bi-music-note-beamed me-1"></i> TikTok’u Bağla
         </a>
 
@@ -214,9 +212,9 @@
   <div class="p-3 d-flex justify-content-between align-items-center gap-2 flex-wrap">
     <div>
       <div class="fw-bold" style="font-size:16px;">Bağlı Hesaplar</div>
-      <div class="text-muted small">Planlamada görünür. İstersen buradan kaldırabilirsin.</div>
+      <div class="text-muted small">Takvim &amp; Planlama ekranında görünür. İstersen buradan kaldırabilirsin.</div>
     </div>
-    <span class="sa-connect-badge"><i class="bi bi-shield-check"></i> Sana ait hesaplar</span>
+    <span class="sa-connect-badge"><i class="bi bi-shield-check"></i> Bağlantılar</span>
   </div>
 
   <?php if (empty($rows)): ?>
@@ -255,12 +253,9 @@
         $platform = strtolower((string)($r['platform'] ?? ''));
         $name     = trim((string)($r['name'] ?? ''));
         $username = trim((string)($r['username'] ?? ''));
-        $extId    = trim((string)($r['external_id'] ?? ''));
 
-        // Görünür başlık: name varsa onu, yoksa @username, yoksa platform + id
+        // Görünür başlık: name varsa onu, yoksa username, yoksa platform
         $title = $name !== '' ? $name : ($username !== '' ? '@'.$username : ($labelFor($platform) . ' hesabı'));
-
-        // Not: TikTok/FB bazen username/name boş gelebilir → dış id üzerinden göster
       ?>
 
       <div class="sa-item">
@@ -271,45 +266,32 @@
 
           <div class="sa-meta">
             <div class="sa-name text-truncate"><?= esc($title) ?></div>
+
             <div class="sa-subline">
               <?= esc($labelFor($platform)) ?>
               <?php if ($username !== ''): ?>
                 · <span class="fw-semibold">@<?= esc($username) ?></span>
+              <?php else: ?>
+                · <span class="text-muted">Kullanıcı adı alınamadı</span>
               <?php endif; ?>
             </div>
 
-            <div class="sa-kv">
-              <?php if ($extId !== ''): ?>
-                <span class="sa-pill">
-                  <span class="text-muted">External ID:</span>
-                  <code class="text-break"><?= esc($extId) ?></code>
-                </span>
-              <?php endif; ?>
-
-              <span class="sa-pill">
-                <span class="text-muted">Kayıt ID:</span>
-                <code>#<?= (int)($r['id'] ?? 0) ?></code>
-              </span>
+            <div class="sa-status">
+              <i class="bi bi-check2-circle"></i> Bağlı
             </div>
           </div>
         </div>
 
         <div class="sa-actions">
-          <button type="button"
-                  class="btn btn-outline-secondary btn-sm"
-                  disabled
-                  title="Düzenleme sonraki adım.">
-            <i class="bi bi-pencil"></i>
-          </button>
-
           <form method="post"
                 action="<?= site_url('panel/social-accounts/' . (int)$r['id'] . '/delete') ?>"
                 class="d-inline">
             <?= csrf_field() ?>
             <button type="submit"
                     class="btn btn-outline-danger btn-sm"
-                    data-confirm="Bu sosyal hesabı silmek istediğine emin misin?">
-              <i class="bi bi-trash"></i>
+                    style="border-radius:999px; font-weight:900;"
+                    data-confirm="Bu hesabın bağlantısını kaldırmak istediğine emin misin?">
+              <i class="bi bi-trash me-1"></i> Bağlantıyı kaldır
             </button>
           </form>
         </div>
@@ -318,10 +300,7 @@
 
     <div class="p-3 pt-0">
       <div class="text-muted small">
-        İpucu: Hesap ekledikten sonra <a href="<?= site_url('panel/calendar') ?>">Takvim &amp; Planlama</a> ekranında “Hesap” alanında görünür.
-      </div>
-      <div class="text-muted small mt-1">
-        Not: Eğer TikTok/Facebook kullanıcı adı boş görünüyorsa, bağlantı akışında platformdan isim/username izni alınmamış veya kaydetme adımında DB’ye yazılmıyor olabilir.
+        İpucu: Bağlı hesaplar <a href="<?= site_url('panel/calendar') ?>">Takvim &amp; Planlama</a> ekranında hesap seçiminde görünür.
       </div>
     </div>
 
