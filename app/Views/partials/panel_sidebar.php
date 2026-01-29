@@ -40,9 +40,10 @@
         <i class="bi bi-share"></i> <span>Sosyal Hesaplar</span>
     </a>
 
-    <a href="<?= site_url('panel/settings') ?>" class="menu-link">
-        <i class="menu-icon bi bi-gear"></i>
-        <div>Ayarlar</div>
+    <a href="<?= site_url('panel/settings') ?>"
+        class="nav-link disabled"
+        tabindex="-1" aria-disabled="true">
+        <i class="bi bi-gear"></i> <span>Ayarlar</span>
     </a>
 
         <a href="<?= site_url('panel/help/account-linking'); ?>"
