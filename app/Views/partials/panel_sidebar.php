@@ -33,7 +33,7 @@
   <a href="<?= site_url('panel/calendar'); ?>"
      class="nav-link <?= ($seg1 === 'panel' && $seg2 === 'calendar') ? 'active' : '' ?>">
     <span class="me-2">📤</span>
-    <span>Paylaşımlar</span>
+    <span>Takvim</span>
   </a>
 
   <div class="nav-section-label">Güvenlik</div>
