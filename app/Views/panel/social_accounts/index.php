@@ -213,16 +213,7 @@
 
           <div class="sa-meta">
             <div class="sa-name text-truncate"><?= esc($title) ?></div>
-
-            <div class="sa-subline">
-              TikTok
-              <?php if ($username !== ''): ?>
-                · <span class="fw-semibold">@<?= esc($username) ?></span>
-              <?php else: ?>
-                · <span class="text-muted">Kullanıcı adı alınamadı</span>
-              <?php endif; ?>
-            </div>
-
+            
             <div class="sa-status">
               <i class="bi bi-check2-circle"></i> Bağlı
             </div>
