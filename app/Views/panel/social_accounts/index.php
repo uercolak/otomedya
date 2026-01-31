@@ -31,7 +31,7 @@
     background: linear-gradient(90deg, #6a5cff, #ff4fd8);
     border: 0;
     color: #fff;
-    font-weight: 800;
+    font-weight: 900;
     border-radius: 999px;
   }
   .btn-brand:hover{ filter: brightness(.98); color:#fff; }
@@ -94,6 +94,16 @@
     text-align:center;
   }
 
+  .sa-info{
+    border:1px solid rgba(0,0,0,.06);
+    background: rgba(0,0,0,.02);
+    border-radius: 14px;
+    padding: 12px 14px;
+    color: rgba(0,0,0,.70);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
   @media (max-width: 991.98px){
     .sa-page-title{ font-size:28px; }
     .sa-item{ align-items:flex-start; flex-direction:column; }
@@ -105,14 +115,15 @@
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
   <div>
-    <div class="sa-page-title fw-bold">Sosyal Hesaplar</div>
+    <div class="sa-page-title fw-bold">TikTok Bağlantısı</div>
     <div class="text-muted sa-sub">
-      Hesaplarını bağla ve planlı paylaşımlarda kullan. Paylaşım planlama <b>Takvim &amp; Planlama</b> ekranındadır.
+      TikTok hesabını bağla ve içeriklerini panel üzerinden paylaş. Bağlantı sonrası “Post to TikTok” ekranında gerekli alanları doldurup yayınlayabilirsin.
     </div>
   </div>
 
-  <a href="<?= site_url('panel/calendar') ?>" class="btn btn-soft btn-sm">
-    <i class="bi bi-calendar3 me-1"></i> Takvime Git
+  <!-- İstersen bunu tamamen kaldırabiliriz. Audit videosunda şart değil. -->
+  <a href="<?= site_url('panel/publishes') ?>" class="btn btn-soft btn-sm">
+    <i class="bi bi-plus-circle me-1"></i> Paylaşım Oluştur
   </a>
 </div>
 
@@ -123,85 +134,37 @@
   <div class="alert alert-danger py-2"><?= esc(session()->getFlashdata('error')) ?></div>
 <?php endif; ?>
 
-<!-- CONNECT ROW -->
+<!-- CONNECT -->
 <div class="row g-3 mb-3">
-  <!-- META -->
-  <div class="col-lg-4">
-    <div class="sa-connect-card h-100">
-      <div class="sa-connect-head">
-        <div class="fw-bold">Instagram &amp; Facebook</div>
-        <span class="sa-connect-badge"><i class="bi bi-shield-check"></i> Önerilen</span>
-      </div>
-      <div class="sa-connect-body">
-        <div class="sa-connect-desc mb-3">
-          Tek bağlantıyla <b>Facebook Sayfanı</b> ve o sayfaya bağlı <b>Instagram</b> hesabını ekleyebilirsin.
-        </div>
-
-        <button type="button"
-                class="btn btn-brand w-100 btn-sm"
-                data-bs-toggle="modal"
-                data-bs-target="#metaConsentModal">
-          <i class="bi bi-link-45deg me-1"></i> Instagram &amp; Facebook’u Bağla
-        </button>
-
-        <div class="text-muted small mt-2">
-          Not: Instagram hesabın Business/Creator olmalı ve bir Facebook Page’e bağlı olmalı.
-        </div>
-
-        <a href="<?= site_url('panel/social-accounts/meta/wizard') ?>"
-           class="btn btn-link btn-sm px-0 mt-2">
-          Bağlantıda sorun mu var? Kontrol et →
-        </a>
-      </div>
-    </div>
-  </div>
-
-  <!-- YOUTUBE -->
-  <div class="col-lg-4">
-    <div class="sa-connect-card h-100">
-      <div class="sa-connect-head">
-        <div class="fw-bold">YouTube</div>
-        <span class="sa-connect-badge"><i class="bi bi-youtube"></i> Google</span>
-      </div>
-      <div class="sa-connect-body">
-        <div class="sa-connect-desc mb-3">
-          YouTube kanalını bağla. Videolarını panelden planlayıp otomatik yayınlayabilirsin.
-        </div>
-
-        <a href="<?= site_url('panel/social-accounts/youtube/connect') ?>"
-           class="btn btn-outline-danger w-100 btn-sm"
-           style="border-radius:999px; font-weight:900;">
-          <i class="bi bi-youtube me-1"></i> YouTube’u Bağla
-        </a>
-
-        <div class="text-muted small mt-2">
-          Not: İlk bağlantıda Google izin ekranı açılır.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TIKTOK -->
-  <div class="col-lg-4">
+  <div class="col-lg-6">
     <div class="sa-connect-card h-100">
       <div class="sa-connect-head">
         <div class="fw-bold">TikTok</div>
-        <span class="sa-connect-badge"><i class="bi bi-music-note-beamed"></i> TikTok</span>
+        <span class="sa-connect-badge"><i class="bi bi-music-note-beamed"></i> Direct Post</span>
       </div>
+
       <div class="sa-connect-body">
         <div class="sa-connect-desc mb-3">
-          TikTok hesabını bağla. Videoları panelden planlayıp TikTok’ta paylaşabilirsin.
+          “TikTok’u Bağla” butonuna tıkladığında TikTok izin ekranı açılır. İzin verdikten sonra hesabın bağlanır ve paylaşım ekranında seçilebilir hale gelir.
         </div>
 
         <a href="<?= site_url('panel/auth/tiktok') ?>"
-           class="btn btn-dark w-100 btn-sm"
-           style="border-radius:999px; font-weight:900;">
-          <i class="bi bi-music-note-beamed me-1"></i> TikTok’u Bağla
+           class="btn btn-brand w-100 btn-sm">
+          <i class="bi bi-link-45deg me-1"></i> TikTok’u Bağla
         </a>
 
         <div class="text-muted small mt-2">
           Not: İlk bağlantıda TikTok izin ekranı açılır.
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="sa-info h-100">
+      <div class="fw-bold mb-1"><i class="bi bi-shield-check me-1"></i> Güvenlik & Şeffaflık</div>
+      <div>
+        Bağlantı yalnızca TikTok hesabını yetkilendirmenle gerçekleşir. Dilediğin zaman aşağıdaki listeden bağlantıyı kaldırabilirsin.
       </div>
     </div>
   </div>
@@ -211,64 +174,48 @@
 <div class="sa-list-card">
   <div class="p-3 d-flex justify-content-between align-items-center gap-2 flex-wrap">
     <div>
-      <div class="fw-bold" style="font-size:16px;">Bağlı Hesaplar</div>
-      <div class="text-muted small">Takvim &amp; Planlama ekranında görünür. İstersen buradan kaldırabilirsin.</div>
+      <div class="fw-bold" style="font-size:16px;">Bağlı TikTok Hesapları</div>
+      <div class="text-muted small">Paylaşım ekranında seçilebilir. İstersen buradan kaldırabilirsin.</div>
     </div>
     <span class="sa-connect-badge"><i class="bi bi-shield-check"></i> Bağlantılar</span>
   </div>
 
-  <?php if (empty($rows)): ?>
+  <?php
+    // Güvenlik: TikTok dışı hesaplar varsa bu audit build’de göstermeyelim
+    $tiktokRows = [];
+    foreach (($rows ?? []) as $r) {
+      $p = strtolower((string)($r['platform'] ?? ''));
+      if ($p === 'tiktok') $tiktokRows[] = $r;
+    }
+  ?>
+
+  <?php if (empty($tiktokRows)): ?>
     <div class="sa-empty">
-      Henüz hesap eklenmemiş. Yukarıdan bir platform bağlayarak başlayabilirsin.
+      Henüz TikTok hesabı eklenmemiş. Yukarıdan “TikTok’u Bağla” ile başlayabilirsin.
     </div>
   <?php else: ?>
 
-    <?php
-      $iconFor = function($platform){
-        $p = strtolower((string)$platform);
-        return match($p){
-          'instagram' => 'bi-instagram',
-          'facebook'  => 'bi-facebook',
-          'youtube'   => 'bi-youtube',
-          'tiktok'    => 'bi-music-note-beamed',
-          'x','twitter' => 'bi-twitter-x',
-          default     => 'bi-link-45deg',
-        };
-      };
-      $labelFor = function($platform){
-        $p = strtolower((string)$platform);
-        return match($p){
-          'instagram' => 'Instagram',
-          'facebook'  => 'Facebook',
-          'youtube'   => 'YouTube',
-          'tiktok'    => 'TikTok',
-          'x','twitter' => 'X',
-          default     => strtoupper($p ?: 'PLATFORM'),
-        };
-      };
-    ?>
-
-    <?php foreach ($rows as $r): ?>
+    <?php foreach ($tiktokRows as $r): ?>
       <?php
-        $platform = strtolower((string)($r['platform'] ?? ''));
+        $platform = 'tiktok';
         $name     = trim((string)($r['name'] ?? ''));
         $username = trim((string)($r['username'] ?? ''));
 
-        // Görünür başlık: name varsa onu, yoksa username, yoksa platform
-        $title = $name !== '' ? $name : ($username !== '' ? '@'.$username : ($labelFor($platform) . ' hesabı'));
+        // Görünür başlık: name varsa onu, yoksa username, yoksa “TikTok hesabı”
+        $title = $name !== '' ? $name : ($username !== '' ? '@'.$username : 'TikTok hesabı');
       ?>
 
       <div class="sa-item">
         <div class="sa-left">
           <div class="sa-icon">
-            <i class="bi <?= esc($iconFor($platform)) ?>"></i>
+            <i class="bi bi-music-note-beamed"></i>
           </div>
 
           <div class="sa-meta">
             <div class="sa-name text-truncate"><?= esc($title) ?></div>
 
             <div class="sa-subline">
-              <?= esc($labelFor($platform)) ?>
+              TikTok
               <?php if ($username !== ''): ?>
                 · <span class="fw-semibold">@<?= esc($username) ?></span>
               <?php else: ?>
@@ -290,7 +237,7 @@
             <button type="submit"
                     class="btn btn-outline-danger btn-sm"
                     style="border-radius:999px; font-weight:900;"
-                    data-confirm="Bu hesabın bağlantısını kaldırmak istediğine emin misin?">
+                    data-confirm="Bu TikTok hesabının bağlantısını kaldırmak istediğine emin misin?">
               <i class="bi bi-trash me-1"></i> Bağlantıyı kaldır
             </button>
           </form>
@@ -298,45 +245,7 @@
       </div>
     <?php endforeach; ?>
 
-    <div class="p-3 pt-0">
-      <div class="text-muted small">
-        İpucu: Bağlı hesaplar <a href="<?= site_url('panel/calendar') ?>">Takvim &amp; Planlama</a> ekranında hesap seçiminde görünür.
-      </div>
-    </div>
-
   <?php endif; ?>
-</div>
-
-<!-- Consent Modal -->
-<div class="modal fade" id="metaConsentModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Meta Yetkilendirme</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
-      </div>
-
-      <form method="post" action="<?= site_url('panel/social-accounts/meta/consent') ?>">
-        <?= csrf_field() ?>
-        <div class="modal-body">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" value="1" id="consentCheck" name="consent" required>
-            <label class="form-check-label" for="consentCheck">
-              Instagram &amp; Facebook hesaplarımı bağlamak için Meta yetkilendirmesini kabul ediyorum.
-            </label>
-          </div>
-          <div class="text-muted small mt-2">
-            Devam edince Meta giriş ekranına yönlendirileceksin.
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Vazgeç</button>
-          <button type="submit" class="btn btn-primary">Devam</button>
-        </div>
-      </form>
-    </div>
-  </div>
 </div>
 
 <?= $this->endSection() ?>
