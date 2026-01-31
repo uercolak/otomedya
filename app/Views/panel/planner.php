@@ -360,6 +360,13 @@
           <h5 class="card-title mb-3">Zamanlama</h5>
 
           <div class="mb-3">
+            <label class="form-label">Tiktok Paylaşım Tipi</label>
+            <select name="post_type" class="form-select" required>
+              <option value="auto" selected>AUTO</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
             <label class="form-label">Tarih/Saat</label>
             <input type="datetime-local" name="schedule_at" class="form-control" required>
             <div class="form-text">Kaydetmeden önce otomatik olarak Y-m-d H:i:s formatına çevrilir.</div>
