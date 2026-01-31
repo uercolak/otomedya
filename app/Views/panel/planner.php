@@ -345,8 +345,10 @@
                     name="account_ids[]"
                     value="<?= (int)$a['id'] ?>"
                     data-platform="tiktok"
+                    data-username="<?= esc($a['username'] ?? '') ?>"
+                    data-name="<?= esc($a['name'] ?? '') ?>"
                     required
-                  >
+                    >
                 </label>
               <?php endforeach; ?>
             </div>
@@ -364,6 +366,74 @@
             <select name="post_type" class="form-select" required>
               <option value="auto" selected>AUTO</option>
             </select>
+            <!-- TikTok Audit için zorunlu UX alanları -->
+<div class="border rounded-3 p-3 mb-3" style="border-color: rgba(0,0,0,.08) !important;">
+  <div class="fw-bold mb-2">TikTok Gönderi Ayarları <span class="text-danger">*</span></div>
+  <div class="text-muted small mb-3">
+    Bu alanlar TikTok Direct Post yönergeleri için gereklidir. Varsayılan olarak kapalıdır.
+  </div>
+
+  <!-- Privacy (Zorunlu, default seçili OLMAMALI) -->
+  <div class="mb-3">
+    <label class="form-label">Gizlilik</label>
+    <select name="tiktok_privacy" class="form-select" required>
+      <option value="" selected disabled>Seçiniz</option>
+      <option value="PUBLIC">Herkese açık</option>
+      <option value="FRIENDS">Arkadaşlar</option>
+      <option value="PRIVATE">Sadece ben</option>
+    </select>
+    <div class="form-text">Gönderi gizlilik seçimi zorunludur.</div>
+  </div>
+
+  <!-- Interaction toggles (Default OFF) -->
+  <div class="mb-3">
+    <label class="form-label d-block">Etkileşim İzinleri (varsayılan kapalı)</label>
+
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="allow_comment" id="allow_comment" value="1">
+      <label class="form-check-label" for="allow_comment">Yorumlara izin ver</label>
+    </div>
+
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="allow_duet" id="allow_duet" value="1">
+      <label class="form-check-label" for="allow_duet">Duet’e izin ver</label>
+    </div>
+
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="allow_stitch" id="allow_stitch" value="1">
+      <label class="form-check-label" for="allow_stitch">Stitch’e izin ver</label>
+    </div>
+
+    <div class="form-text">Audit için bu ayarların kullanıcı tarafından seçilebilir olması gerekir.</div>
+  </div>
+
+  <!-- Music / Content rights confirmation (Zorunlu onay checkbox) -->
+  <div class="mb-3">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="music_confirm" id="music_confirm" value="1" required>
+      <label class="form-check-label" for="music_confirm">
+        Bu içerikte kullanılan müzik/medya haklarının paylaşım için uygun olduğunu onaylıyorum.
+      </label>
+    </div>
+    <div class="form-text">Bu onay işaretlenmeden paylaşım planlanamaz.</div>
+  </div>
+
+  <!-- Commercial content disclosure -->
+  <div class="mb-2">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="is_commercial" id="is_commercial" value="1">
+      <label class="form-check-label" for="is_commercial">
+        Ticari içerik / reklam (disclosure)
+      </label>
+    </div>
+  </div>
+
+  <div id="commercialBox" class="mt-2" style="display:none;">
+    <label class="form-label">Marka / Ürün (opsiyonel)</label>
+    <input type="text" name="commercial_brand" class="form-control" placeholder="Örn: Marka adı">
+    <div class="form-text">Ticari içerik ise açıklama eklemek audit açısından daha nettir.</div>
+  </div>
+</div>
           </div>
 
           <div class="mb-3">
@@ -505,6 +575,12 @@
     previewCard.style.display = 'block';
 
     const caption = (textareaBase?.value || '').trim();
+    const selected = checks.find(ch => ch.checked);
+    let uname = (selected?.dataset?.username || '').trim();
+    let nm    = (selected?.dataset?.name || '').trim();
+    let shownUser = '@tiktok_user';
+    if (uname) shownUser = '@' + uname;
+    else if (nm) shownUser = nm;
     const media = getMediaSource();
 
     const badges = `
@@ -514,7 +590,7 @@
 
     const ttOverlay = `
       <div class="pv-tt-left">
-        <div class="pv-tt-user">@sosyalmedyaplanlama</div>
+        <div class="pv-tt-user">${escapeHtml(shownUser)}</div>
         <div class="pv-tt-caption">${escapeHtml(caption || '—')}</div>
       </div>
       <div class="pv-tt-right">
@@ -614,5 +690,14 @@
   renderRecent();
 })();
 </script>
-
+<script>
+(function(){
+  const cb = document.getElementById('is_commercial');
+  const box = document.getElementById('commercialBox');
+  if(!cb || !box) return;
+  function sync(){ box.style.display = cb.checked ? 'block' : 'none'; }
+  cb.addEventListener('change', sync);
+  sync();
+})();
+</script>
 <?= $this->endSection() ?>
