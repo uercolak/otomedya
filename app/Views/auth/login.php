@@ -344,7 +344,7 @@
         </div>
 
         <div class="mt-3 small-muted">
-          Hesap erişimi için yöneticinizle iletişime geçebilir veya destek ekibimize yazabilirsiniz.
+          Hesap erişimi için yöneticinizle iletişime geçebilir veya destek ekibimize yazabilirsiniz.<a href="<?= base_url('/contact'); ?>">Destek</a>
         </div>
       </form>
     </div>
