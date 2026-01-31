@@ -24,7 +24,7 @@
 
   <?php if ($auditMode): ?>
 
-    <div class="nav-section-label">TikTok</div>
+    <div class="nav-section-label"> TikTok </div>
 
     <a href="<?= site_url('panel/social-accounts'); ?>"
        class="nav-link <?= $isActive('panel','social-accounts') ? 'active' : '' ?>">
