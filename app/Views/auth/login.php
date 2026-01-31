@@ -4,7 +4,6 @@
   <meta charset="utf-8">
   <title>Giriş Yap | Sosyal Medya Planlama</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <meta name="description" content="TikTok içeriklerini tek panelden planla, yayınla ve yayın akışını takip et.">
   <link rel="icon" type="image/png" href="<?= base_url('/logo2.png'); ?>">
 
@@ -286,7 +285,7 @@
       <h1>TikTok içeriklerini tek panelden yönet.</h1>
 
       <p>
-        Facebook, Instagram, YouTube ve TikTok içeriklerini tek bir takvimde planla;
+        TikTok içeriklerini tek bir takvimde planla;
         yayın akışını takip et ve süreci tek yerden yönet.
       </p>
 
@@ -305,7 +304,7 @@
   <div class="auth-right">
     <div class="card-auth">
       <h2>Giriş Yap</h2>
-      <p class="sub">Paneline giriş yap ve içeriklerini yönet.</p>
+      <p class="sub">Paneline giriş yap ve TikTok içeriklerini yönet.</p>
 
       <?php $errors = session('errors') ?? []; ?>
 
