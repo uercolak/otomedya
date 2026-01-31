@@ -5,7 +5,7 @@
   <title>Giriş Yap | Sosyal Medya Planlama</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <meta name="description" content="Facebook, Instagram, YouTube ve TikTok içeriklerini tek panelden planla, yayınla ve yayın akışını takip et.">
+  <meta name="description" content="TikTok içeriklerini tek panelden planla, yayınla ve yayın akışını takip et.">
   <link rel="icon" type="image/png" href="<?= base_url('/logo2.png'); ?>">
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -283,7 +283,7 @@
     </div>
 
     <div class="hero">
-      <h1>Tek panelden tüm içeriklerini yönet.</h1>
+      <h1>TikTok içeriklerini tek panelden yönet.</h1>
 
       <p>
         Facebook, Instagram, YouTube ve TikTok içeriklerini tek bir takvimde planla;
@@ -291,9 +291,9 @@
       </p>
 
       <div class="feature-row">
-        <div class="pill"><span class="dot"></span> Planlama & Takvim</div>
-        <div class="pill"><span class="dot"></span> Otomatik Yayınlama</div>
-        <div class="pill"><span class="dot"></span> Yayın Akışı Takibi</div>
+        <div class="pill"><span class="dot"></span> Taslak & Önizleme</div>
+        <div class="pill"><span class="dot"></span> Yayınlama (TikTok)</div>
+        <div class="pill"><span class="dot"></span> Yayın Durumu Takibi</div>
       </div>
     </div>
 
@@ -305,7 +305,7 @@
   <div class="auth-right">
     <div class="card-auth">
       <h2>Giriş Yap</h2>
-      <p class="sub">Paneline giriş yap ve planlanan içeriklerini yönet.</p>
+      <p class="sub">Paneline giriş yap ve içeriklerini yönet.</p>
 
       <?php $errors = session('errors') ?? []; ?>
 
