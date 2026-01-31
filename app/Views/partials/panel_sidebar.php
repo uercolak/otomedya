@@ -30,6 +30,12 @@
     <span>Paylaşımlar</span>
   </a>
 
+  <a href="<?= site_url('panel/calendar'); ?>"
+     class="nav-link <?= ($seg1 === 'panel' && $seg2 === 'calendar') ? 'active' : '' ?>">
+    <span class="me-2">📤</span>
+    <span>Paylaşımlar</span>
+  </a>
+
   <div class="nav-section-label">Güvenlik</div>
 
   <a href="<?= site_url('panel/settings'); ?>"
