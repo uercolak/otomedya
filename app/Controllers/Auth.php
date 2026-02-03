@@ -73,6 +73,6 @@ class Auth extends BaseController
     {
         return (session('user_role') === 'admin')
             ? redirect()->to('/admin')
-            : redirect()->to('/panel/social-accounts');
+            : redirect()->to('/panel');
     }
 }

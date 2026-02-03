@@ -15,13 +15,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Panel CSS (harici dosya) -->
+    <!-- Panel CSS -->
     <link rel="icon" type="image/png" href="<?= base_url('/panellogo.png'); ?>">
     <link href="<?= base_url('/assets/css/panel.css'); ?>" rel="stylesheet">
 
     <style>
         :root{
-            --ink: rgba(17,24,39,.88);        /* saf siyah yok */
+            --ink: rgba(17,24,39,.88);
             --muted: rgba(17,24,39,.58);
             --border: rgba(0,0,0,.06);
             --bg: #f6f7fb;
@@ -34,7 +34,7 @@
             font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
             color: var(--ink);
             background: var(--bg);
-            font-size: 14px; /* genel küçültme */
+            font-size: 14px;
         }
 
         a{ text-decoration:none !important; }
@@ -42,7 +42,6 @@
         .spin { display:inline-block; animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
 
-        /* --- Brand daha minimal --- */
         .brand{ display:flex; align-items:center; gap:10px; }
         .brand-logo-img{
             width:40px; height:40px; border-radius:12px;
@@ -55,7 +54,6 @@
         .brand-title{ font-weight:700; letter-spacing:-.2px; font-size:14px; }
         .brand-sub{ color: var(--muted); font-weight:500; font-size:12px; }
 
-        /* --- Topbar daha küçük --- */
         .topbar{
             position: sticky;
             top: 0;
@@ -63,11 +61,11 @@
             backdrop-filter: blur(10px);
             background: rgba(255,255,255,.72);
             border-bottom: 1px solid var(--border);
-            padding: 10px 14px; /* küçült */
+            padding: 10px 14px;
         }
         .top-title{
             font-size: 18px;
-            font-weight: 700; /* 800 değil */
+            font-weight: 700;
             letter-spacing: -.3px;
             color: rgba(17,24,39,.86);
         }
@@ -77,7 +75,6 @@
             font-weight: 500;
         }
 
-        /* Chip / Çıkış daha soft & küçük */
         .chip{
             border: 1px solid rgba(124,58,237,.16);
             background: var(--primarySoft);
@@ -102,7 +99,17 @@
             border-color: rgba(124,58,237,.14);
             color: rgba(17,24,39,.86);
         }
+
+        /* ✅ FIX: Modal’ın sidebar/topbar altında kalmasını engelle */
+        .modal{ z-index: 99999 !important; }
+        .modal-backdrop{ z-index: 99998 !important; }
+
+        /* ✅ FIX: Sol overlay’in de modal backdrop’undan yukarı çıkmasını engelle */
+        .sidebar-overlay{ z-index: 1000; } /* zaten genelde 999 olur, modal 99998 üstte */
     </style>
+
+    <!-- ✅ FIX: Sayfa özel style section (help sayfası kendi CSS'ini buraya basabilir) -->
+    <?= $this->renderSection('styles') ?>
 </head>
 
 <?php
@@ -179,7 +186,10 @@
     </main>
 </div>
 
+<!-- ✅ Bootstrap JS (tek kere) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Sidebar toggle -->
 <script>
   const sidebar = document.getElementById('sidebar');
   const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -285,6 +295,9 @@ window.appToast = function(message, variant='success'){
   t.show();
 }
 </script>
+
+<!-- ✅ FIX: Sayfa özel script section (help sayfasının modal + copy JS'i burada çalışacak) -->
+<?= $this->renderSection('scripts') ?>
 
 </body>
 </html>
