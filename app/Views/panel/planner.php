@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/panel') ?>
 <?= $this->section('content') ?>
 
-<?= $this->include('panel/planner/_styles') ?>
+<?= $this->include('panel/planner/styles') ?>
 
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-content-between mb-3">
