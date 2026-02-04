@@ -20,12 +20,11 @@ class MetaMediaStatusHandler implements JobHandlerInterface
             throw new \RuntimeException('publish_id ve creation_id zorunlu.');
         }
 
-        $maxAttempts = 30; // 30 * 20sn = ~10 dk
+        $maxAttempts = 30; // 30 * 20sn ~10dk
         $now = date('Y-m-d H:i:s');
 
         $db = Database::connect();
 
-        // publish + token + ig_user_id al
         $row = $db->table('publishes p')
             ->select('p.id,p.user_id,p.platform,p.account_id,p.status,p.meta_json,p.error,p.remote_id')
             ->select('sa.external_id as ig_user_id')
@@ -40,53 +39,55 @@ class MetaMediaStatusHandler implements JobHandlerInterface
         }
 
         $platform = strtolower((string)($row['platform'] ?? ''));
-        if (!in_array($platform, ['instagram'], true)) {
+        if ($platform !== 'instagram') {
             return true; // şimdilik sadece IG polling
         }
 
-        // Zaten bitti mi?
         $curStatus = (string)($row['status'] ?? '');
         if ($curStatus === PublishModel::STATUS_PUBLISHED || $curStatus === PublishModel::STATUS_FAILED) {
+            // meta_media_jobs varsa done/failed sync (best-effort)
+            $this->syncMetaMediaJobsIfExists($db, $publishId, $curStatus, $row['remote_id'] ?? null, null);
             return true;
         }
 
         $accessToken = trim((string)($row['meta_access_token'] ?? ''));
         $igUserId    = trim((string)($row['ig_user_id'] ?? ''));
 
+        $publishes = new PublishModel();
+
         if ($accessToken === '' || $igUserId === '') {
-            // Token/ig_user_id yoksa fail
-            (new PublishModel())->update($publishId, [
+            $publishes->update($publishId, [
                 'status'     => PublishModel::STATUS_FAILED,
                 'error'      => 'Meta access_token veya ig_user_id eksik.',
                 'updated_at' => $now,
             ]);
+            $this->syncMetaMediaJobsIfExists($db, $publishId, PublishModel::STATUS_FAILED, null, 'Meta token/ig_user_id eksik');
             return true;
         }
 
         $meta = new MetaPublishService();
-        $publishes = new PublishModel();
 
-        // 1) container status
-        $st = $meta->getInstagramContainerStatus($creationId, $accessToken);
-        $code = strtoupper((string)($st['status_code'] ?? ''));
-
-        // meta_json güncelle
+        // meta_json oku/güncelle
         $metaJson = [];
         if (!empty($row['meta_json'])) {
             $tmp = json_decode((string)$row['meta_json'], true);
             if (is_array($tmp)) $metaJson = $tmp;
         }
         $metaJson['meta']['creation_id'] = $creationId;
-        $metaJson['meta']['status_code'] = $code ?: 'IN_PROGRESS';
 
-        // 2) FINISHED → publish et
+        // 1) container status
+        $st = $meta->getInstagramContainerStatus($creationId, $accessToken);
+        $code = strtoupper((string)($st['status_code'] ?? ''));
+
+        $metaJson['meta']['status_code'] = $code !== '' ? $code : 'IN_PROGRESS';
+
+        // 2) FINISHED => publish et
         if ($code === 'FINISHED') {
             $pub = $meta->publishInstagramContainer($igUserId, $creationId, $accessToken);
             $publishedId = (string)($pub['published_id'] ?? '');
 
             if ($publishedId === '') {
-                // publish çağrısı id dönmediyse retry
-                return $this->requeue($publishes, $publishId, $attempt, $maxAttempts, $metaJson, 'media_publish id dönmedi');
+                return $this->requeue($db, $publishes, $publishId, $attempt, $maxAttempts, $metaJson, 'media_publish id dönmedi');
             }
 
             $permalink = $meta->getInstagramPermalink($publishedId, $accessToken) ?: '';
@@ -103,10 +104,12 @@ class MetaMediaStatusHandler implements JobHandlerInterface
                 'updated_at'   => $now,
             ]);
 
+            $this->syncMetaMediaJobsIfExists($db, $publishId, PublishModel::STATUS_PUBLISHED, $publishedId, null);
+
             return true;
         }
 
-        // 3) ERROR / EXPIRED gibi durumlarda fail
+        // 3) ERROR/EXPIRED => fail
         if (in_array($code, ['ERROR', 'EXPIRED'], true)) {
             $publishes->update($publishId, [
                 'status'     => PublishModel::STATUS_FAILED,
@@ -114,14 +117,17 @@ class MetaMediaStatusHandler implements JobHandlerInterface
                 'meta_json'  => json_encode($metaJson, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 'updated_at' => $now,
             ]);
+
+            $this->syncMetaMediaJobsIfExists($db, $publishId, PublishModel::STATUS_FAILED, null, 'IG container status: '.$code);
+
             return true;
         }
 
-        // 4) hala processing → requeue
-        return $this->requeue($publishes, $publishId, $attempt, $maxAttempts, $metaJson, 'Video işleniyor ('.$code.')');
+        // 4) hala processing => requeue
+        return $this->requeue($db, $publishes, $publishId, $attempt, $maxAttempts, $metaJson, 'Video işleniyor ('.$metaJson['meta']['status_code'].')');
     }
 
-    private function requeue(PublishModel $publishes, int $publishId, int $attempt, int $maxAttempts, array $metaJson, string $note): bool
+    private function requeue($db, PublishModel $publishes, int $publishId, int $attempt, int $maxAttempts, array $metaJson, string $note): bool
     {
         $now = date('Y-m-d H:i:s');
 
@@ -132,13 +138,23 @@ class MetaMediaStatusHandler implements JobHandlerInterface
             'updated_at' => $now,
         ]);
 
+        $this->syncMetaMediaJobsIfExists($db, $publishId, PublishModel::STATUS_PUBLISHING, null, $note);
+
         if ($attempt >= $maxAttempts) {
-            // Süre doldu → fail yapmak istersen burada değiştir
+            // timeout: istersen burada failed çekebiliriz (şimdilik dokunmuyorum)
             return true;
         }
 
         $queue = new QueueService();
-        $runAt = date('Y-m-d H:i:s', time() + 20);
+
+        // backoff (20s sabit yerine kademeli)
+        $delay = match (true) {
+            $attempt <= 3  => 20,
+            $attempt <= 10 => 30,
+            default        => 45,
+        };
+
+        $runAt = date('Y-m-d H:i:s', time() + $delay);
 
         $queue->push('meta_media_status', [
             'publish_id'  => $publishId,
@@ -147,5 +163,35 @@ class MetaMediaStatusHandler implements JobHandlerInterface
         ], $runAt, 90, 30);
 
         return true;
+    }
+
+    private function syncMetaMediaJobsIfExists($db, int $publishId, string $publishStatus, ?string $publishedMediaId, ?string $note): void
+    {
+        try {
+            if (!$db->tableExists('meta_media_jobs')) return;
+
+            $row = $db->table('meta_media_jobs')->where('publish_id', $publishId)->orderBy('id', 'DESC')->get(1)->getRowArray();
+            if (!$row) return;
+
+            $now = date('Y-m-d H:i:s');
+
+            $status = match ($publishStatus) {
+                PublishModel::STATUS_PUBLISHED => 'done',
+                PublishModel::STATUS_FAILED    => 'failed',
+                default                        => 'processing',
+            };
+
+            $upd = [
+                'status'       => $status,
+                'updated_at'   => $now,
+            ];
+
+            if ($publishedMediaId) $upd['published_media_id'] = $publishedMediaId;
+            if ($note !== null) $upd['last_error'] = mb_substr($note, 0, 2000);
+
+            $db->table('meta_media_jobs')->where('id', (int)$row['id'])->update($upd);
+        } catch (\Throwable $e) {
+            // best-effort
+        }
     }
 }

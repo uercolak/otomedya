@@ -18,9 +18,9 @@ class TikTokPublishStatusHandler implements JobHandlerInterface
         }
 
         $attempt     = (int)($payload['attempt'] ?? 0);
-        $maxAttempts = 60; // 10sn aralıkla ~10dk
+        $maxAttempts = 60; // ~10 dk
 
-        $db       = Database::connect();
+        $db        = Database::connect();
         $publishes = new PublishModel();
         $tt        = new TikTokPublishService();
 
@@ -59,34 +59,43 @@ class TikTokPublishStatusHandler implements JobHandlerInterface
             if (is_array($tmp)) $meta = $tmp;
         }
 
-        $publishTokenId = (string)($meta['tiktok']['publish_id'] ?? '');
+        // ✅ publish_id önce payload'dan (sen zaten yolluyorsun)
+        $publishTokenId = (string)($payload['tiktok_publish_id'] ?? '');
         if ($publishTokenId === '') {
-            throw new \RuntimeException('TikTok publish_id meta_json içinde yok.');
+            $publishTokenId = (string)($meta['tiktok']['publish_id'] ?? '');
+        }
+        if ($publishTokenId === '') {
+            throw new \RuntimeException('TikTok publish_id bulunamadı (payload/meta_json).');
         }
 
-        // status fetch (401 yakala -> refresh kuyruğu)
+        // status fetch (401 -> refresh kuyruğu)
         try {
             $st = $tt->fetchPublishStatus($accessToken, $publishTokenId);
         } catch (\Throwable $e) {
-
             $msg = $e->getMessage();
 
             if (stripos($msg, 'HTTP=401') !== false || stripos($msg, 'access_token_invalid') !== false) {
                 $queue = new QueueService();
 
+                // refresh’i spamlamayalım
                 $queue->push('refresh_tiktok_token', [
                     'social_account_id' => (int)($row['account_id'] ?? 0),
                     'publish_id'        => $publishId,
                 ], date('Y-m-d H:i:s', time() + 2), 90, 3);
 
+                // sonra tekrar dene (küçük backoff)
+                $delay = ($attempt <= 3) ? 6 : 10;
+
                 $queue->push('tiktok_publish_status', [
-                    'publish_id' => $publishId,
-                    'attempt'    => $attempt + 1,
-                ], date('Y-m-d H:i:s', time() + 6), 90, 3);
+                    'publish_id'        => $publishId,
+                    'tiktok_publish_id' => $publishTokenId,
+                    'attempt'           => $attempt + 1,
+                ], date('Y-m-d H:i:s', time() + $delay), 90, 3);
 
                 $publishes->update($publishId, [
                     'status' => PublishModel::STATUS_PUBLISHING,
                     'error'  => null,
+                    'meta_json' => json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 ]);
 
                 return true;
@@ -95,22 +104,23 @@ class TikTokPublishStatusHandler implements JobHandlerInterface
             $publishes->update($publishId, [
                 'status' => PublishModel::STATUS_FAILED,
                 'error'  => 'TikTok status fetch error: ' . mb_substr($msg, 0, 500),
+                'meta_json' => json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             ]);
 
             return true;
         }
 
-        // TikTok response normalize
+        // ✅ TikTok response normalize
         $data = $st['data'] ?? $st ?? [];
         if (!is_array($data)) $data = [];
 
         $status     = strtoupper(trim((string)($data['status'] ?? '')));
         $failReason = trim((string)($data['fail_reason'] ?? ''));
 
-        // TikTok bazen typo ile dönebiliyor
-        $postIds = $data['publicaly_available_post_id'] ?? $data['publicly_available_post_id'] ?? [];
-        $postId  = '';
+        // post id / video id parse (farklı isimler dönebiliyor)
+        $postIds = $data['publicaly_available_post_id'] ?? $data['publicly_available_post_id'] ?? null;
 
+        $postId = '';
         if (is_array($postIds) && !empty($postIds)) {
             $postId = (string)($postIds[0] ?? '');
         }
@@ -119,6 +129,7 @@ class TikTokPublishStatusHandler implements JobHandlerInterface
         }
 
         // meta güncelle
+        $meta['tiktok']['publish_id'] = $publishTokenId;
         $meta['tiktok']['status'] = $status !== '' ? $status : ($meta['tiktok']['status'] ?? 'PROCESSING');
         if ($failReason !== '') $meta['tiktok']['fail_reason'] = $failReason;
 
@@ -132,7 +143,7 @@ class TikTokPublishStatusHandler implements JobHandlerInterface
             return true;
         }
 
-        // 2) post_id geldi -> published
+        // 2) post_id geldi => published
         if ($postId !== '') {
             $username  = (string)($row['sa_username'] ?? '');
             $permalink = ($username !== '')
@@ -153,14 +164,14 @@ class TikTokPublishStatusHandler implements JobHandlerInterface
             return true;
         }
 
-        // ✅ 3) Tamamlandı ama post_id yok -> yine de published
+        // 3) Done ama post_id yok => published say (mevcut mantığın)
         $doneStatuses = ['SUCCESS', 'COMPLETED', 'PUBLISH_COMPLETE', 'PUBLISHED'];
         if (in_array($status, $doneStatuses, true)) {
             $meta['tiktok']['published_without_post_id'] = true;
 
             $publishes->update($publishId, [
                 'status'       => PublishModel::STATUS_PUBLISHED,
-                'remote_id'    => $publishTokenId, // en azından referans
+                'remote_id'    => $publishTokenId,
                 'published_at' => date('Y-m-d H:i:s'),
                 'error'        => null,
                 'meta_json'    => json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -169,7 +180,7 @@ class TikTokPublishStatusHandler implements JobHandlerInterface
             return true;
         }
 
-        // 4) Hâlâ processing -> retry
+        // 4) hâlâ processing => retry
         $publishes->update($publishId, [
             'status'    => PublishModel::STATUS_PUBLISHING,
             'error'     => null,
@@ -177,16 +188,17 @@ class TikTokPublishStatusHandler implements JobHandlerInterface
         ]);
 
         if ($attempt >= $maxAttempts) {
-            return true; // istersen burada failed yapabiliriz
+            return true; // istersen burada failed
         }
 
         $queue = new QueueService();
-        $runAt = date('Y-m-d H:i:s', time() + 10);
+        $delay = ($attempt <= 10) ? 10 : 15;
 
         $queue->push('tiktok_publish_status', [
-            'publish_id' => $publishId,
-            'attempt'    => $attempt + 1,
-        ], $runAt, 90, 3);
+            'publish_id'        => $publishId,
+            'tiktok_publish_id' => $publishTokenId,
+            'attempt'           => $attempt + 1,
+        ], date('Y-m-d H:i:s', time() + $delay), 90, 3);
 
         return true;
     }

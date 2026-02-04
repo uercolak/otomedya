@@ -4,27 +4,48 @@ namespace App\Services;
 
 class TikTokPublishService
 {
-    public function initVideoPublish(string $accessToken, string $caption, int $videoSize): array
+    /**
+     * @param array $options
+     *  - privacy: public|private|followers|friends  (opsiyonel)
+     *  - allow_comments: bool (default true)
+     *  - allow_duet: bool (default true)
+     *  - allow_stitch: bool (default true)
+     */
+    public function initVideoPublish(string $accessToken, string $caption, int $videoSize, array $options = []): array
     {
         $url = 'https://open.tiktokapis.com/v2/post/publish/video/init/';
 
-        $privacy = strtoupper(trim((string) env('TIKTOK_PRIVACY_LEVEL', 'SELF_ONLY')));
-            $allowed = ['SELF_ONLY', 'PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR']; 
-            if (!in_array($privacy, $allowed, true)) $privacy = 'SELF_ONLY';
+        // ✅ privacy: options > env
+        $privacy = $this->resolvePrivacyLevel($options);
+
+        // ✅ toggles: options (default true)
+        $allowComments = array_key_exists('allow_comments', $options) ? (bool)$options['allow_comments'] : true;
+        $allowDuet     = array_key_exists('allow_duet', $options) ? (bool)$options['allow_duet'] : true;
+        $allowStitch   = array_key_exists('allow_stitch', $options) ? (bool)$options['allow_stitch'] : true;
+
+        // TikTok API: disable_* bekliyor
+        $disableComment = !$allowComments;
+        $disableDuet    = !$allowDuet;
+        $disableStitch  = !$allowStitch;
+
+        $safeTitle = trim($caption) !== '' ? trim($caption) : ' ';
+        $safeTitle = mb_substr($safeTitle, 0, 150);
+
+        $videoSize = max(1, (int)$videoSize);
 
         $body = json_encode([
             'post_info' => [
-                'title' => mb_substr($caption, 0, 150),
-                'description' => $caption,
-                'privacy_level' => $privacy, 
-                'disable_comment' => false,
-                'disable_duet' => false,
-                'disable_stitch' => false,
+                'title'            => $safeTitle,
+                'description'      => $caption,
+                'privacy_level'    => $privacy,
+                'disable_comment'  => $disableComment,
+                'disable_duet'     => $disableDuet,
+                'disable_stitch'   => $disableStitch,
             ],
             'source_info' => [
-                'source' => 'FILE_UPLOAD',
-                'video_size' => $videoSize,
-                'chunk_size' => $videoSize,
+                'source'            => 'FILE_UPLOAD',
+                'video_size'        => $videoSize,
+                'chunk_size'        => $videoSize,
                 'total_chunk_count' => 1,
             ],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -35,7 +56,7 @@ class TikTokPublishService
     public function uploadToUrl(string $uploadUrl, string $filePath): void
     {
         if (!is_file($filePath) || !is_readable($filePath)) {
-            throw new \RuntimeException('TikTok upload: dosya okunamadı: ' . $filePath);
+            throw new \RuntimeException('TikTok upload: dosya okunamadı.');
         }
 
         $size = filesize($filePath);
@@ -45,7 +66,7 @@ class TikTokPublishService
 
         $fp = fopen($filePath, 'rb');
         if (!$fp) {
-            throw new \RuntimeException('TikTok upload: dosya açılamadı: ' . $filePath);
+            throw new \RuntimeException('TikTok upload: dosya açılamadı.');
         }
 
         $start = 0;
@@ -63,7 +84,7 @@ class TikTokPublishService
                 'Content-Type: video/mp4',
                 'Content-Length: ' . $size,
                 'Content-Range: bytes ' . $start . '-' . $end . '/' . $size,
-                'Expect:', // 100-continue kapat, bazen sorun çıkarıyor
+                'Expect:',
             ],
             CURLOPT_TIMEOUT        => 0,
         ]);
@@ -93,6 +114,29 @@ class TikTokPublishService
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         return $this->jsonPost($url, $accessToken, $body);
+    }
+
+    private function resolvePrivacyLevel(array $options): string
+    {
+        // TikTok API allowed values:
+        // SELF_ONLY, PUBLIC_TO_EVERYONE, MUTUAL_FOLLOW_FRIENDS, FOLLOWER_OF_CREATOR
+        $fromOptions = strtolower(trim((string)($options['privacy'] ?? '')));
+
+        if ($fromOptions !== '') {
+            return match ($fromOptions) {
+                'public', 'everyone'     => 'PUBLIC_TO_EVERYONE',
+                'private', 'self'        => 'SELF_ONLY',
+                'followers', 'follower'  => 'FOLLOWER_OF_CREATOR',
+                'friends', 'mutual'      => 'MUTUAL_FOLLOW_FRIENDS',
+                default                  => 'SELF_ONLY',
+            };
+        }
+
+        // ENV fallback (senin mevcut yapın)
+        $privacy = strtoupper(trim((string) env('TIKTOK_PRIVACY_LEVEL', 'SELF_ONLY')));
+        $allowed = ['SELF_ONLY', 'PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR'];
+        if (!in_array($privacy, $allowed, true)) $privacy = 'SELF_ONLY';
+        return $privacy;
     }
 
     private function jsonPost(string $url, string $accessToken, string $jsonBody): array

@@ -21,6 +21,9 @@ class MetaPublishService
         $mediaUrl  = (string)($ctx['media_url'] ?? '');
         $caption   = (string)($ctx['caption'] ?? '');
 
+        // settings (şimdilik opsiyonel, kırmasın)
+        $settings  = (array)($ctx['settings'] ?? []);
+
         if ($igUserId === '' || $accessTok === '' || $mediaUrl === '') {
             throw new \RuntimeException('MetaPublishService: ig_user_id/access_token/media_url zorunlu.');
         }
@@ -47,7 +50,6 @@ class MetaPublishService
         } else {
             // post
             if ($mediaType === 'video') {
-                // IG feed video çoğu zaman reels’e düşüyor
                 $payload['media_type'] = 'REELS';
             }
         }
@@ -69,15 +71,15 @@ class MetaPublishService
 
             $code = strtoupper((string)($status['status_code'] ?? ''));
             if ($code !== 'FINISHED') {
-                // ✅ artık exception yok: deferred
                 return [
                     'creation_id'  => $creationId,
                     'published_id' => '',
                     'status_code'  => ($code !== '' ? $code : 'IN_PROGRESS'),
                     'deferred'     => true,
                     'raw'          => [
-                        'create' => $create,
-                        'status' => $status,
+                        'create'   => $create,
+                        'status'   => $status,
+                        'settings' => $settings,
                     ],
                 ];
             }
@@ -117,67 +119,6 @@ class MetaPublishService
         return $link !== '' ? $link : null;
     }
 
-    private function get(string $path, array $query): array
-    {
-        $url = $this->graphBase . $path . '?' . http_build_query($query);
-        $res = @file_get_contents($url);
-        if ($res === false) {
-            throw new \RuntimeException('Meta GET failed: ' . $url);
-        }
-        $json = json_decode($res, true);
-        if (isset($json['error'])) {
-            $msg = $json['error']['message'] ?? 'Meta error';
-            throw new \RuntimeException($msg);
-        }
-        return $json ?: [];
-    }
-
-    private function post(string $path, array $data): array
-    {
-        $url = $this->graphBase . $path;
-
-        $opts = [
-            'http' => [
-                'method'        => 'POST',
-                'header'        => "Content-type: application/x-www-form-urlencoded\r\n",
-                'content'       => http_build_query($data),
-                'timeout'       => 60,
-                'ignore_errors' => true, 
-            ],
-        ];
-
-        $ctx = stream_context_create($opts);
-        $res = @file_get_contents($url, false, $ctx);
-
-        $statusLine = $http_response_header[0] ?? '';
-        preg_match('~HTTP/\S+\s+(\d+)~', $statusLine, $m);
-        $httpCode = isset($m[1]) ? (int)$m[1] : 0;
-
-        if ($res === false) {
-            $err = error_get_last();
-            throw new \RuntimeException('Meta POST failed: ' . $path . ' | ' . ($err['message'] ?? 'unknown'));
-        }
-
-        $json = json_decode($res, true);
-
-        // Graph error varsa hepsini yaz
-        if (is_array($json) && isset($json['error'])) {
-            $e = $json['error'];
-            $msg = $e['message'] ?? 'Meta error';
-            $code = $e['code'] ?? '';
-            $sub = $e['error_subcode'] ?? '';
-            $trace = $e['fbtrace_id'] ?? '';
-            throw new \RuntimeException("Meta error ({$httpCode}) {$msg} | code={$code} subcode={$sub} trace={$trace}");
-        }
-
-        // Bazı durumlarda 200 ama json boş olabilir
-        if ($httpCode >= 400) {
-            throw new \RuntimeException("Meta HTTP {$httpCode}: " . substr($res, 0, 300));
-        }
-
-        return is_array($json) ? $json : [];
-    }
-
     public function publishFacebookPage(array $ctx): array
     {
         $pageId    = (string)($ctx['page_id'] ?? '');
@@ -185,6 +126,11 @@ class MetaPublishService
         $message   = (string)($ctx['message'] ?? '');
         $mediaUrl  = (string)($ctx['media_url'] ?? '');
         $mediaType = strtolower((string)($ctx['media_type'] ?? ''));
+
+        // opsiyonel alanlar (kırmasın)
+        $privacy = strtolower(trim((string)($ctx['privacy'] ?? '')));
+        $allowComments = (bool)($ctx['allow_comments'] ?? true);
+        $settings = (array)($ctx['settings'] ?? []);
 
         if ($pageId === '' || $accessTok === '') {
             throw new \RuntimeException('MetaPublishService: page_id/access_token zorunlu.');
@@ -302,7 +248,89 @@ class MetaPublishService
         ];
     }
 
+    private function get(string $path, array $query): array
+    {
+        $url = $this->graphBase . $path . '?' . http_build_query($query);
 
-    
+        $resp = $this->curl('GET', $url, null);
+
+        $json = json_decode((string)$resp['body'], true);
+        if (!is_array($json)) $json = [];
+
+        if (isset($json['error'])) {
+            $this->throwGraphError($json['error'], $resp['http_code']);
+        }
+
+        if ($resp['http_code'] >= 400) {
+            throw new \RuntimeException("Meta HTTP {$resp['http_code']}: " . substr((string)$resp['body'], 0, 300));
+        }
+
+        return $json;
+    }
+
+    private function post(string $path, array $data): array
+    {
+        $url = $this->graphBase . $path;
+
+        $resp = $this->curl('POST', $url, http_build_query($data), [
+            'Content-Type: application/x-www-form-urlencoded',
+        ]);
+
+        $json = json_decode((string)$resp['body'], true);
+        if (!is_array($json)) $json = [];
+
+        if (isset($json['error'])) {
+            $this->throwGraphError($json['error'], $resp['http_code']);
+        }
+
+        if ($resp['http_code'] >= 400) {
+            throw new \RuntimeException("Meta HTTP {$resp['http_code']}: " . substr((string)$resp['body'], 0, 300));
+        }
+
+        return $json;
+    }
+
+    private function curl(string $method, string $url, ?string $body = null, array $headers = []): array
+    {
+        $ch = curl_init($url);
+
+        $h = [];
+        foreach ($headers as $line) $h[] = $line;
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 60,
+            CURLOPT_HTTPHEADER     => $h,
+            CURLOPT_CUSTOMREQUEST  => strtoupper($method),
+            CURLOPT_SSL_VERIFYPEER => (getenv('META_VERIFY_SSL') === false || getenv('META_VERIFY_SSL') === '0') ? false : true,
+            CURLOPT_SSL_VERIFYHOST => (getenv('META_VERIFY_SSL') === false || getenv('META_VERIFY_SSL') === '0') ? 0 : 2,
+        ]);
+
+        if ($method === 'POST') {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $body ?? '');
+        }
+
+        $respBody = curl_exec($ch);
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err      = curl_error($ch);
+        curl_close($ch);
+
+        if ($respBody === false) {
+            throw new \RuntimeException("Meta {$method} failed: {$err}");
+        }
+
+        return [
+            'http_code' => $httpCode,
+            'body'      => $respBody,
+        ];
+    }
+
+    private function throwGraphError(array $e, int $httpCode): void
+    {
+        $msg   = (string)($e['message'] ?? 'Meta error');
+        $code  = (string)($e['code'] ?? '');
+        $sub   = (string)($e['error_subcode'] ?? '');
+        $trace = (string)($e['fbtrace_id'] ?? '');
+        throw new \RuntimeException("Meta error ({$httpCode}) {$msg} | code={$code} subcode={$sub} trace={$trace}");
+    }
 }
-

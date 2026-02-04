@@ -35,7 +35,7 @@ class MetaPoll extends BaseCommand
             return;
         }
 
-        $graphVersion = getenv('META_GRAPH_VERSION') ?: 'v20.0';
+        $graphVersion = getenv('META_GRAPH_VERSION') ?: 'v24.0';
 
         foreach ($rows as $j) {
             $id         = (int)($j['id'] ?? 0);
