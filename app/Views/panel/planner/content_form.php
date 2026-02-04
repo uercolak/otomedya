@@ -83,7 +83,7 @@
       <?php else: ?>
         <input type="file" name="media" class="form-control" accept="image/*,video/*">
         <div class="form-text">
-          Instagram/TikTok/YouTube için medya gerekebilir. Seçilen platformlara göre altta uyarı veririz.
+          Bazı platformlarda paylaşım için görsel veya video gerekir.
         </div>
       <?php endif; ?>
     </div>

@@ -57,7 +57,6 @@
                 <option value="public" selected>Public (herkese açık)</option>
                 <option value="private">Private (özel)</option>
               </select>
-              <div class="form-text">Not: Facebook API izinlerine göre genişletilebilir.</div>
             </div>
           </div>
         </div>
@@ -104,7 +103,7 @@
               </div>
             </div>
 
-            <div class="form-text mt-2">TikTok’ta şimdilik video zorunlu kabul ediyoruz.</div>
+            <div class="form-text mt-2">TikTok için video içeriği gerekir.</div>
           </div>
         </div>
       </div>
@@ -121,7 +120,7 @@
             <div class="mb-3">
               <label class="form-label">YouTube Başlık <span class="text-danger">*</span></label>
               <input type="text" name="settings[youtube][title]" class="form-control" id="ytTitle" placeholder="YouTube video başlığı">
-              <div class="form-text">YouTube için başlık zorunlu.</div>
+              <div class="form-text">YouTube için başlık zorunludur.</div>
             </div>
 
             <div class="mb-3">
@@ -134,14 +133,14 @@
             </div>
 
             <div class="mb-0">
-              <label class="form-label">Made for Kids</label>
+              <label class="form-label">Çocuklara Özel</label>
               <select name="settings[youtube][made_for_kids]" class="form-select" id="ytKids">
                 <option value="no" selected>Hayır</option>
                 <option value="yes">Evet</option>
               </select>
             </div>
 
-            <div class="form-text mt-2">YouTube için video zorunlu.</div>
+            <div class="form-text mt-2">Youtube için video içeriği gerekir.</div>
           </div>
         </div>
       </div>
