@@ -215,18 +215,25 @@ class PlannerController extends BaseController
         }
 
         // YouTube
-        $ytTitle   = trim((string)$this->request->getPost('youtube_title'));
-        $ytPrivacy = strtolower(trim((string)$this->request->getPost('youtube_privacy')));
+        $postSettings = $this->request->getPost('settings') ?? [];
+
+        $ytTitle = trim((string)($postSettings['youtube']['title'] ?? ''));
+        $ytPrivacy = strtolower(trim((string)(
+            $postSettings['youtube']['privacy'] ?? $this->request->getPost('youtube_privacy') ?? ''
+        )));
+
         if ($ytPrivacy === '') $ytPrivacy = 'public';
         if (!in_array($ytPrivacy, ['public','unlisted','private'], true)) $ytPrivacy = 'public';
 
         if ($hasYouTube) {
             if ($ytTitle === '') {
                 return redirect()->to(site_url('panel/planner'))
+                    ->withInput()
                     ->with('error', 'YouTube için video başlığı girmelisiniz.');
             }
             if ($mediaType !== 'video') {
                 return redirect()->to(site_url('panel/planner'))
+                    ->withInput()
                     ->with('error', 'YouTube için video seçmelisiniz.');
             }
 

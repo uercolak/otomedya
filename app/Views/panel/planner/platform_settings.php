@@ -119,8 +119,13 @@
           <div class="accordion-body">
             <div class="mb-3">
               <label class="form-label">YouTube Başlık <span class="text-danger">*</span></label>
-                <input type="text" name="youtube_title" class="form-control" id="ytTitle" placeholder="YouTube video başlığı">
-              <div class="form-text">YouTube için başlık zorunludur.</div>
+                <input type="text"
+                    name="settings[youtube][title]"
+                    class="form-control"
+                    id="ytTitle"
+                    value="<?= esc(old('settings.youtube.title')) ?>"
+                    placeholder="YouTube video başlığı">
+            <div class="form-text">YouTube için başlık zorunludur.</div>
             </div>
 
             <div class="mb-3">
