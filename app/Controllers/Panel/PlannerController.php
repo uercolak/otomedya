@@ -18,6 +18,21 @@ class PlannerController extends BaseController
     {
         if ($r = $this->ensureUser()) return $r;
 
+        // GET ise form
+        if ($this->request->getMethod(true) === 'GET') {
+            return $this->renderForm();
+        }
+
+        // POST ise kaydet
+        if ($this->request->getMethod(true) === 'POST') {
+            return $this->store();
+        }
+
+        return $this->response->setStatusCode(405)->setBody('Method not allowed');
+    }
+
+    private function renderForm()
+    {
         $userId = (int) session('user_id');
         $db = \Config\Database::connect();
 
@@ -51,50 +66,19 @@ class PlannerController extends BaseController
     {
         if ($r = $this->ensureUser()) return $r;
 
-        if ($this->request->getMethod(true) !== 'POST') {
-            return $this->response->setStatusCode(405)->setBody('Method not allowed');
-        }
-
         $userId = (int) session('user_id');
         $db = \Config\Database::connect();
         $now = date('Y-m-d H:i:s');
 
-        $title        = trim((string)$this->request->getPost('title'));
-        $baseText     = trim((string)$this->request->getPost('base_text'));
-        $scheduleAtRaw= trim((string)$this->request->getPost('schedule_at'));
-
+        $title          = trim((string)$this->request->getPost('title'));
+        $baseText       = trim((string)$this->request->getPost('base_text'));
+        $scheduleAtRaw  = trim((string)$this->request->getPost('schedule_at'));
         $incomingContentId = (int)($this->request->getPost('content_id') ?? 0);
-        $existingContent = null;
 
-        // Eğer template export'tan geldiysek içerik zaten DB'de var (media_path dolu)
-        if ($incomingContentId > 0) {
-            $existingContent = $db->table('contents')
-                ->select('id,title,base_text,media_type,media_path,meta_json,template_id')
-                ->where('id', $incomingContentId)
-                ->where('user_id', $userId)
-                ->get()->getRowArray();
+        $settings = $this->request->getPost('settings');
+        if (!is_array($settings)) $settings = [];
 
-            if (!$existingContent) {
-                return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'İçerik bulunamadı (content_id geçersiz).');
-            }
-
-            // Form boş geldiyse içerikten doldur (kullanıcı isterse formdan override edebiliriz)
-            if ($title === '' && !empty($existingContent['title'])) {
-                $title = (string)$existingContent['title'];
-            }
-            if ($baseText === '' && !empty($existingContent['base_text'])) {
-                $baseText = (string)$existingContent['base_text'];
-            }
-        }
-
-        // Instagram post type (AUTO dahil)
-        $postType = strtolower(trim((string)$this->request->getPost('post_type')));
-        if (!in_array($postType, ['auto','post','reels','story'], true)) {
-            return redirect()->to(site_url('panel/planner'))
-                ->with('error', 'Paylaşım tipi geçersiz.');
-        }
-
+        // hesaplar
         $accountIds = $this->request->getPost('account_ids');
         if (!is_array($accountIds)) $accountIds = [];
         $accountIds = array_values(array_unique(array_filter(array_map('intval', $accountIds))));
@@ -121,26 +105,43 @@ class PlannerController extends BaseController
                 ->with('error', 'Seçilen hesaplardan bazıları bulunamadı.');
         }
 
-        $selectedPlatforms = array_map(
+        $selectedPlatforms = array_values(array_unique(array_map(
             fn($r) => strtolower((string)($r['platform'] ?? '')),
             $rows
-        );
+        )));
 
         $hasInstagram = in_array('instagram', $selectedPlatforms, true);
         $hasFacebook  = in_array('facebook',  $selectedPlatforms, true);
         $hasYouTube   = in_array('youtube',   $selectedPlatforms, true);
         $hasTikTok    = in_array('tiktok',    $selectedPlatforms, true);
 
+        // mevcut content (template export'tan geldiyse)
+        $existingContent = null;
+        if ($incomingContentId > 0) {
+            $existingContent = $db->table('contents')
+                ->select('id,title,base_text,media_type,media_path,meta_json,template_id')
+                ->where('id', $incomingContentId)
+                ->where('user_id', $userId)
+                ->get()->getRowArray();
+
+            if (!$existingContent) {
+                return redirect()->to(site_url('panel/planner'))
+                    ->with('error', 'İçerik bulunamadı (content_id geçersiz).');
+            }
+
+            if ($title === '' && !empty($existingContent['title'])) $title = (string)$existingContent['title'];
+            if ($baseText === '' && !empty($existingContent['base_text'])) $baseText = (string)$existingContent['base_text'];
+        }
+
+        // medya
         $mediaType = null;
         $mediaPath = null;
 
-        // 1) Önce content_id ile gelen hazır medyayı baz al
         if ($existingContent) {
             $mediaType = !empty($existingContent['media_type']) ? (string)$existingContent['media_type'] : null;
             $mediaPath = !empty($existingContent['media_path']) ? (string)$existingContent['media_path'] : null;
         }
 
-        // 2) Kullanıcı yeni dosya yüklerse (ileride "değiştir" yaparsak) override eder
         $file = $this->request->getFile('media');
         if ($file && $file->isValid() && !$file->hasMoved()) {
             $mime = (string)$file->getMimeType();
@@ -153,83 +154,101 @@ class PlannerController extends BaseController
 
             $subdir = date('Y') . '/' . date('m');
             $targetDir = FCPATH . 'uploads/' . $subdir;
-            if (!is_dir($targetDir)) {
-                @mkdir($targetDir, 0775, true);
-            }
+            if (!is_dir($targetDir)) @mkdir($targetDir, 0775, true);
 
             $newName = $file->getRandomName();
             $file->move($targetDir, $newName);
             $mediaPath = 'uploads/' . $subdir . '/' . $newName;
         }
 
+        /**
+         * PLATFORM VALIDATION
+         */
+
+        // Instagram
+        $igType = strtolower(trim((string)($settings['instagram']['post_type'] ?? 'auto')));
         if ($hasInstagram) {
-            // Story her zaman medya ister
-            if ($postType === 'story' && $mediaType === null) {
-                return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'Instagram Story için en az 1 medya yüklemelisin.');
+            if (!in_array($igType, ['auto','post','reels','story'], true)) {
+                return redirect()->to(site_url('panel/planner'))->with('error', 'Instagram paylaşım tipi geçersiz.');
             }
 
-            // Reels video ister
-            if ($postType === 'reels' && $mediaType !== 'video') {
-                return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'Instagram Reels için video yüklemelisin.');
+            if ($igType === 'story' && $mediaType === null) {
+                return redirect()->to(site_url('panel/planner'))->with('error', 'Instagram Story için medya gerekli.');
             }
-
-            if ($postType === 'post' && $mediaType === null) {
-                return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'Instagram Post için en az 1 medya yüklemelisin.');
+            if ($igType === 'reels' && $mediaType !== 'video') {
+                return redirect()->to(site_url('panel/planner'))->with('error', 'Instagram Reels için video gerekli.');
             }
-
-            // AUTO ise: video => reels, image => post, medya yoksa hata
-            if ($postType === 'auto' && $mediaType === null) {
-                return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'AUTO için medya yüklemelisin (image/video).');
+            if ($igType === 'post' && $mediaType === null) {
+                return redirect()->to(site_url('panel/planner'))->with('error', 'Instagram Post için medya gerekli.');
+            }
+            if ($igType === 'auto' && $mediaType === null) {
+                return redirect()->to(site_url('panel/planner'))->with('error', 'Instagram AUTO için medya gerekli (image/video).');
             }
         }
 
-        // YouTube seçiliyse: video + youtube_title zorunlu
-        $ytTitle   = trim((string)$this->request->getPost('youtube_title'));
-        $ytPrivacy = strtolower(trim((string)$this->request->getPost('youtube_privacy')));
-        if ($ytPrivacy === '') $ytPrivacy = 'public';
-        if (!in_array($ytPrivacy, ['public','unlisted','private'], true)) $ytPrivacy = 'public';
+        // Facebook (basit)
+        $fbType = strtolower(trim((string)($settings['facebook']['post_type'] ?? 'post')));
+        $fbPriv = strtolower(trim((string)($settings['facebook']['privacy'] ?? 'public')));
+        if ($hasFacebook) {
+            if (!in_array($fbType, ['post','reels'], true)) $fbType = 'post';
+            if (!in_array($fbPriv, ['public','private'], true)) $fbPriv = 'public';
+            // reels seçerse video önerilir, şimdilik zorunlu yapmıyoruz.
+        }
 
+        // TikTok
+        $ttPriv = strtolower(trim((string)($settings['tiktok']['privacy'] ?? 'public')));
         if ($hasTikTok) {
+            if (!in_array($ttPriv, ['public','friends','private'], true)) $ttPriv = 'public';
             if ($mediaType !== 'video') {
-                return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'TikTok için şimdilik video zorunlu (mp4).');
+                return redirect()->to(site_url('panel/planner'))->with('error', 'TikTok için video zorunlu.');
+            }
+            if (trim($baseText) === '') {
+                return redirect()->to(site_url('panel/planner'))->with('error', 'TikTok için açıklama/caption boş olmasın.');
             }
         }
 
-        if ($hasTikTok && trim($baseText) === '') {
-            return redirect()->to(site_url('panel/planner'))
-                ->with('error', 'TikTok için açıklama/caption boş olmasın.');
-        }
-
+        // YouTube
+        $ytTitle = trim((string)($settings['youtube']['title'] ?? ''));
+        $ytPrivacy = strtolower(trim((string)($settings['youtube']['privacy'] ?? 'public')));
+        $ytKids = strtolower(trim((string)($settings['youtube']['made_for_kids'] ?? 'no')));
         if ($hasYouTube) {
             if ($ytTitle === '') {
-                return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'YouTube için başlık zorunlu.');
+                return redirect()->to(site_url('panel/planner'))->with('error', 'YouTube için başlık zorunlu.');
             }
+            if (!in_array($ytPrivacy, ['public','unlisted','private'], true)) $ytPrivacy = 'public';
+            if (!in_array($ytKids, ['yes','no'], true)) $ytKids = 'no';
+
             if ($mediaType !== 'video') {
-                return redirect()->to(site_url('panel/planner'))
-                    ->with('error', 'YouTube için video zorunlu (mp4).');
+                return redirect()->to(site_url('panel/planner'))->with('error', 'YouTube için video zorunlu.');
             }
         }
 
+        // meta_json
         $contentMeta = [
-            'post_type' => $postType, 
+            'settings' => [
+                'instagram' => $hasInstagram ? ['post_type' => $igType] : null,
+                'facebook'  => $hasFacebook  ? ['post_type' => $fbType, 'privacy' => $fbPriv] : null,
+                'tiktok'    => $hasTikTok    ? [
+                    'privacy' => $ttPriv,
+                    'allow_comment' => !empty($settings['tiktok']['allow_comment']) ? 1 : 0,
+                    'allow_duet'    => !empty($settings['tiktok']['allow_duet']) ? 1 : 0,
+                    'allow_stitch'  => !empty($settings['tiktok']['allow_stitch']) ? 1 : 0,
+                ] : null,
+                'youtube'   => $hasYouTube   ? [
+                    'title' => $ytTitle,
+                    'privacy' => $ytPrivacy,
+                    'made_for_kids' => $ytKids,
+                ] : null,
+            ],
         ];
-        if ($hasYouTube) {
-            $contentMeta['youtube'] = [
-                'title'   => $ytTitle,
-                'privacy' => $ytPrivacy,
-            ];
-        }
+
+        // null temizliği (meta daha temiz kalsın)
+        $contentMeta['settings'] = array_filter($contentMeta['settings'], fn($v) => $v !== null);
 
         $db->transStart();
 
-        // 1) content
-         if ($existingContent) {
+        // content upsert
+        if ($existingContent) {
             $contentId = (int)$existingContent['id'];
 
             $db->table('contents')
@@ -238,10 +257,12 @@ class PlannerController extends BaseController
                 ->update([
                     'title'      => ($title !== '' ? $title : null),
                     'base_text'  => ($baseText !== '' ? $baseText : null),
+                    'media_type' => $mediaType,
+                    'media_path' => $mediaPath,
+                    'meta_json'  => json_encode($contentMeta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                     'updated_at' => $now,
                 ]);
         } else {
-            // yeni içerik oluştur
             $db->table('contents')->insert([
                 'user_id'     => $userId,
                 'title'       => ($title !== '' ? $title : null),
@@ -258,15 +279,19 @@ class PlannerController extends BaseController
 
         $createdPublishes = 0;
 
-        // 2) publish + job
         foreach ($rows as $acc) {
             $accountId = (int)$acc['id'];
             $platform  = strtolower((string)$acc['platform']);
 
-            // platforma göre job type
             $jobType = ($platform === 'youtube') ? 'publish_youtube' : 'publish_post';
 
-            $idempotencyKey = $this->makeIdempotencyKey($userId, $platform, $accountId, $contentId, $scheduleAt, $postType);
+            // platform settings payload'a da koyuyoruz
+            $platSettings = $contentMeta['settings'][$platform] ?? [];
+
+            $idempotencyKey = $this->makeIdempotencyKey(
+                $userId, $platform, $accountId, $contentId, $scheduleAt,
+                json_encode($platSettings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            );
 
             $existing = $db->table('publishes')
                 ->select('id')
@@ -289,17 +314,13 @@ class PlannerController extends BaseController
             ]);
             $publishId = (int) $db->insertID();
 
-            // payload: publish_id yeterli
             $payload = [
                 'publish_id' => $publishId,
                 'platform'   => $platform,
                 'account_id' => $accountId,
                 'content_id' => $contentId,
+                'settings'   => $platSettings,
             ];
-
-            if (in_array($platform, ['instagram','tiktok'], true)) {
-                $payload['post_type'] = $postType; 
-            }
 
             $db->table('jobs')->insert([
                 'type'         => $jobType,
@@ -344,15 +365,9 @@ class PlannerController extends BaseController
         $raw = trim($raw);
         if ($raw === '') return null;
 
-        if (preg_match('~^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$~', $raw)) {
-            return $raw;
-        }
-        if (preg_match('~^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$~', $raw)) {
-            return str_replace('T', ' ', $raw) . ':00';
-        }
-        if (preg_match('~^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$~', $raw)) {
-            return str_replace('T', ' ', $raw);
-        }
+        if (preg_match('~^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$~', $raw)) return $raw;
+        if (preg_match('~^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$~', $raw)) return str_replace('T', ' ', $raw) . ':00';
+        if (preg_match('~^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$~', $raw)) return str_replace('T', ' ', $raw);
 
         $ts = strtotime($raw);
         if ($ts === false) return null;
@@ -365,7 +380,7 @@ class PlannerController extends BaseController
         int $accountId,
         int $contentId,
         string $scheduleAt,
-        string $postType
+        string $settingsJson
     ): string {
         $secret = (string) (getenv('IDEMPOTENCY_SECRET') ?: (config('App')->encryptionKey ?? 'otomedya-dev-secret'));
 
@@ -375,7 +390,7 @@ class PlannerController extends BaseController
             $accountId,
             $contentId,
             $scheduleAt,
-            $postType,
+            $settingsJson,
         ]);
 
         return hash_hmac('sha256', $payload, $secret);
