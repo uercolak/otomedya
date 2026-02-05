@@ -140,11 +140,6 @@
           Veri silme talebi için ayrıca:
           <a href="<?= base_url('/data-deletion'); ?>">Veri Silme Politikası</a>
         </p>
-
-        <hr style="border-color: rgba(255,255,255,.10);" class="my-4">
-        <p style="color: rgba(255,255,255,.55); font-size:12.5px;" class="mb-0">
-          Not: Bu metin bilgilendirme amaçlıdır ve hukuki danışmanlık değildir. Gerekirse hukuk danışmanınızla görüşünüz.
-        </p>
       </div>
     </div>
   </div>
