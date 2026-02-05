@@ -111,10 +111,11 @@
         </ul>
 
         <h3>5) Saklama Süreleri</h3>
-        <ul>
-          <li>Hesap ve planlama verileri, hesabınız aktif olduğu sürece veya hizmeti sağlamak için gerekli süre boyunca saklanır.</li>
-          <li>Log kayıtları; güvenlik ve hata ayıklama amacıyla makul süre saklanabilir.</li>
-          <li>Silme talebinde bulunmanız halinde, yasal yükümlülükler hariç veriler silinir/anonimleştirilebilir.</li>
+            <ul>
+            <li>Hesap ve planlama verileri, hesabınız aktif olduğu sürece veya hizmeti sağlamak için gerekli süre boyunca saklanır.</li>
+            <li>Log kayıtları; güvenlik ve hata ayıklama amacıyla makul süre saklanabilir.</li>
+            <li>Silme talebinde bulunmanız halinde, yasal yükümlülükler hariç veriler silinir/anonimleştirilebilir.</li>
+            <li><strong>OAuth belirteçleri (token’lar):</strong> Yalnızca kullanıcı talebiyle yapılan işlemleri gerçekleştirmek için gerekli olduğu süre boyunca saklanır; kullanıcı bağlantıyı kaldırdığında/iptal ettiğinde silinir veya geçersiz hale getirilir.</li>
         </ul>
 
         <h3>6) Güvenlik</h3>
@@ -125,11 +126,16 @@
 
         <h3>7) Haklarınız</h3>
         <ul>
-          <li>Verilerinize erişim talep etme</li>
-          <li>Düzeltme talep etme</li>
-          <li>Silme talep etme</li>
-          <li>OAuth bağlantılarını iptal etme</li>
+        <li>Verilerinize erişim talep etme</li>
+        <li>Düzeltme talep etme</li>
+        <li>Silme talep etme</li>
+        <li>OAuth bağlantılarını iptal etme</li>
+        <li>Google/YouTube erişimini dilediğiniz zaman Google Hesabı güvenlik ayarlarından iptal etme (OAuth erişimini geri alma)</li>
         </ul>
+
+        <p>
+        Google OAuth erişimini geri almak için Google Hesabı &gt; Güvenlik &gt; Üçüncü taraf erişimi (veya Uygulama erişimi) bölümünden Sosyal Medya Planlama erişimini kaldırabilirsiniz.
+        </p>
 
         <h3>8) İletişim</h3>
         <p class="mb-1">
