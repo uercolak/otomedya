@@ -129,6 +129,28 @@
             </div>
 
             <div class="mb-3">
+                <label class="form-label">Kapak (Thumbnail) <span class="text-muted">(opsiyonel)</span></label>
+                <input
+                    type="file"
+                    class="form-control"
+                    name="settings[youtube][thumbnail]"
+                    accept="image/jpeg,image/png,image/webp">
+                <div class="form-text">
+                    Video yüklendikten sonra kapak otomatik uygulanır. (JPG/PNG/WEBP)
+                </div>
+                </div>
+
+                <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" value="1" id="ytIsShorts" name="settings[youtube][is_shorts]">
+                <label class="form-check-label" for="ytIsShorts">
+                    Bu video Shorts (9:16 kısa video)
+                </label>
+                </div>
+                <div class="form-text mb-0">
+                Not: Shorts için özel kapak her zaman desteklenmeyebilir; işaretlersen kapak yükleme adımı atlanır.
+                </div>
+
+            <div class="mb-3">
               <label class="form-label">Gizlilik</label>
               <select name="settings[youtube][privacy]" class="form-select" id="ytPrivacy">
                 <option value="public" selected>Public (herkese açık)</option>

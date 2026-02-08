@@ -98,4 +98,61 @@ class YouTubePublishService
 
         return $newAccess;
     }
+
+    public function setThumbnailWithRetry(string $accessToken, string $videoId, string $thumbAbsPath): void
+    {
+        $delays = [1, 2, 4]; // saniye
+        $lastErr = null;
+
+        foreach ($delays as $d) {
+            try {
+                $this->setThumbnail($accessToken, $videoId, $thumbAbsPath);
+                return;
+            } catch (\Throwable $e) {
+                $lastErr = $e;
+                sleep($d);
+            }
+        }
+
+        // son deneme (delay yok)
+        if ($lastErr) {
+            $this->setThumbnail($accessToken, $videoId, $thumbAbsPath);
+        }
+    }
+
+    public function setThumbnail(string $accessToken, string $videoId, string $thumbAbsPath): void
+    {
+        if (!is_file($thumbAbsPath)) {
+            throw new \RuntimeException('Thumbnail file not found: ' . $thumbAbsPath);
+        }
+
+        $url = 'https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=' . rawurlencode($videoId);
+
+        $mime = mime_content_type($thumbAbsPath) ?: 'image/jpeg';
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $accessToken,
+                'Expect:',
+            ],
+            CURLOPT_POSTFIELDS     => [
+                'media' => new \CURLFile($thumbAbsPath, $mime, basename($thumbAbsPath)),
+            ],
+            CURLOPT_TIMEOUT        => 120,
+            CURLOPT_CONNECTTIMEOUT => 30,
+        ]);
+
+        $resp = curl_exec($ch);
+        $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+
+        if ($resp === false || $http < 200 || $http >= 300) {
+            $snippet = is_string($resp) ? substr($resp, 0, 1200) : '';
+            throw new \RuntimeException('YT THUMB failed HTTP=' . $http . ' ERR=' . $err . ' RESP=' . $snippet);
+        }
+    }
 }
