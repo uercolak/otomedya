@@ -102,6 +102,15 @@ class PlannerController extends BaseController
                 ->with('error', 'Lütfen geçerli bir tarih ve saat seçin.');
         }
 
+        $nowTs = time();
+        $scheduleTs = strtotime($scheduleAt);
+
+        if ($scheduleTs === false || $scheduleTs <= $nowTs) {
+            return redirect()->to(site_url('panel/planner'))
+                ->withInput()
+                ->with('error', 'Geçmiş tarihli paylaşım yapılamamaktadır. Lütfen ileri bir tarih/saat seçin.');
+        }
+
         $rows = $db->table('social_accounts')
             ->select('id,platform')
             ->where('user_id', $userId)
