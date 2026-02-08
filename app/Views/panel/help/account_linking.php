@@ -1,6 +1,6 @@
 <?= $this->extend('layouts/panel') ?>
 <?= $this->section('content') ?>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <?php
 $stats  = $stats  ?? ['fb_count' => 0, 'ig_count' => 0, 'yt_count' => 0, 'tt_count' => 0];
 $checks = $checks ?? [
