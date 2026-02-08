@@ -181,7 +181,31 @@
       default     => $k !== '' ? ucfirst($k) : 'Hepsi',
     };
   };
+$formatLabel = static function (?string $key, array $formats = []): string {
+  $key = trim((string)$key);
+  if ($key === '') return '-';
 
+  if (!empty($formats[$key]['label'])) {
+    return (string)$formats[$key]['label'];
+  }
+
+  $map = [
+    'ig_post_1_1'   => 'Post (1:1)',
+    'ig_post_4_5'   => 'Post (4:5)',
+    'ig_story_9_16' => 'Story (9:16)',
+    'ig_reels_9_16' => 'Reels (9:16)',
+
+    'fb_post_1_1'   => 'Post (1:1)',
+    'fb_story_9_16' => 'Story (9:16)',
+
+    'tt_video_9_16' => 'Video (9:16)',
+
+    'yt_thumb_16_9' => 'Kapak (16:9)',
+    'yt_short_9_16' => 'Shorts (9:16)',
+  ];
+
+  return $map[$key] ?? $key;
+};
   $tplThumbUrl = function($tpl) {
     $baseMediaId = (int)($tpl['base_media_id'] ?? 0);
     $fp = (string)($tpl['file_path'] ?? '');
@@ -342,7 +366,11 @@
               <div class="tpl-card-meta">
                 <p class="tpl-name"><?= esc($name) ?></p>
                 <p class="tpl-info">
-                  <?= esc($scopeLabel($scp)) ?> • <?= esc($fmt) ?> • <?= $w ?>×<?= $h ?>
+                <?= esc($scopeLabel($scp)) ?>
+                •
+                <?= esc($formatLabel($fmt, $formats ?? [])) ?>
+                •
+                <?= $w ?>×<?= $h ?>
                 </p>
               </div>
             </div>

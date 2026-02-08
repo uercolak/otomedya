@@ -229,7 +229,30 @@
 
   $dowNames = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
 ?>
+<?php
+$formatLabel = static function (?string $key, array $formats = []): string {
+  $key = trim((string)$key);
+  if ($key === '') return '';
 
+  // Controller'dan $formats geliyorsa label kullan
+  if (!empty($formats[$key]['label'])) return (string)$formats[$key]['label'];
+
+  // Fallback (en azından çirkin görünmesin)
+  $map = [
+    'ig_post_1_1'   => 'Instagram Post (1:1)',
+    'ig_post_4_5'   => 'Instagram Post (4:5)',
+    'ig_story_9_16' => 'Instagram Story (9:16)',
+    'ig_reels_9_16' => 'Instagram Reels (9:16)',
+    'fb_post_1_1'   => 'Facebook Post (1:1)',
+    'fb_story_9_16' => 'Facebook Story (9:16)',
+    'tt_video_9_16' => 'TikTok (9:16)',
+    'yt_thumb_16_9' => 'YouTube Thumbnail (16:9)',
+    'yt_short_9_16' => 'YouTube Shorts (9:16)',
+  ];
+
+  return $map[$key] ?? $key;
+};
+?>
 <div class="dash-grid">
 
   <!-- KPI 1 -->
@@ -355,7 +378,11 @@
                 </div>
                 <div>
                   <b><?= esc($t['name'] ?? '') ?></b>
-                  <small><?= esc($scopeLabel($t['platform_scope'] ?? '')) ?> • <?= esc($t['format_key'] ?? '') ?></small>
+                  <small>
+                    <?= esc($scopeLabel($t['platform_scope'] ?? '')) ?>
+                    •
+                    <?= esc($formatLabel($t['format_key'] ?? '', $formats ?? [])) ?>
+                    </small>
                 </div>
               </div>
               <a class="pill gray" href="<?= site_url('panel/templates') ?>">Aç</a>
