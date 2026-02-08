@@ -236,47 +236,14 @@ class PlannerController extends BaseController
                     ->withInput()
                     ->with('error', 'YouTube için video seçmelisiniz.');
             }
-            $ytKids = strtolower(trim((string)($postSettings['youtube']['made_for_kids'] ?? 'no')));
-            if (!in_array($ytKids, ['yes','no'], true)) $ytKids = 'no';
-
-            $ytIsShorts = !empty($postSettings['youtube']['is_shorts']) ? true : false;
-
-            $ytThumbPath = null;
-            $thumb = $this->request->getFile('settings.youtube.thumbnail');
-
-            if ($thumb && $thumb->isValid() && !$thumb->hasMoved()) {
-                $mime = (string)$thumb->getMimeType();
-                if (!str_starts_with($mime, 'image/')) {
-                    return redirect()->to(site_url('panel/planner'))
-                        ->withInput()
-                        ->with('error', 'YouTube kapak için sadece görsel dosyası seçebilirsiniz.');
-                }
-
-                if ((int)$thumb->getSize() > 2 * 1024 * 1024) {
-                    return redirect()->to(site_url('panel/planner'))
-                        ->withInput()
-                        ->with('error', 'YouTube kapak dosyası en fazla 2MB olmalıdır.');
-                }
-
-                $subdir = date('Y') . '/' . date('m');
-                $targetDir = FCPATH . 'uploads/' . $subdir . '/yt_thumbs';
-                if (!is_dir($targetDir)) @mkdir($targetDir, 0775, true);
-
-                $newName = $thumb->getRandomName();
-                $thumb->move($targetDir, $newName);
-
-                $ytThumbPath = 'uploads/' . $subdir . '/yt_thumbs/' . $newName;
-            }
 
             $settings['youtube'] = [
-                'title'         => $ytTitle,
-                'privacy'       => $ytPrivacy,
-                'made_for_kids' => $ytKids,
-                'is_shorts'     => $ytIsShorts,
-                'thumbnail'     => $ytThumbPath, 
+                'title'   => $ytTitle,
+                'privacy' => $ytPrivacy,
             ];
         }
 
+        // ---------- Save content meta ----------
         $contentMeta = [
             'settings' => $settings,
         ];

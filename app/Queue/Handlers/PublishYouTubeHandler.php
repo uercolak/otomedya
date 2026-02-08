@@ -111,13 +111,8 @@ class PublishYouTubeHandler implements JobHandlerInterface
             if (is_array($tmp)) $contentMeta = $tmp;
         }
 
-        $yt = $contentMeta['settings']['youtube'] ?? [];
-
-        $ytTitle = trim((string)($yt['title'] ?? ''));
-        $privacy = strtolower(trim((string)($yt['privacy'] ?? 'public')));
-        $madeForKids = strtolower(trim((string)($yt['made_for_kids'] ?? 'no')));
-        $isShorts = !empty($yt['is_shorts']);
-        $thumbRel = trim((string)($yt['thumbnail'] ?? ''));
+        $ytTitle = trim((string)($contentMeta['youtube']['title'] ?? ''));
+        $privacy = strtolower(trim((string)($contentMeta['youtube']['privacy'] ?? 'public')));
 
         if ($ytTitle === '') $ytTitle = trim((string)($row['content_title'] ?? ''));
         if ($ytTitle === '') throw new \RuntimeException('YouTube başlığı boş.');
@@ -156,7 +151,6 @@ class PublishYouTubeHandler implements JobHandlerInterface
             ],
             'status' => [
                 'privacyStatus' => $privacy,
-                'selfDeclaredMadeForKids' => ($madeForKids === 'yes'),
             ],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
@@ -183,21 +177,6 @@ class PublishYouTubeHandler implements JobHandlerInterface
         }
 
         $permalink = 'https://youtu.be/' . $videoId;
-
-        if (!$isShorts && $thumbRel !== '') {
-            $thumbAbs = rtrim(FCPATH, '/\\') . DIRECTORY_SEPARATOR . ltrim($thumbRel, '/\\');
-            if (is_file($thumbAbs)) {
-                // bazen video işlenirken thumbnail ilk denemede fail olabilir → küçük retry
-                $this->yt->setThumbnailWithRetry($accessToken, $videoId, $thumbAbs);
-                $metaJson['meta']['thumbnail_set'] = true;
-            } else {
-                $metaJson['meta']['thumbnail_set'] = false;
-                $metaJson['meta']['thumbnail_error'] = 'thumb_file_missing';
-            }
-        } else {
-            $metaJson['meta']['thumbnail_set'] = false;
-            if ($isShorts) $metaJson['meta']['thumbnail_note'] = 'shorts_skip';
-        }
 
         $metaJson = [
             'meta' => [
