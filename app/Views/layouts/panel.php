@@ -130,13 +130,15 @@
       <b><?= esc(session('user_email')) ?></b>
     </div>
 
-    <form action="<?= base_url('admin/users/stop-impersonate') ?>" method="post" class="m-0">
-      <?= csrf_field() ?>
-      <button class="btn-grad">
-        <i class="bi bi-arrow-left"></i> Yönetici Paneline Dön ->
-      </button>
+    <form action="<?= base_url('admin/users/stop-impersonate') ?>" method="post">
+    <?= csrf_field() ?>
+    <button class="btn btn-sm btn-dark">Admin’e dön</button>
     </form>
   </div>
+
+
+
+  
 <?php endif; ?>
 <div class="layout">
     <div id="sidebarOverlay" class="sidebar-overlay"></div>
