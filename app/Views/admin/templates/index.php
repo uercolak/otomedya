@@ -1,5 +1,6 @@
 <?= $this->extend('layouts/admin') ?>
 <?= $this->section('content') ?>
+
 <?php
 // --- UI label helpers (root panel) ---
 $scopeLabel = static function (?string $scope): string {
@@ -25,7 +26,7 @@ $typeLabel = static function (?string $type): string {
 
 $formatKeyToLabel = static function (?string $key, array $formats = []): string {
   $key = trim((string)$key);
-  if ($key === '') return '-';
+  if ($key === '' || $key === '0') return '-';
 
   // 1) Controller'dan gelen $formats içinde label varsa onu kullan
   if (!empty($formats[$key]['label'])) {
@@ -34,20 +35,25 @@ $formatKeyToLabel = static function (?string $key, array $formats = []): string 
 
   // 2) Fallback map (olmazsa bile en azından kötü görünmesin)
   $map = [
-    'ig_post_1_1'   => 'Instagram Post (1:1)',
-    'ig_post_4_5'   => 'Instagram Post (4:5)',
-    'ig_story_9_16' => 'Instagram Story (9:16)',
-    'ig_reels_9_16' => 'Instagram Reels (9:16)',
+    'ig_post_1_1'    => 'Instagram Post (1:1)',
+    'ig_post_4_5'    => 'Instagram Post (4:5)',
+    'ig_story_9_16'  => 'Instagram Story (9:16)',
+    'ig_reels_9_16'  => 'Instagram Reels (9:16)',
 
-    'fb_post_1_1'   => 'Facebook Post (1:1)',
-    'fb_story_9_16' => 'Facebook Story (9:16)',
+    'fb_post_1_1'    => 'Facebook Post (1:1)',
+    'fb_story_9_16'  => 'Facebook Story (9:16)',
 
-    'yt_video_16_9' => 'YouTube Video (16:9)',
-    'yt_shorts_9_16'=> 'YouTube Shorts (9:16)',
+    'tt_video_9_16'  => 'TikTok (9:16)',
+
+    // Controller'daki key’lerle uyumlu:
+    'yt_thumb_16_9'  => 'YouTube Thumbnail (16:9)',
+    'yt_short_9_16'  => 'YouTube Shorts (9:16)',
   ];
+
   return $map[$key] ?? $key;
 };
 ?>
+
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
@@ -81,18 +87,20 @@ $formatKeyToLabel = static function (?string $key, array $formats = []): string 
         <div class="col-md-1">
           <select class="form-select" name="type">
             <option value="">Tür</option>
-            <option value="image" <?= (($filters['type'] ?? '')==='image')?'selected':'' ?>>Image</option>
+            <option value="image" <?= (($filters['type'] ?? '')==='image')?'selected':'' ?>>Görsel</option>
             <option value="video" <?= (($filters['type'] ?? '')==='video')?'selected':'' ?>>Video</option>
           </select>
         </div>
 
         <div class="col-md-2">
-        <select class="form-select" name="scope">
+          <select class="form-select" name="scope">
             <option value="">Kapsam</option>
             <option value="universal" <?= (($filters['scope'] ?? '')==='universal')?'selected':'' ?>>Genel</option>
             <option value="instagram" <?= (($filters['scope'] ?? '')==='instagram')?'selected':'' ?>>Instagram</option>
             <option value="facebook"  <?= (($filters['scope'] ?? '')==='facebook')?'selected':'' ?>>Facebook</option>
-        </select>
+            <option value="tiktok"    <?= (($filters['scope'] ?? '')==='tiktok')?'selected':'' ?>>TikTok</option>
+            <option value="youtube"   <?= (($filters['scope'] ?? '')==='youtube')?'selected':'' ?>>YouTube</option>
+          </select>
         </div>
 
         <div class="col-md-2">
@@ -138,10 +146,10 @@ $formatKeyToLabel = static function (?string $key, array $formats = []): string 
             <th>#</th>
             <th>Önizleme</th>
             <th>Başlık</th>
-            <th>Tema</th> <!-- ✅ eklendi -->
+            <th>Tema</th>
             <th>Tür</th>
-            <th>Scope</th>
-            <th>Format</th>
+            <th>Kapsam</th>
+            <th>Boyut Türü</th>
             <th>Boyut</th>
             <th>Durum</th>
             <th class="text-end">İşlem</th>
@@ -151,25 +159,27 @@ $formatKeyToLabel = static function (?string $key, array $formats = []): string 
         <?php foreach (($rows ?? []) as $r): ?>
           <tr>
             <td><?= (int)$r['id'] ?></td>
+
             <td style="width:110px;">
               <?php if (!empty($r['base_media_id'])): ?>
                 <?php if (($r['type'] ?? '') === 'video'): ?>
-                    <video
+                  <video
                     src="<?= site_url('media/'.(int)$r['base_media_id']) ?>"
                     style="width:96px;height:64px;border-radius:10px;border:1px solid #eee;object-fit:cover;"
                     muted
                     preload="metadata"
                     playsinline
-                    ></video>
+                  ></video>
                 <?php else: ?>
-                    <img
+                  <img
                     src="<?= site_url('media/'.(int)$r['base_media_id']) ?>"
                     style="width:96px;height:auto;border-radius:10px;border:1px solid #eee;"
-                    >
+                    alt="Önizleme"
+                  >
                 <?php endif; ?>
-                <?php else: ?>
+              <?php else: ?>
                 <span class="text-muted">-</span>
-                <?php endif; ?>
+              <?php endif; ?>
             </td>
 
             <td>
@@ -194,6 +204,7 @@ $formatKeyToLabel = static function (?string $key, array $formats = []): string 
             <td><?= esc($typeLabel($r['type'] ?? '')) ?></td>
             <td><?= esc($scopeLabel($r['platform_scope'] ?? '')) ?></td>
             <td><?= esc($formatKeyToLabel($r['format_key'] ?? '', $formats ?? [])) ?></td>
+
             <td>
               <?php if (!empty($r['width']) && !empty($r['height'])): ?>
                 <?= (int)$r['width'] ?>x<?= (int)$r['height'] ?>
@@ -218,6 +229,7 @@ $formatKeyToLabel = static function (?string $key, array $formats = []): string 
             </td>
           </tr>
         <?php endforeach; ?>
+
         <?php if (empty($rows)): ?>
           <tr><td colspan="10" class="text-center text-muted py-4">Kayıt yok</td></tr>
         <?php endif; ?>
