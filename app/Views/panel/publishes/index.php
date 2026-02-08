@@ -258,13 +258,11 @@ foreach (['q','platform','status','date_from','date_to'] as $k) {
 
                     $remoteId = trim((string)($r['remote_id'] ?? ''));
 
-                    // 1) previewUrl bizim domainde /reel/... gibi yanlışsa facebook'a çevir
                     if ($previewUrl !== '') {
                     $previewUrl = trim($previewUrl);
 
-                    // ör: https://sosyalmedyaplanlama.com/reel/123...
-                    if (preg_match('~^https?://[^/]+/reel/([0-9]+)~i', $previewUrl, $m)) {
-                        $previewUrl = 'https://www.facebook.com/reel/' . $m[1];
+                    if (preg_match('~^https?://(?:www\.)?sosyalmedyaplanlama\.com/reel/([0-9]+)~i', $previewUrl, $m)) {
+                    $previewUrl = 'https://www.facebook.com/reel/' . $m[1];
                     }
                     }
 
