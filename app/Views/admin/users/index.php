@@ -21,7 +21,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Kullanıcılar</h1>
-    <p class="text-muted mb-0">Kullanıcı ekle-düzenle-kaldır.</p>
+    <p class="text-muted mb-0">Kullanıcı Hesap Yönetimi</p>
   </div>
 </div>
 <div class="d-flex justify-content-end mb-3">
