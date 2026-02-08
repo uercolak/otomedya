@@ -63,11 +63,6 @@
               <div class="form-text">Pasif kullanıcı giriş yapamaz.</div>
             </div>
           </div>
-
-          <div class="alert alert-info mt-3 mb-0">
-            <div class="fw-semibold">Yetki</div>
-            <div class="small">Rolü <b>Admin</b> yaparsanız tüm sistem yetkilerini kazanır.</div>
-          </div>
         </div>
       </div>
     </div>
