@@ -1,6 +1,15 @@
 <?= $this->extend('layouts/admin') ?>
 <?= $this->section('content') ?>
 
+<?php if (!empty($errors)): ?>
+  <div class="alert alert-danger">
+    <?= implode('<br>', array_map('esc', $errors)) ?>
+  </div>
+<?php endif; ?>
+<?php if (session('error')): ?>
+  <div class="alert alert-danger"><?= esc(session('error')) ?></div>
+<?php endif; ?>
+
 <div class="d-flex justify-content-end mb-3">
   <a href="<?= base_url('admin/users') ?>" class="btn btn-outline-secondary">
     <i class="bi bi-arrow-left me-1"></i> Listeye Dön
@@ -36,12 +45,12 @@
             </div>
 
             <div class="col-md-6">
-                <label class="form-label">Durum</label>
-                <?php $status = old('status', $user['status'] ?? 'active'); ?>
-                <select name="status" class="form-select" required>
-                    <option value="active"   <?= $status === 'active' ? 'selected' : '' ?>>Aktif</option>
-                    <option value="disabled" <?= $status === 'disabled' ? 'selected' : '' ?>>Pasif</option>
-                </select>
+            <label class="form-label">Durum</label>
+            <?php $status = old('status', $user['status'] ?? 'active'); ?>
+            <select name="status" class="form-select" required>
+                <option value="active"  <?= $status === 'active' ? 'selected' : '' ?>>Aktif</option>
+                <option value="passive" <?= $status === 'passive' ? 'selected' : '' ?>>Pasif</option>
+            </select>
             </div>
 
             <div class="col-md-6">
