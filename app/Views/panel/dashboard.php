@@ -2,7 +2,6 @@
 <?= $this->section('content') ?>
 
 <style>
-  /* dashboard sadece kendi içinde – layout’a dokunmuyoruz */
   .dash-grid{ display:grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap:14px; }
 
   .dash-card{
@@ -13,8 +12,6 @@
     overflow:hidden;
   }
   .dash-pad{ padding:14px; }
-
-  /* soft tipografi */
   .dash-title{ font-weight:750; letter-spacing:-.2px; margin:0; color: rgba(17,24,39,.82); }
   .dash-muted{ color: rgba(17,24,39,.55); font-weight:500; }
 
@@ -113,7 +110,6 @@
   .mini-cal-day:last-child, .mini-cal-dow:last-child{ border-right:none; }
   .mini-cal-day.is-off{ background:#fcfcfc; color: rgba(17,24,39,.25); }
 
-  /* tek rozet: o gün toplam aktivite (planlı+yayınlanan) */
   .mini-cal-badge{
     position:absolute; top:8px; right:8px;
     min-width:20px; height:20px;
@@ -127,7 +123,6 @@
     border:1px solid rgba(124,58,237,.18);
   }
 
-  /* küçük legend noktaları */
   .mini-cal-marks{
     position:absolute;
     left:8px;
@@ -155,6 +150,40 @@
 
   @media (max-width: 1200px){ .dash-grid{ grid-template-columns: repeat(6, minmax(0,1fr)); } }
   @media (max-width: 768px){ .dash-grid{ grid-template-columns: repeat(1, minmax(0,1fr)); } }
+
+  .wiz-wrap{ display:flex; flex-direction:column; gap:12px; }
+  .wiz-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .wiz-progress{
+    height:10px; border-radius:999px; overflow:hidden;
+    background: rgba(0,0,0,.06);
+    border:1px solid rgba(0,0,0,.06);
+  }
+  .wiz-progress > span{
+    display:block; height:100%;
+    width:0%;
+    background: linear-gradient(135deg, #7c3aed, #ec4899);
+  }
+  .wiz-steps{ display:flex; flex-direction:column; gap:10px; }
+  .wiz-step{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    padding:12px 12px;
+    border-radius:16px;
+    border:1px solid rgba(0,0,0,.06);
+    background:#fff;
+  }
+  .wiz-left{ display:flex; gap:10px; align-items:flex-start; }
+  .wiz-ico{
+    width:36px; height:36px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    border:1px solid rgba(0,0,0,.06);
+    background: linear-gradient(135deg, rgba(124,58,237,.10), rgba(236,72,153,.08));
+    color: rgba(124,58,237,.95);
+    flex: 0 0 auto;
+  }
+  .wiz-step b{ display:block; font-size:13px; font-weight:800; color: rgba(17,24,39,.82); }
+  .wiz-step small{ display:block; color: rgba(17,24,39,.55); margin-top:2px; }
+  .wiz-actions{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+  .wiz-actions .pill{ font-weight:800; }
 </style>
 
 <?php
@@ -169,6 +198,9 @@
 
   $dayCountsScheduled = $dayCountsScheduled ?? [];
   $dayCountsPublished = $dayCountsPublished ?? [];
+  $wizardSteps     = $wizardSteps ?? [];
+  $wizardPercent   = (int)($wizardPercent ?? 0);
+  $wizardDoneCount = (int)($wizardDoneCount ?? 0);
 
   $platformLabel = function($p){
     $p = strtoupper((string)$p);
@@ -254,6 +286,64 @@ $formatLabel = static function (?string $key, array $formats = []): string {
 };
 ?>
 <div class="dash-grid">
+
+    <section class="dash-card" style="grid-column: span 12;">
+        <div class="dash-pad wiz-wrap">
+        <div class="wiz-head">
+            <div>
+            <div class="dash-muted" style="font-weight:800; letter-spacing:.14em; font-size:11px;">KURULUM SİHİRBAZI</div>
+            <h4 class="dash-title" style="font-size:15px; margin-top:4px;">3 adımda yayına hazırsın</h4>
+            <div class="dash-muted">Eksik adımı tamamla, ilk planın takvime düşsün.</div>
+            </div>
+
+            <span class="dash-chip">
+            <i class="bi bi-check2-circle"></i>
+            <?= $wizardDoneCount ?>/3 • <?= $wizardPercent ?>%
+            </span>
+        </div>
+
+        <div class="wiz-progress" aria-label="Kurulum ilerlemesi">
+            <span style="width: <?= $wizardPercent ?>%;"></span>
+        </div>
+
+        <div class="wiz-steps">
+            <?php if (empty($wizardSteps)): ?>
+            <div class="dash-item">
+                <div>
+                <b>Sihirbaz yüklenemedi</b>
+                <small>Controller’dan wizardSteps gelmiyor olabilir.</small>
+                </div>
+                <span class="pill gray">Bilgi</span>
+            </div>
+            <?php else: ?>
+            <?php foreach ($wizardSteps as $st): ?>
+                <?php
+                $done = !empty($st['done']);
+                $pillText  = $done ? 'Tamam' : 'Eksik';
+                $pillClass = $done ? 'ok' : 'bad';
+                ?>
+                <div class="wiz-step">
+                <div class="wiz-left">
+                    <div class="wiz-ico"><i class="bi <?= esc($st['icon'] ?? 'bi-flag') ?>"></i></div>
+                    <div>
+                    <b><?= esc($st['title'] ?? '') ?></b>
+                    <small><?= esc($st['desc'] ?? '') ?></small>
+                    </div>
+                </div>
+
+                <div class="wiz-actions">
+                    <span class="pill <?= $pillClass ?>"><?= $pillText ?></span>
+                    <a href="<?= esc($st['url'] ?? '#') ?>" class="<?= $done ? 'btn-soft' : 'btn-grad' ?>">
+                    <?= esc($st['cta'] ?? 'Devam et') ?>
+                    <i class="bi bi-arrow-right-short"></i>
+                    </a>
+                </div>
+                </div>
+            <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+        </div>
+    </section>
 
   <!-- KPI 1 -->
   <section class="dash-card" style="grid-column: span 4;">
