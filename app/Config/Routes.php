@@ -57,7 +57,7 @@ $routes->group('panel', ['filter' => 'auth'], static function ($routes) {
     $routes->get('templates/(:num)/edit',                           'Panel\TemplatesController::edit/$1');
     $routes->post('templates/(:num)/save',                          'Panel\TemplatesController::save/$1');
     $routes->post('templates/(:num)/export',                        'Panel\TemplatesController::export/$1');
-    $routes->get('templates/(:num)/use-video',                'Panel\TemplatesController::useVideo/$1');
+    $routes->get('templates/(:num)/use-video',                      'Panel\TemplatesController::useVideo/$1');
 
 });
 
@@ -74,7 +74,6 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->post('users/(:num)/toggle-status',     'Users::toggleStatus/$1');
     // (admin -> user geçişi)
     $routes->post('users/(:num)/impersonate',       'Users::impersonate/$1');
-    $routes->post('users/stop-impersonate',         'Users::stopImpersonate');
 
     $routes->get('logs',                            'LogsController::index');
     
@@ -106,3 +105,4 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->post('template-collections/(:num)/toggle',     'TemplateCollectionsController::toggle/$1');
     
 });
+    $routes->post('admin/users/stop-impersonate', 'Admin\Users::stopImpersonate', ['filter' => 'auth']);

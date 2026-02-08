@@ -255,14 +255,16 @@ class Users extends BaseController
         }
 
         $session = session();
+
         $adminId = (int) $session->get('impersonator_id');
+        $admin   = $this->userModel->find($adminId);
 
-        $admin = $this->userModel->find($adminId);
         if (! $admin) {
-
             $session->destroy();
             return redirect()->to(base_url('auth/login'));
         }
+
+        $session->regenerate(true);
 
         $session->set([
             'is_logged_in' => true,
