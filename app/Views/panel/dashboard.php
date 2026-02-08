@@ -311,7 +311,7 @@ $formatLabel = static function (?string $key, array $formats = []): string {
             <div class="dash-item">
                 <div>
                 <b>Sihirbaz yüklenemedi</b>
-                <small>Controller’dan wizardSteps gelmiyor olabilir.</small>
+                <small>Hata Oluştu Lütfen Bildiriniz.</small>
                 </div>
                 <span class="pill gray">Bilgi</span>
             </div>

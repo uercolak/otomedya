@@ -132,8 +132,8 @@ class Panel extends BaseController
     $wizardSteps = [
         [
             'key'   => 'accounts',
-            'title' => 'Sosyal hesap bağla',
-            'desc'  => 'Meta / TikTok / YouTube hesaplarını bağla.',
+            'title' => 'Sosyal Medya hesaplarını bağla',
+            'desc'  => 'Facebook / İnstagram / TikTok / YouTube hesaplarını bağla.',
             'done'  => $step1Done,
             'url'   => site_url('panel/social-accounts'),
             'cta'   => $step1Done ? 'Yönet' : 'Bağla',
@@ -151,7 +151,7 @@ class Panel extends BaseController
         [
             'key'   => 'plan',
             'title' => 'İlk paylaşımı planla',
-            'desc'  => 'Planner üzerinden planla, Calendar’a düşsün.',
+            'desc'  => 'Takvim ve Planlama gönderini oluştur.',
             'done'  => $step3Done,
             'url'   => site_url('panel/planner'),
             'cta'   => $step3Done ? 'Yeni planla' : 'Planla',
