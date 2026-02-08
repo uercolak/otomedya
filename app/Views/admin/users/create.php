@@ -44,13 +44,15 @@
             </div>
 
             <div class="col-12 col-md-6">
-              <label class="form-label">Rol</label>
-              <select name="role" class="form-select" required>
-                <option value="user"  <?= old('role')==='user'  ? 'selected' : '' ?>>User</option>
-                <option value="admin" <?= old('role')==='admin' ? 'selected' : '' ?>>Admin</option>
-              </select>
-              <div class="form-text">Admin rolü kullanıcı yönetimine erişir.</div>
-            </div>
+                <label class="form-label">Rol</label>
+
+                <!-- Görsel select (pasif) -->
+                <select class="form-select" disabled>
+                    <option selected>Kullanıcı</option>
+                </select>
+                <input type="hidden" name="role" value="user">
+
+                </div>
 
             <div class="col-12 col-md-6">
               <label class="form-label">Durum</label>
