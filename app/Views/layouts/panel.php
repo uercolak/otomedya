@@ -125,6 +125,24 @@
 <div class="layout">
     <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
+
+<?php if (session('is_impersonating')): ?>
+  <div class="alert alert-warning d-flex align-items-center justify-content-between"
+       style="border-radius:14px;">
+    <div class="small">
+      <b>Destek Modu:</b> Şu kullanıcı olarak giriş yaptın:
+      <b><?= esc(session('user_email')) ?></b>
+    </div>
+
+    <form action="<?= base_url('admin/users/stop-impersonate') ?>" method="post" class="m-0">
+      <?= csrf_field() ?>
+      <button class="btn btn-sm btn-dark">
+        <i class="bi bi-arrow-left"></i> Admin’e dön
+      </button>
+    </form>
+  </div>
+<?php endif; ?>
+
     <aside id="sidebar" class="sidebar">
         <div class="brand mb-3">
             <img class="brand-logo-img" src="<?= base_url('panellogo.png') ?>" alt="Logo">

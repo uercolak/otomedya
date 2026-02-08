@@ -35,7 +35,6 @@ class Users extends BaseController
 
         $users = $builder->orderBy('id', 'DESC')->paginate(10);
 
-        // ✅ pagination linkleri /admin/users altında stabil kalsın
         $this->userModel->pager->setPath('admin/users');
 
         return view('admin/users/index', [
@@ -128,7 +127,6 @@ class Users extends BaseController
 
         $post = $this->request->getPost();
 
-        // Son admin rolü user olmasın
         if (($user['role'] ?? '') === 'admin' && ($post['role'] ?? '') === 'user') {
             $adminCount = $this->userModel->where('role', 'admin')->countAllResults();
             if ($adminCount <= 1) {
@@ -204,9 +202,85 @@ class Users extends BaseController
         return $this->response->setJSON([
             'ok'       => true,
             'status'   => $next,
-            // ✅ CSRF her toggle sonrası tazelenir (ileride patlamasın)
             'csrfName' => csrf_token(),
             'csrfHash' => csrf_hash(),
         ]);
+    }
+
+    public function impersonate(int $id)
+    {
+        if (! session('is_logged_in') || session('user_role') !== 'admin') {
+            return redirect()->to(base_url('auth/login'));
+        }
+
+        $target = $this->userModel->find($id);
+        if (! $target) {
+            return redirect()->back()->with('error', 'Kullanıcı bulunamadı.');
+        }
+
+        if ((int) session('user_id') === (int) $id) {
+            return redirect()->back()->with('error', 'Zaten bu hesaptasın.');
+        }
+
+        $session = session();
+
+        $session->set([
+            'impersonator_id'   => (int) session('user_id'),
+            'impersonator_role' => (string) session('user_role'),
+            'impersonator_email'=> (string) session('user_email'),
+            'impersonator_name' => (string) session('user_name'),
+            'is_impersonating'  => true,
+        ]);
+
+        $session->set([
+            'is_logged_in' => true,
+            'user_id'      => (int) $target['id'],
+            'user_email'   => (string) ($target['email'] ?? ''),
+            'user_name'    => (string) ($target['name'] ?? ''),
+            'user_role'    => (string) ($target['role'] ?? 'user'), 
+        ]);
+
+        return redirect()->to(base_url('panel'))
+            ->with('success', 'Kullanıcı hesabına geçildi: ' . ($target['email'] ?? ''));
+    }
+
+    public function stopImpersonate()
+    {
+        if (! session('is_logged_in')) {
+            return redirect()->to(base_url('auth/login'));
+        }
+
+        if (! session('is_impersonating') || ! session('impersonator_id')) {
+            return redirect()->to(base_url('admin'));
+        }
+
+        $session = session();
+        $adminId = (int) $session->get('impersonator_id');
+
+        $admin = $this->userModel->find($adminId);
+        if (! $admin) {
+
+            $session->destroy();
+            return redirect()->to(base_url('auth/login'));
+        }
+
+        $session->set([
+            'is_logged_in' => true,
+            'user_id'      => (int) $admin['id'],
+            'user_email'   => (string) ($admin['email'] ?? ''),
+            'user_name'    => (string) ($admin['name'] ?? ''),
+            'user_role'    => (string) ($admin['role'] ?? 'admin'),
+        ]);
+
+        $session->remove([
+            'impersonator_id',
+            'impersonator_role',
+            'impersonator_email',
+            'impersonator_name',
+            'is_impersonating',
+        ]);
+
+        return redirect()->to(base_url('admin/users'))
+            ->with('success', 'Admin hesabına geri dönüldü.');
     }
 }

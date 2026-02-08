@@ -151,6 +151,15 @@
               </td>
 
               <td class="text-end">
+                <?php if (($u['role'] ?? 'user') !== 'admin'): ?>
+                <form action="<?= base_url('admin/users/' . (int)$u['id'] . '/impersonate') ?>"
+                        method="post" class="d-inline">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-primary" title="Bu hesaba bağlan">
+                    <i class="bi bi-eye"></i>
+                    </button>
+                </form>
+                <?php endif; ?>
                 <div class="btn-group row-actions" role="group">
                   <a class="btn btn-sm btn-outline-secondary"
                      href="<?= base_url('admin/users/' . $u['id'] . '/edit') ?>">

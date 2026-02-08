@@ -7,10 +7,7 @@ use App\Models\UserModel;
 
 class AuthController extends BaseController
 {
-    /**
-     * Public register KAPALI.
-     * İleride admin üzerinden kullanıcı açılacak.
-     */
+
     public function register()
     {
         return $this->response

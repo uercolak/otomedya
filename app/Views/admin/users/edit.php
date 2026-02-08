@@ -52,7 +52,6 @@
                      value="<?= esc(old('email', $user['email'] ?? '')) ?>" required>
             </div>
 
-            <!-- ✅ Rol: düzenlemede kilitli (admin seçeneği yok / değiştirilemez) -->
             <div class="col-md-6">
               <label class="form-label">Rol</label>
               <?php $role = (string)old('role', $user['role'] ?? 'user'); ?>

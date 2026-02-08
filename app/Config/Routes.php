@@ -72,6 +72,9 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->post('users/(:num)',                   'Users::update/$1');
     $routes->post('users/(:num)/delete',            'Users::delete/$1');
     $routes->post('users/(:num)/toggle-status',     'Users::toggleStatus/$1');
+    // (admin -> user geçişi)
+    $routes->post('users/(:num)/impersonate',       'Users::impersonate/$1');
+    $routes->post('users/stop-impersonate',         'Users::stopImpersonate');
 
     $routes->get('logs',                            'LogsController::index');
     
@@ -101,4 +104,5 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->get('template-collections/(:num)/edit',        'TemplateCollectionsController::edit/$1');
     $routes->put('template-collections/(:num)',             'TemplateCollectionsController::update/$1');
     $routes->post('template-collections/(:num)/toggle',     'TemplateCollectionsController::toggle/$1');
+    
 });
