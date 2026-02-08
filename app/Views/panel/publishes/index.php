@@ -21,7 +21,6 @@ if (!function_exists('ui_dt_tr')) {
       // 27 Ocak 2026 • 21:23
       return $dt->format('j ') . $monthName . $dt->format(' Y') . ' • ' . $dt->format('H:i');
     } catch (Throwable $e) {
-      // fallback: mevcut helper ne veriyorsa
       return esc(ui_dt($val));
     }
   }
@@ -34,7 +33,6 @@ foreach (['q','platform','status','date_from','date_to'] as $k) {
 ?>
 
 <style>
-  /* Marka butonu (mavi yok) */
   .btn-brand{
     background: linear-gradient(90deg, #6a5cff, #ff4fd8);
     border: 0;
@@ -54,12 +52,10 @@ foreach (['q','platform','status','date_from','date_to'] as $k) {
     color:#4a3cff;
   }
 
-  /* tablo hover daha premium */
   .table-hover-soft tbody tr:hover{
     background: rgba(0,0,0,.02);
   }
 
-  /* “İptal edildi” gibi rozetleri daha kurumsal göstermek istersen (partial etkiliyorsa) */
   .badge-soft-muted{
     background: rgba(108,117,125,.12);
     color: #6c757d;
@@ -192,7 +188,6 @@ foreach (['q','platform','status','date_from','date_to'] as $k) {
               $contentLabelMain = $contentTitle !== '' ? $contentTitle : 'Paylaşım içeriği';
               $contentLabelSub  = $contentId ? ('İçerik ID: #' . $contentId) : '';
 
-              // yayınlanma tarihi fallback
               $publishedAt = $r['published_at'] ?? null;
               if (empty($publishedAt) && ($r['status'] ?? '') === 'published') {
                 $publishedAt = $r['updated_at'] ?? null;
@@ -242,64 +237,66 @@ foreach (['q','platform','status','date_from','date_to'] as $k) {
                   </a>
 
                   <?php
-                    $platform  = strtolower((string)($r['platform'] ?? ''));
+                    $platform   = strtolower((string)($r['platform'] ?? ''));
                     $previewUrl = '';
 
-                    $mj2 = $r['meta_json'] ?? '';
-                    if ($mj2) {
-                    $arr = json_decode((string)$mj2, true);
-                    if (is_array($arr)) {
+                    // 1) meta_json içinden olası link alanlarını çek
+                    $mj2 = (string)($r['meta_json'] ?? '');
+                    if ($mj2 !== '') {
+                      $arr = json_decode($mj2, true);
+                      if (is_array($arr)) {
                         $previewUrl = (string)($arr['meta']['permalink'] ?? '');
                         if ($previewUrl === '') $previewUrl = (string)($arr['meta']['permalink_url'] ?? '');
                         if ($previewUrl === '') $previewUrl = (string)($arr['meta']['share_url'] ?? '');
                         if ($previewUrl === '') $previewUrl = (string)($arr['meta']['url'] ?? '');
-                    }
+                      }
                     }
 
                     $remoteId = trim((string)($r['remote_id'] ?? ''));
 
+                    // 2) Eğer permalink yanlışlıkla bizim domainde "/reel/{id}" geldiyse facebook reel'e çevir
                     if ($previewUrl !== '') {
-                    $previewUrl = trim($previewUrl);
+                      $previewUrl = trim($previewUrl);
 
-                    if (preg_match('~^https?://(?:www\.)?sosyalmedyaplanlama\.com/reel/([0-9]+)~i', $previewUrl, $m)) {
-                    $previewUrl = 'https://www.facebook.com/reel/' . $m[1];
-                    }
+                      // hangi domain olursa olsun /reel/{id} yakala
+                      if (preg_match('~/(reel)/([0-9]+)(?:/|\?|$)~i', $previewUrl, $m)) {
+                        $previewUrl = 'https://www.facebook.com/reel/' . $m[2];
+                      }
                     }
 
-                    // 2) remote_id direkt URL ise onu kullan
+                    // 3) remote_id zaten URL ise onu kullan
                     if ($previewUrl === '' && $remoteId !== '' && preg_match('~^https?://~i', $remoteId) === 1) {
-                    $previewUrl = $remoteId;
+                      $previewUrl = $remoteId;
                     }
 
-                    // 3) Platform bazlı fallback üret
+                    // 4) Platform bazlı fallback üret
                     if ($previewUrl === '' && $remoteId !== '') {
 
-                    // TikTok: username varsa direkt video linki üret
-                    if ($platform === 'tiktok') {
+                      // TikTok
+                      if ($platform === 'tiktok') {
                         $u = trim((string)($r['sa_username'] ?? ''));
                         $u = ltrim($u, '@');
-                        if ($u !== '' && ctype_digit($remoteId)) {
-                        $previewUrl = 'https://www.tiktok.com/@' . rawurlencode($u) . '/video/' . $remoteId;
-                        }
-                    }
 
-                    // YouTube: video id
-                    if ($previewUrl === '' && $platform === 'youtube') {
-                        // remote_id youtube video id ise:
+                        // username varsa remote_id numeric olmasa da link üret (buton gelsin)
+                        if ($u !== '') {
+                          $previewUrl = 'https://www.tiktok.com/@' . rawurlencode($u) . '/video/' . rawurlencode($remoteId);
+                        }
+                      }
+
+                      // YouTube
+                      if ($previewUrl === '' && $platform === 'youtube') {
                         $previewUrl = 'https://www.youtube.com/watch?v=' . rawurlencode($remoteId);
-                    }
+                      }
 
-                    // Facebook: post/video id (genelde /{id} çalışır, reel ise /reel/{id} daha iyi)
-                    if ($previewUrl === '' && $platform === 'facebook') {
+                      // Facebook
+                      if ($previewUrl === '' && $platform === 'facebook') {
                         if (ctype_digit($remoteId)) {
-                        $previewUrl = 'https://www.facebook.com/' . $remoteId;
-                        // reel ihtimali yüksekse istersen:
-                        // $previewUrl = 'https://www.facebook.com/reel/' . $remoteId;
+                          // reel olma ihtimali için reel'i denemek genelde daha iyi:
+                          $previewUrl = 'https://www.facebook.com/reel/' . $remoteId;
                         } else {
-                        // bazen pageid_postid gibi gelir: 123_456 -> /123_456 açılır
-                        $previewUrl = 'https://www.facebook.com/' . rawurlencode($remoteId);
+                          $previewUrl = 'https://www.facebook.com/' . rawurlencode($remoteId);
                         }
-                    }
+                      }
                     }
                   ?>
 
