@@ -1,20 +1,28 @@
 <?= $this->extend('layouts/admin') ?>
 <?= $this->section('content') ?>
 
-<?php if (!empty($errors)): ?>
-  <div class="alert alert-danger">
-    <?= implode('<br>', array_map('esc', $errors)) ?>
-  </div>
-<?php endif; ?>
-<?php if (session('error')): ?>
-  <div class="alert alert-danger"><?= esc(session('error')) ?></div>
-<?php endif; ?>
-
 <div class="d-flex justify-content-end mb-3">
   <a href="<?= base_url('admin/users') ?>" class="btn btn-outline-secondary">
     <i class="bi bi-arrow-left me-1"></i> Listeye Dön
   </a>
 </div>
+
+<?php if (session('error')): ?>
+  <div class="alert alert-danger" style="border-radius:14px;">
+    <?= esc(session('error')) ?>
+  </div>
+<?php endif; ?>
+
+<?php if (!empty($errors)): ?>
+  <div class="alert alert-danger" style="border-radius:14px;">
+    <div class="fw-semibold mb-1">Lütfen hataları düzeltin:</div>
+    <ul class="mb-0">
+      <?php foreach ($errors as $e): ?>
+        <li><?= esc($e) ?></li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
+<?php endif; ?>
 
 <form action="<?= base_url('admin/users/' . (int)$user['id']) ?>" method="post" id="editUserForm">
   <?= csrf_field() ?>
@@ -44,13 +52,25 @@
                      value="<?= esc(old('email', $user['email'] ?? '')) ?>" required>
             </div>
 
+            <!-- ✅ Rol: düzenlemede kilitli (admin seçeneği yok / değiştirilemez) -->
             <div class="col-md-6">
-            <label class="form-label">Durum</label>
-            <?php $status = old('status', $user['status'] ?? 'active'); ?>
-            <select name="status" class="form-select" required>
+              <label class="form-label">Rol</label>
+              <?php $role = (string)old('role', $user['role'] ?? 'user'); ?>
+              <input type="text" class="form-control" value="<?= esc($role) ?>" disabled>
+              <input type="hidden" name="role" value="<?= esc($role) ?>">
+              <div class="text-muted small mt-2">
+                Rol bu ekrandan değiştirilemez.
+              </div>
+            </div>
+
+            <!-- ✅ Durum: passive düzeltildi -->
+            <div class="col-md-6">
+              <label class="form-label">Durum</label>
+              <?php $status = (string)old('status', $user['status'] ?? 'active'); ?>
+              <select name="status" class="form-select" required>
                 <option value="active"  <?= $status === 'active' ? 'selected' : '' ?>>Aktif</option>
                 <option value="passive" <?= $status === 'passive' ? 'selected' : '' ?>>Pasif</option>
-            </select>
+              </select>
             </div>
 
             <div class="col-md-6">
@@ -58,6 +78,7 @@
               <input type="text" class="form-control" disabled
                      value="<?= esc($user['created_at'] ?? '-') ?>">
             </div>
+
           </div>
         </div>
       </div>
