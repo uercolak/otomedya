@@ -122,11 +122,7 @@
 ?>
 
 <body>
-<div class="layout">
-    <div id="sidebarOverlay" class="sidebar-overlay"></div>
-
-
-<?php if (session('is_impersonating')): ?>
+    <?php if (session('is_impersonating')): ?>
   <div class="alert alert-warning d-flex align-items-center justify-content-between"
        style="border-radius:14px;">
     <div class="small">
@@ -142,7 +138,8 @@
     </form>
   </div>
 <?php endif; ?>
-
+<div class="layout">
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
     <aside id="sidebar" class="sidebar">
         <div class="brand mb-3">
             <img class="brand-logo-img" src="<?= base_url('panellogo.png') ?>" alt="Logo">
