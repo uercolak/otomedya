@@ -31,10 +31,10 @@
 
     <aside id="sidebar" class="sidebar">
         <div class="brand mb-3">
-            <div class="brand-logo">A</div>
+            <div class="brand-logo">S</div>
             <div>
-                <div class="brand-title">Otomedya</div>
-                <div class="brand-sub">Admin Panel</div>
+                <div class="brand-title">Sosyal Medya Planlama</div>
+                <div class="brand-sub">Yönetici Paneli</div>
             </div>
         </div>
 
@@ -58,7 +58,7 @@
 
             <div class="d-flex align-items-center gap-2">
                 <span class="chip chip-admin d-none d-md-inline-flex">
-                    <i class="bi bi-shield-lock me-1"></i> Admin
+                    <i class="bi bi-shield-lock me-1"></i> Yönetici
                 </span>
 
                 <form action="<?= base_url('auth/logout'); ?>" method="post" class="m-0">
