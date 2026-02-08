@@ -134,7 +134,6 @@ class TemplatesController extends BaseController
             'totalCount'       => $totalCount,
             'collections'      => $collections,
             'collectionCounts' => $collectionCounts,
-            'formats' => $this->formats,
         ]);
     }
 
