@@ -124,7 +124,7 @@ class TemplatesController extends BaseController
         if (!in_array($type, ['image','video'], true)) {
             return redirect()->back()->withInput()->with('error', 'Type geçersiz.');
         }
-        if (!in_array($scope, ['universal','instagram','facebook','tiktok','youtube'], true)) {
+        if (!in_array($scope, ['instagram','facebook','tiktok','youtube'], true)) {
             return redirect()->back()->withInput()->with('error', 'Platform scope geçersiz.');
         }
 

@@ -188,7 +188,6 @@
       'facebook'  => 'Facebook',
       'tiktok'    => 'TikTok',
       'youtube'   => 'YouTube',
-      'universal' => 'Evrensel',
       default     => $k !== '' ? ucfirst($k) : 'Hepsi',
     };
   };

@@ -6,7 +6,6 @@
 $scopeLabel = static function (?string $scope): string {
   $scope = strtolower(trim((string)$scope));
   return match ($scope) {
-    'universal' => 'Genel',
     'instagram' => 'Instagram',
     'facebook'  => 'Facebook',
     'tiktok'    => 'TikTok',
@@ -95,7 +94,6 @@ $formatKeyToLabel = static function (?string $key, array $formats = []): string 
         <div class="col-md-2">
           <select class="form-select" name="scope">
             <option value="">Kapsam</option>
-            <option value="universal" <?= (($filters['scope'] ?? '')==='universal')?'selected':'' ?>>Genel</option>
             <option value="instagram" <?= (($filters['scope'] ?? '')==='instagram')?'selected':'' ?>>Instagram</option>
             <option value="facebook"  <?= (($filters['scope'] ?? '')==='facebook')?'selected':'' ?>>Facebook</option>
             <option value="tiktok"    <?= (($filters['scope'] ?? '')==='tiktok')?'selected':'' ?>>TikTok</option>

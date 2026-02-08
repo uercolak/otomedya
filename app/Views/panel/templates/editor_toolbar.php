@@ -73,14 +73,10 @@
 
   <hr>
 
-  <label class="form-label small text-muted">Instagram Paylaşım Tipi (meta_json)</label>
+  <label class="form-label small text-muted">Instagram Paylaşım Tipi</label>
   <select id="postType" class="form-select mb-2">
     <option value="post" selected>Post</option>
     <option value="story">Story</option>
-    <option value="reels">Reels (V1 image için planlama; video değil)</option>
+    <option value="reels">Reels</option>
   </select>
-
-  <div class="small text-muted">
-    V1’de export PNG üretir ve Planner’a içerik olarak taşır.
-  </div>
 </div>
