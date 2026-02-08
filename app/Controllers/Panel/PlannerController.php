@@ -102,14 +102,43 @@ class PlannerController extends BaseController
                 ->with('error', 'Lütfen geçerli bir tarih ve saat seçin.');
         }
 
-        $nowTs = time();
-        $scheduleTs = strtotime($scheduleAt);
+        // ✅ --- ZAMAN KONTROLÜ (2 dk toleranslı) ---
+        // normalizeDatetime() "Y-m-d H:i" döndürüyor olabilir; saniye yoksa :00 ekleyelim
+        $scheduleAtFixed = str_replace('T', ' ', (string)$scheduleAt);
+        if (preg_match('~^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$~', $scheduleAtFixed)) {
+            $scheduleAtFixed .= ':00';
+        }
 
-        if ($scheduleTs === false || $scheduleTs <= $nowTs) {
+        // timezone'ı uygulamayla aynı tutalım
+        $tzName = config('App')->appTimezone ?? 'Europe/Istanbul';
+        try {
+            $tz = new \DateTimeZone($tzName);
+        } catch (\Throwable $e) {
+            $tz = new \DateTimeZone('Europe/Istanbul');
+        }
+
+        try {
+            $dtSchedule = new \DateTime($scheduleAtFixed, $tz);
+            $dtNow      = new \DateTime('now', $tz);
+
+            // ✅ 2 dakika tolerans: bundan daha eskiyse geçmiş say
+            $minAllowed = (clone $dtNow)->modify('-2 minutes');
+
+            if ($dtSchedule < $minAllowed) {
+                return redirect()->to(site_url('panel/planner'))
+                    ->withInput()
+                    ->with('error', 'Geçmiş tarihli paylaşım yapılamamaktadır. Lütfen ileri bir tarih/saat seçin.');
+            }
+
+            // Veritabanına giden schedule_at formatını da sabitleyelim
+            $scheduleAt = $dtSchedule->format('Y-m-d H:i:s');
+
+        } catch (\Throwable $e) {
             return redirect()->to(site_url('panel/planner'))
                 ->withInput()
-                ->with('error', 'Geçmiş tarihli paylaşım yapılamamaktadır. Lütfen ileri bir tarih/saat seçin.');
+                ->with('error', 'Tarih/Saat formatı okunamadı. Lütfen tekrar seçin.');
         }
+        // ✅ --- /ZAMAN KONTROLÜ ---
 
         $rows = $db->table('social_accounts')
             ->select('id,platform')
@@ -184,7 +213,7 @@ class PlannerController extends BaseController
             }
 
             $settings['instagram'] = [
-                'post_type' => $igPostType, // auto|post|reels|story
+                'post_type' => $igPostType,
             ];
         }
 
@@ -296,7 +325,6 @@ class PlannerController extends BaseController
 
             $idempotencyKey = $this->makeIdempotencyKey(
                 $userId, $platform, $accountId, $contentId, $scheduleAt,
-                // key’e settings’i de etkileyelim (aynı içerik + aynı ayar)
                 md5(json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
             );
 
@@ -327,8 +355,6 @@ class PlannerController extends BaseController
                 'platform'   => $platform,
                 'account_id' => $accountId,
                 'content_id' => $contentId,
-
-                // ✅ worker/handler buradan okuyacak
                 'settings'   => $settings,
             ];
 
