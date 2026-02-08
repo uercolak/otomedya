@@ -38,9 +38,8 @@
             <div class="col-md-6">
               <label class="form-label">Rol</label>
               <?php $role = old('role', $user['role'] ?? 'user'); ?>
-              <select name="role" class="form-select">
-                <option value="user"  <?= $role === 'user' ? 'selected' : '' ?>>user</option>
-                <option value="admin" <?= $role === 'admin' ? 'selected' : '' ?>>admin</option>
+              <select name="role" class="form-select" disabled>
+                <option value="user"  <?= $role === 'user' ? 'selected' : '' ?>>Kullanıcı</option>
               </select>
 
               <div class="alert alert-info d-flex gap-2 mt-3 mb-0" style="border-radius:14px;">
