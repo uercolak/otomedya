@@ -242,19 +242,66 @@ foreach (['q','platform','status','date_from','date_to'] as $k) {
                   </a>
 
                   <?php
+                    $platform  = strtolower((string)($r['platform'] ?? ''));
                     $previewUrl = '';
+
                     $mj2 = $r['meta_json'] ?? '';
                     if ($mj2) {
-                      $arr = json_decode((string)$mj2, true);
-                      if (is_array($arr)) {
+                    $arr = json_decode((string)$mj2, true);
+                    if (is_array($arr)) {
                         $previewUrl = (string)($arr['meta']['permalink'] ?? '');
-                      }
+                        if ($previewUrl === '') $previewUrl = (string)($arr['meta']['permalink_url'] ?? '');
+                        if ($previewUrl === '') $previewUrl = (string)($arr['meta']['share_url'] ?? '');
+                        if ($previewUrl === '') $previewUrl = (string)($arr['meta']['url'] ?? '');
+                    }
                     }
 
-                    // fallback: remote_id URL ise onu kullan
-                    $remoteId = (string)($r['remote_id'] ?? '');
-                    if ($previewUrl === '' && preg_match('~^https?://~i', $remoteId) === 1) {
-                      $previewUrl = $remoteId;
+                    $remoteId = trim((string)($r['remote_id'] ?? ''));
+
+                    // 1) previewUrl bizim domainde /reel/... gibi yanlışsa facebook'a çevir
+                    if ($previewUrl !== '') {
+                    $previewUrl = trim($previewUrl);
+
+                    // ör: https://sosyalmedyaplanlama.com/reel/123...
+                    if (preg_match('~^https?://[^/]+/reel/([0-9]+)~i', $previewUrl, $m)) {
+                        $previewUrl = 'https://www.facebook.com/reel/' . $m[1];
+                    }
+                    }
+
+                    // 2) remote_id direkt URL ise onu kullan
+                    if ($previewUrl === '' && $remoteId !== '' && preg_match('~^https?://~i', $remoteId) === 1) {
+                    $previewUrl = $remoteId;
+                    }
+
+                    // 3) Platform bazlı fallback üret
+                    if ($previewUrl === '' && $remoteId !== '') {
+
+                    // TikTok: username varsa direkt video linki üret
+                    if ($platform === 'tiktok') {
+                        $u = trim((string)($r['sa_username'] ?? ''));
+                        $u = ltrim($u, '@');
+                        if ($u !== '' && ctype_digit($remoteId)) {
+                        $previewUrl = 'https://www.tiktok.com/@' . rawurlencode($u) . '/video/' . $remoteId;
+                        }
+                    }
+
+                    // YouTube: video id
+                    if ($previewUrl === '' && $platform === 'youtube') {
+                        // remote_id youtube video id ise:
+                        $previewUrl = 'https://www.youtube.com/watch?v=' . rawurlencode($remoteId);
+                    }
+
+                    // Facebook: post/video id (genelde /{id} çalışır, reel ise /reel/{id} daha iyi)
+                    if ($previewUrl === '' && $platform === 'facebook') {
+                        if (ctype_digit($remoteId)) {
+                        $previewUrl = 'https://www.facebook.com/' . $remoteId;
+                        // reel ihtimali yüksekse istersen:
+                        // $previewUrl = 'https://www.facebook.com/reel/' . $remoteId;
+                        } else {
+                        // bazen pageid_postid gibi gelir: 123_456 -> /123_456 açılır
+                        $previewUrl = 'https://www.facebook.com/' . rawurlencode($remoteId);
+                        }
+                    }
                     }
                   ?>
 
