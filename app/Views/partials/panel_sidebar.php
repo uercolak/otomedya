@@ -37,7 +37,7 @@
 
     <a href="<?= site_url('panel/social-accounts'); ?>"
         class="nav-link <?= ($seg1 === 'panel' && $seg2 === 'social-accounts') ? 'active' : '' ?>">
-        <i class="bi bi-share"></i> <span>Sosyal Hesaplar</span>
+        <i class="bi bi-share"></i> <span>Sosyal Medya Hesapları</span>
     </a>
 
     <div class="nav-section-label">Güvenlik</div>

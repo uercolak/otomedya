@@ -105,7 +105,7 @@
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
   <div>
-    <div class="sa-page-title fw-bold">Sosyal Hesaplar</div>
+    <div class="sa-page-title fw-bold">Sosyal Medya Hesapları</div>
     <div class="text-muted sa-sub">
       Hesaplarını bağla ve planlı paylaşımlarda kullan. Paylaşım planlama <b>Takvim &amp; Planlama</b> ekranındadır.
     </div>
