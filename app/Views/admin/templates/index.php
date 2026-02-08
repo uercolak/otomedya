@@ -1,6 +1,53 @@
 <?= $this->extend('layouts/admin') ?>
 <?= $this->section('content') ?>
+<?php
+// --- UI label helpers (root panel) ---
+$scopeLabel = static function (?string $scope): string {
+  $scope = strtolower(trim((string)$scope));
+  return match ($scope) {
+    'universal' => 'Genel',
+    'instagram' => 'Instagram',
+    'facebook'  => 'Facebook',
+    'tiktok'    => 'TikTok',
+    'youtube'   => 'YouTube',
+    default     => ($scope !== '' ? $scope : '-'),
+  };
+};
 
+$typeLabel = static function (?string $type): string {
+  $type = strtolower(trim((string)$type));
+  return match ($type) {
+    'image' => 'Görsel',
+    'video' => 'Video',
+    default => ($type !== '' ? $type : '-'),
+  };
+};
+
+$formatKeyToLabel = static function (?string $key, array $formats = []): string {
+  $key = trim((string)$key);
+  if ($key === '') return '-';
+
+  // 1) Controller'dan gelen $formats içinde label varsa onu kullan
+  if (!empty($formats[$key]['label'])) {
+    return (string)$formats[$key]['label'];
+  }
+
+  // 2) Fallback map (olmazsa bile en azından kötü görünmesin)
+  $map = [
+    'ig_post_1_1'   => 'Instagram Post (1:1)',
+    'ig_post_4_5'   => 'Instagram Post (4:5)',
+    'ig_story_9_16' => 'Instagram Story (9:16)',
+    'ig_reels_9_16' => 'Instagram Reels (9:16)',
+
+    'fb_post_1_1'   => 'Facebook Post (1:1)',
+    'fb_story_9_16' => 'Facebook Story (9:16)',
+
+    'yt_video_16_9' => 'YouTube Video (16:9)',
+    'yt_shorts_9_16'=> 'YouTube Shorts (9:16)',
+  ];
+  return $map[$key] ?? $key;
+};
+?>
 <div class="container-fluid py-3">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <div>
@@ -40,17 +87,17 @@
         </div>
 
         <div class="col-md-2">
-          <select class="form-select" name="scope">
-            <option value="">Scope</option>
-            <option value="universal" <?= (($filters['scope'] ?? '')==='universal')?'selected':'' ?>>Universal</option>
+        <select class="form-select" name="scope">
+            <option value="">Kapsam</option>
+            <option value="universal" <?= (($filters['scope'] ?? '')==='universal')?'selected':'' ?>>Genel</option>
             <option value="instagram" <?= (($filters['scope'] ?? '')==='instagram')?'selected':'' ?>>Instagram</option>
-            <option value="facebook" <?= (($filters['scope'] ?? '')==='facebook')?'selected':'' ?>>Facebook</option>
-          </select>
+            <option value="facebook"  <?= (($filters['scope'] ?? '')==='facebook')?'selected':'' ?>>Facebook</option>
+        </select>
         </div>
 
         <div class="col-md-2">
           <select class="form-select" name="format">
-            <option value="">Format</option>
+            <option value="">Boyut Türü</option>
             <?php foreach (($formats ?? []) as $k => $f): ?>
               <option value="<?= esc($k) ?>" <?= (($filters['format'] ?? '')===$k)?'selected':'' ?>>
                 <?= esc($f['label']) ?> (<?= (int)$f['w'] ?>x<?= (int)$f['h'] ?>)
@@ -144,9 +191,9 @@
               <?php endif; ?>
             </td>
 
-            <td><?= esc($r['type'] ?? '') ?></td>
-            <td><?= esc($r['platform_scope'] ?? '') ?></td>
-            <td><?= esc($r['format_key'] ?? '') ?></td>
+            <td><?= esc($typeLabel($r['type'] ?? '')) ?></td>
+            <td><?= esc($scopeLabel($r['platform_scope'] ?? '')) ?></td>
+            <td><?= esc($formatKeyToLabel($r['format_key'] ?? '', $formats ?? [])) ?></td>
             <td>
               <?php if (!empty($r['width']) && !empty($r['height'])): ?>
                 <?= (int)$r['width'] ?>x<?= (int)$r['height'] ?>
