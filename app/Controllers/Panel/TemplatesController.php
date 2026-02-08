@@ -116,7 +116,7 @@ class TemplatesController extends BaseController
 
         $rows = $builder->orderBy('id', 'DESC')->get()->getResultArray();
 
-        $scopeOptions = ['universal','instagram','facebook','tiktok','youtube'];
+        $scopeOptions = ['instagram','facebook','tiktok','youtube'];
 
         return view('panel/templates/index', [
             'pageTitle'        => 'Hazır Şablonlar',
@@ -134,6 +134,7 @@ class TemplatesController extends BaseController
             'totalCount'       => $totalCount,
             'collections'      => $collections,
             'collectionCounts' => $collectionCounts,
+            'formats' => $this->formats,
         ]);
     }
 
