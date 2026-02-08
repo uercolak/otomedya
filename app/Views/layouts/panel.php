@@ -132,7 +132,7 @@
 
     <form action="<?= base_url('admin/users/stop-impersonate') ?>" method="post" class="m-0">
       <?= csrf_field() ?>
-      <button class="btn btn-sm btn-dark">
+      <button class="btn-grad">
         <i class="bi bi-arrow-left"></i> Admin’e dön
       </button>
     </form>
