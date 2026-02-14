@@ -20,7 +20,7 @@ class Users extends BaseController
         $q      = trim((string) $this->request->getGet('q'));
         $status = trim((string) $this->request->getGet('status'));
 
-        $builder = $this->userModel->select('id, name, email, role, status, created_at');
+        $builder = $this->userModel->select('id, tenant_id, created_by, name, email, role, status, created_at');
 
         if ($q !== '') {
             $builder->groupStart()
@@ -34,7 +34,6 @@ class Users extends BaseController
         }
 
         $users = $builder->orderBy('id', 'DESC')->paginate(10);
-
         $this->userModel->pager->setPath('admin/users');
 
         return view('admin/users/index', [
@@ -63,8 +62,10 @@ class Users extends BaseController
             'email'            => 'required|valid_email|is_unique[users.email]',
             'password'         => 'required|min_length[6]',
             'password_confirm' => 'required|matches[password]',
-            'role'             => 'required|in_list[admin,user]',
+            'role'             => 'required|in_list[root,dealer,user]',
             'status'           => 'required|in_list[active,passive]',
+            // root kullanıcı için tenant_id NULL kalabilir; dealer/user için tenant_id zorunlu olsun:
+            'tenant_id'        => 'permit_empty|is_natural_no_zero',
         ];
 
         if (! $this->validate($rules)) {
@@ -74,10 +75,29 @@ class Users extends BaseController
 
         $post = $this->request->getPost();
 
+        $role = (string) ($post['role'] ?? 'user');
+        if ($role === 'admin') $role = 'root'; // geriye dönük
+
+        $tenantId = $post['tenant_id'] ?? null;
+        $tenantId = ($tenantId === '' || $tenantId === null) ? null : (int)$tenantId;
+
+        // dealer/user için tenant zorunlu
+        if (in_array($role, ['dealer','user'], true) && empty($tenantId)) {
+            return redirect()->back()->withInput()
+                ->with('errors', ['tenant_id' => 'Dealer/User için tenant_id zorunludur.']);
+        }
+
+        // root için tenant_id null zorunlu tutalım (temizlik)
+        if ($role === 'root') {
+            $tenantId = null;
+        }
+
         $this->userModel->insert([
+            'tenant_id'     => $tenantId,
+            'created_by'    => null,
             'name'          => $post['name'],
             'email'         => $post['email'],
-            'role'          => $post['role'],
+            'role'          => $role,
             'status'        => $post['status'],
             'password_hash' => password_hash($post['password'], PASSWORD_DEFAULT),
         ]);
@@ -114,10 +134,11 @@ class Users extends BaseController
         $rules = [
             'name'             => 'required|min_length[3]|max_length[100]',
             'email'            => 'required|valid_email|is_unique[users.email,id,' . $id . ']',
-            'role'             => 'required|in_list[admin,user]',
+            'role'             => 'required|in_list[root,dealer,user]',
             'status'           => 'required|in_list[active,passive]',
             'password'         => 'permit_empty|min_length[6]',
             'password_confirm' => 'permit_empty|matches[password]',
+            'tenant_id'        => 'permit_empty|is_natural_no_zero',
         ];
 
         if (! $this->validate($rules)) {
@@ -127,19 +148,41 @@ class Users extends BaseController
 
         $post = $this->request->getPost();
 
-        if (($user['role'] ?? '') === 'admin' && ($post['role'] ?? '') === 'user') {
-            $adminCount = $this->userModel->where('role', 'admin')->countAllResults();
-            if ($adminCount <= 1) {
+        $newRole = (string) ($post['role'] ?? 'user');
+        if ($newRole === 'admin') $newRole = 'root';
+
+        $tenantId = $post['tenant_id'] ?? null;
+        $tenantId = ($tenantId === '' || $tenantId === null) ? null : (int)$tenantId;
+
+        // dealer/user için tenant zorunlu
+        if (in_array($newRole, ['dealer','user'], true) && empty($tenantId)) {
+            return redirect()->back()->withInput()
+                ->with('errors', ['tenant_id' => 'Dealer/User için tenant_id zorunludur.']);
+        }
+
+        // root için tenant null
+        if ($newRole === 'root') {
+            $tenantId = null;
+        }
+
+        // son root koruması
+        $oldRole = $user['role'] ?? 'user';
+        if ($oldRole === 'admin') $oldRole = 'root';
+
+        if ($oldRole === 'root' && $newRole !== 'root') {
+            $rootCount = $this->userModel->where('role', 'root')->countAllResults();
+            if ($rootCount <= 1) {
                 return redirect()->back()->withInput()
-                    ->with('error', 'Son admin rolü user yapılamaz.');
+                    ->with('error', 'Son root rolü değiştirilemez.');
             }
         }
 
         $updateData = [
-            'name'   => $post['name'],
-            'email'  => $post['email'],
-            'role'   => $post['role'],
-            'status' => $post['status'],
+            'tenant_id' => $tenantId,
+            'name'      => $post['name'],
+            'email'     => $post['email'],
+            'role'      => $newRole,
+            'status'    => $post['status'],
         ];
 
         if (! empty($post['password'])) {
@@ -165,11 +208,14 @@ class Users extends BaseController
                 ->with('error', 'Kendi hesabını silemezsin.');
         }
 
-        if (($user['role'] ?? '') === 'admin') {
-            $adminCount = $this->userModel->where('role', 'admin')->countAllResults();
-            if ($adminCount <= 1) {
+        $role = $user['role'] ?? 'user';
+        if ($role === 'admin') $role = 'root';
+
+        if ($role === 'root') {
+            $rootCount = $this->userModel->where('role', 'root')->countAllResults();
+            if ($rootCount <= 1) {
                 return redirect()->to(base_url('admin/users'))
-                    ->with('error', 'Son admin silinemez.');
+                    ->with('error', 'Son root silinemez.');
             }
         }
 
@@ -209,7 +255,11 @@ class Users extends BaseController
 
     public function impersonate(int $id)
     {
-        if (! session('is_logged_in') || session('user_role') !== 'admin') {
+        // admin->root uyumu
+        $role = session('user_role') ?? 'user';
+        if ($role === 'admin') $role = 'root';
+
+        if (! session('is_logged_in') || $role !== 'root') {
             return redirect()->to(base_url('auth/login'));
         }
 
@@ -222,22 +272,33 @@ class Users extends BaseController
             return redirect()->back()->with('error', 'Zaten bu hesaptasın.');
         }
 
+        // root hesabına geçişi engelle (isteğe bağlı güvenlik)
+        $tRole = $target['role'] ?? 'user';
+        if ($tRole === 'admin') $tRole = 'root';
+        if ($tRole === 'root') {
+            return redirect()->back()->with('error', 'Root hesabına impersonate yapılamaz.');
+        }
+
         $session = session();
 
+        // impersonator bilgilerini sakla
         $session->set([
-            'impersonator_id'   => (int) session('user_id'),
-            'impersonator_role' => (string) session('user_role'),
-            'impersonator_email'=> (string) session('user_email'),
-            'impersonator_name' => (string) session('user_name'),
-            'is_impersonating'  => true,
+            'impersonator_id'       => (int) session('user_id'),
+            'impersonator_role'     => (string) session('user_role'),
+            'impersonator_email'    => (string) session('user_email'),
+            'impersonator_name'     => (string) session('user_name'),
+            'impersonator_tenant_id'=> session('tenant_id'),
+            'is_impersonating'      => true,
         ]);
 
+        // hedef kullanıcıya geç (tenant_id dahil)
         $session->set([
             'is_logged_in' => true,
             'user_id'      => (int) $target['id'],
             'user_email'   => (string) ($target['email'] ?? ''),
             'user_name'    => (string) ($target['name'] ?? ''),
-            'user_role'    => (string) ($target['role'] ?? 'user'), 
+            'user_role'    => (string) ($tRole ?? 'user'),
+            'tenant_id'    => $target['tenant_id'] ?? null,
         ]);
 
         return redirect()->to(base_url('panel'))
@@ -256,22 +317,26 @@ class Users extends BaseController
 
         $session = session();
 
-        $adminId = (int) $session->get('impersonator_id');
-        $admin   = $this->userModel->find($adminId);
+        $rootId = (int) $session->get('impersonator_id');
+        $root   = $this->userModel->find($rootId);
 
-        if (! $admin) {
+        if (! $root) {
             $session->destroy();
             return redirect()->to(base_url('auth/login'));
         }
 
         $session->regenerate(true);
 
+        $rRole = (string) ($root['role'] ?? 'root');
+        if ($rRole === 'admin') $rRole = 'root';
+
         $session->set([
             'is_logged_in' => true,
-            'user_id'      => (int) $admin['id'],
-            'user_email'   => (string) ($admin['email'] ?? ''),
-            'user_name'    => (string) ($admin['name'] ?? ''),
-            'user_role'    => (string) ($admin['role'] ?? 'admin'),
+            'user_id'      => (int) $root['id'],
+            'user_email'   => (string) ($root['email'] ?? ''),
+            'user_name'    => (string) ($root['name'] ?? ''),
+            'user_role'    => $rRole,
+            'tenant_id'    => $root['tenant_id'] ?? null, // root için null beklenir
         ]);
 
         $session->remove([
@@ -279,10 +344,11 @@ class Users extends BaseController
             'impersonator_role',
             'impersonator_email',
             'impersonator_name',
+            'impersonator_tenant_id',
             'is_impersonating',
         ]);
 
         return redirect()->to(base_url('admin/users'))
-            ->with('success', 'Admin hesabına geri dönüldü.');
+            ->with('success', 'Root hesabına geri dönüldü.');
     }
 }

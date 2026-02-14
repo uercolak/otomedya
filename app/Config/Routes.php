@@ -109,10 +109,14 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
 
     $routes->group('dealer', ['namespace' => 'App\Controllers\Dealer','filter'    => 'dealer',], static function ($routes) {
 
-    $routes->get('/', 'Dashboard::index');
+    $routes->get('/',                                           'Dashboard::index');
 
-    $routes->get('users',                       'Users::index');
-    $routes->post('users',                      'Users::store');
-    $routes->post('users/(:num)/toggle-status', 'Users::toggleStatus/$1');
+    $routes->get('users',                                       'Users::index');
+    $routes->get('users/new',                                   'Users::create');
+    $routes->get('users/(:num)/edit',                           'Users::edit/$1');
+    $routes->post('users',                                      'Users::store');
+    $routes->post('users/(:num)',                               'Users::update/$1');
+    $routes->post('users/(:num)/delete',                        'Users::delete/$1');
+    $routes->post('users/(:num)/toggle-status',                 'Users::toggleStatus/$1');
 
 });

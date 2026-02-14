@@ -1,4 +1,4 @@
-<?= $this->extend('layouts/admin') ?>
+<?= $this->extend('layouts/dealer') ?>
 <?= $this->section('content') ?>
 
 <style>
@@ -7,42 +7,18 @@
   .table thead th { font-weight: 600; }
   .table td, .table th { padding-top: 14px; padding-bottom: 14px; }
   .table tbody tr:hover { background: rgba(124,58,237,.04); }
-
-  /* Aksiyonları hover’da göster (premium his) */
   .row-actions { opacity: .0; transform: translateX(4px); transition: .15s ease; }
   tr:hover .row-actions { opacity: 1; transform: translateX(0); }
-
   .badge.rounded-pill { padding: .45rem .65rem; font-weight: 600; }
-
-  /* küçük iyileştirme */
   .table-responsive { position: relative; z-index: 1; }
   .btn-group, .btn-group .btn { position: relative; z-index: 5; pointer-events: auto; }
 </style>
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Kullanıcılar</h1>
-    <p class="text-muted mb-0">Kullanıcı Hesap Yönetimi</p>
-  </div>
-</div>
+
 <div class="d-flex justify-content-end mb-3">
-  <a href="<?= base_url('admin/users/new') ?>" class="btn btn-primary">
+  <a href="<?= base_url('dealer/users/new') ?>" class="btn btn-primary">
     <i class="bi bi-plus-lg me-1"></i> Yeni Kullanıcı
   </a>
 </div>
-
-<?php if (session()->getFlashdata('success')): ?>
-  <div class="alert alert-success d-flex align-items-center gap-2">
-    <i class="bi bi-check-circle"></i>
-    <div><?= esc(session()->getFlashdata('success')) ?></div>
-  </div>
-<?php endif; ?>
-
-<?php if (session()->getFlashdata('error')): ?>
-  <div class="alert alert-danger d-flex align-items-center gap-2">
-    <i class="bi bi-exclamation-triangle"></i>
-    <div><?= esc(session()->getFlashdata('error')) ?></div>
-  </div>
-<?php endif; ?>
 
 <?php $errors = session()->getFlashdata('errors') ?? []; ?>
 <?php if (! empty($errors)): ?>
@@ -58,7 +34,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
-    <form method="get" action="<?= base_url('admin/users') ?>" class="row g-2 align-items-center">
+    <form method="get" action="<?= base_url('dealer/users') ?>" class="row g-2 align-items-center">
       <div class="col-12 col-lg">
         <div class="input-group">
           <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
@@ -81,7 +57,7 @@
         </button>
 
         <?php if (!empty($q) || !empty($status)): ?>
-          <a href="<?= base_url('admin/users') ?>" class="btn btn-link text-decoration-none">Temizle</a>
+          <a href="<?= base_url('dealer/users') ?>" class="btn btn-link text-decoration-none">Temizle</a>
         <?php endif; ?>
       </div>
     </form>
@@ -120,24 +96,9 @@
               </td>
 
               <td>
-                <?php
-                    $r = $u['role'] ?? 'user';
-                    if ($r === 'admin') $r = 'root';
-                    ?>
-
-                    <?php if ($r === 'root'): ?>
-                    <span class="badge rounded-pill text-bg-danger">
-                        <i class="bi bi-shield-lock me-1"></i> root
-                    </span>
-                    <?php elseif ($r === 'dealer'): ?>
-                    <span class="badge rounded-pill text-bg-warning">
-                        <i class="bi bi-diagram-3 me-1"></i> dealer
-                    </span>
-                    <?php else: ?>
-                    <span class="badge rounded-pill text-bg-secondary">
-                        <i class="bi bi-person me-1"></i> user
-                    </span>
-                    <?php endif; ?>
+                <span class="badge rounded-pill text-bg-secondary">
+                  <i class="bi bi-person me-1"></i> user
+                </span>
               </td>
 
               <td>
@@ -160,37 +121,18 @@
               </td>
 
               <td class="text-end">
-                <?php
-                    $rr = $u['role'] ?? 'user';
-                    if ($rr === 'admin') $rr = 'root';
-                    ?>
-                    <?php if ($rr !== 'root'): ?>
-                <form action="<?= base_url('admin/users/' . (int)$u['id'] . '/impersonate') ?>"
-                        method="post" class="d-inline">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-sm btn-outline-primary" title="Bu hesaba bağlan">
-                    <i class="bi bi-eye"></i>
-                    </button>
-                </form>
-                <?php endif; ?>
                 <div class="btn-group row-actions" role="group">
                   <a class="btn btn-sm btn-outline-secondary"
-                     href="<?= base_url('admin/users/' . $u['id'] . '/edit') ?>">
+                     href="<?= base_url('dealer/users/' . (int)$u['id'] . '/edit') ?>">
                     <i class="bi bi-pencil"></i>
                   </a>
 
-                  <?php if ((int)$u['id'] === (int)session('user_id')): ?>
-                    <button class="btn btn-sm btn-outline-danger" disabled title="Kendi hesabını silemezsin">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  <?php else: ?>
-                    <button type="button" class="btn btn-sm btn-outline-danger js-delete-btn"
-                            data-id="<?= (int)$u['id'] ?>"
-                            data-name="<?= esc($u['name']) ?>"
-                            data-email="<?= esc($u['email']) ?>">
-                      <i class="bi bi-trash"></i>
-                    </button>
-                  <?php endif; ?>
+                  <button type="button" class="btn btn-sm btn-outline-danger js-delete-btn"
+                          data-id="<?= (int)$u['id'] ?>"
+                          data-name="<?= esc($u['name']) ?>"
+                          data-email="<?= esc($u['email']) ?>">
+                    <i class="bi bi-trash"></i>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -200,7 +142,7 @@
             <td colspan="7" class="text-center py-5">
               <div class="fw-semibold mb-1">Kullanıcı bulunamadı</div>
               <div class="text-muted small mb-3">Filtreyi temizleyip tekrar deneyebilirsin.</div>
-              <a href="<?= base_url('admin/users/new') ?>" class="btn btn-primary btn-sm">
+              <a href="<?= base_url('dealer/users/new') ?>" class="btn btn-primary btn-sm">
                 <i class="bi bi-plus-lg me-1"></i> Yeni Kullanıcı
               </a>
             </td>
@@ -288,7 +230,7 @@
         const id = btn.dataset.id;
         nameEl.textContent = btn.dataset.name || '-';
         emailEl.textContent = btn.dataset.email || '-';
-        formEl.action = "<?= base_url('admin/users') ?>/" + id + "/delete";
+        formEl.action = "<?= base_url('dealer/users') ?>/" + id + "/delete";
         modal.show();
       });
     });
@@ -306,7 +248,7 @@
     btn.disabled = true;
 
     try {
-      const res = await fetch("<?= base_url('admin/users') ?>/" + id + "/toggle-status", {
+      const res = await fetch("<?= base_url('dealer/users') ?>/" + id + "/toggle-status", {
         method: "POST",
         headers: {
           "X-Requested-With": "XMLHttpRequest",
@@ -321,7 +263,6 @@
         return;
       }
 
-      // csrf refresh
       if (data.csrfName && data.csrfHash) {
         window.__csrfName = data.csrfName;
         window.__csrfHash = data.csrfHash;
