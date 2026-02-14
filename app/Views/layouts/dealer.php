@@ -1,123 +1,133 @@
+<?php helper('url'); ?>
 <!doctype html>
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <title><?= esc($pageTitle ?? 'Dealer Panel') ?> | Sosyal Medya Planlama</title>
+  <title><?= esc($pageTitle ?? 'Bayi Paneli'); ?> - Sosyal Medya Planlama</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <link rel="icon" type="image/png" href="<?= base_url('/logo2.png'); ?>">
-
+  <link rel="icon" type="image/png" href="<?= base_url('/panellogo.png'); ?>">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link href="<?= base_url('/assets/css/panel.css'); ?>" rel="stylesheet">
 
   <style>
-    body { background:#f6f7fb; }
-    .sidebar{
-      width:260px; min-height:100vh; background:#fff; border-right:1px solid rgba(0,0,0,.06);
-      position:sticky; top:0;
+    :root{
+      --ink: rgba(17,24,39,.88);
+      --muted: rgba(17,24,39,.58);
+      --border: rgba(0,0,0,.06);
+      --bg: #f6f7fb;
+      --primary: #7c3aed;
+      --primarySoft: rgba(124,58,237,.08);
+      --radius: 16px;
     }
-    .brand{
-      padding:18px 16px; border-bottom:1px solid rgba(0,0,0,.06);
-      display:flex; align-items:center; gap:10px;
+    body{
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      font-size: 14px;
     }
-    .brand img{ height:34px; width:auto; }
-    .nav-link{
-      color:#0f172a; border-radius:12px; padding:.65rem .75rem;
+    a{ text-decoration:none !important; }
+    .chip-dealer{
+      border: 1px solid rgba(124,58,237,.16);
+      background: var(--primarySoft);
+      color: rgba(124,58,237,.92);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 700;
+      font-size: 12px;
     }
-    .nav-link:hover{ background:rgba(124,58,237,.06); }
-    .nav-link.active{ background:rgba(124,58,237,.10); color:#5b21b6; font-weight:600; }
-    .topbar{
-      background:#fff; border-bottom:1px solid rgba(0,0,0,.06);
-      padding:12px 18px; border-radius:16px;
-    }
-    .content-wrap{ padding:18px; }
-    .card{ border-radius:16px; }
-    .shadow-soft{ box-shadow: 0 10px 30px rgba(17,24,39,.06) !important; }
+
+    .modal{ z-index: 99999 !important; }
+    .modal-backdrop{ z-index: 99998 !important; }
+    .sidebar-overlay{ z-index: 1000; }
+
+    <?= $this->renderSection('styles') ?>
   </style>
 </head>
 <body>
 
-<div class="d-flex">
-  <!-- Sidebar -->
-  <aside class="sidebar p-3">
-    <div class="brand">
-      <img src="<?= base_url('/logo.png'); ?>" alt="Sosyal Medya Planlama">
-      <div class="lh-sm">
-        <div class="fw-bold">Sosyal Medya Planlama</div>
-        <div class="text-muted small">Dealer Paneli</div>
+<div class="layout">
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="brand mb-3">
+      <img class="brand-logo-img" src="<?= base_url('panellogo.png') ?>" alt="Logo">
+      <div>
+        <div class="brand-title">Sosyal Medya Planlama</div>
+        <div class="brand-sub">Bayi Paneli</div>
       </div>
     </div>
 
-    <div class="mt-3">
-      <div class="text-uppercase text-muted small px-2 mb-2" style="letter-spacing:.08em;">GENEL</div>
+    <nav class="nav flex-column side-nav">
+      <?= $this->include('partials/dealer_sidebar') ?>
+    </nav>
 
-      <?php $uri = service('uri')->getPath(); ?>
-      <a class="nav-link <?= str_starts_with($uri, 'dealer') && ($uri === 'dealer' || $uri === 'dealer/') ? 'active' : '' ?>"
-         href="<?= base_url('dealer') ?>">
-        <i class="bi bi-speedometer2 me-2"></i> Gösterge Paneli
-      </a>
-
-      <div class="text-uppercase text-muted small px-2 mt-3 mb-2" style="letter-spacing:.08em;">YÖNETİM</div>
-
-      <a class="nav-link <?= str_starts_with($uri, 'dealer/users') ? 'active' : '' ?>"
-         href="<?= base_url('dealer/users') ?>">
-        <i class="bi bi-people me-2"></i> Kullanıcılar
-      </a>
-
-      <hr class="my-3">
-
-      <a class="nav-link text-danger" href="<?= base_url('auth/logout') ?>">
-        <i class="bi bi-box-arrow-right me-2"></i> Çıkış
-      </a>
-
-      <div class="mt-4 small text-muted">
-        <div><b>Aktif:</b> <?= esc(session('user_email') ?? '-') ?></div>
-        <div><b>Tenant:</b> <?= esc(session('tenant_id') ?? '-') ?></div>
-      </div>
+    <div class="side-footer mt-3">
+      <div class="text-muted small">Aktif bayi</div>
+      <div class="fw-semibold" style="color:rgba(17,24,39,.82)"><?= esc(session('user_email') ?? '') ?></div>
     </div>
   </aside>
 
-  <!-- Main -->
-  <main class="flex-grow-1">
-    <div class="content-wrap">
-      <div class="topbar d-flex align-items-center justify-content-between mb-3">
-        <div>
-          <div class="fw-semibold"><?= esc($pageTitle ?? 'Dealer Panel') ?></div>
-          <?php if (!empty($pageSubtitle)): ?>
-            <div class="text-muted small"><?= esc($pageSubtitle) ?></div>
-          <?php endif; ?>
-        </div>
+  <main class="main">
+    <div class="topbar">
+      <div class="top-left">
+        <button id="mobileMenuBtn" class="mobile-menu-btn" type="button">
+          <i class="bi bi-list"></i>
+        </button>
 
-        <div class="d-flex align-items-center gap-2">
-          <span class="badge rounded-pill text-bg-light border">
-            <i class="bi bi-shield-check me-1"></i> dealer
-          </span>
-          <a class="btn btn-outline-secondary btn-sm" href="<?= base_url('auth/logout') ?>">
-            <i class="bi bi-box-arrow-right me-1"></i> Çıkış
-          </a>
+        <div class="d-flex flex-column">
+          <div class="small text-muted" style="line-height:1.1;">Bayi</div>
+          <div class="fw-semibold" style="line-height:1.1; font-size: 13px; color:rgba(17,24,39,.78)">
+            <?= esc($pageTitle ?? '') ?>
+          </div>
         </div>
       </div>
 
-      <?php if (session()->getFlashdata('success')): ?>
-        <div class="alert alert-success d-flex align-items-center gap-2 shadow-soft">
-          <i class="bi bi-check-circle"></i>
-          <div><?= esc(session()->getFlashdata('success')) ?></div>
-        </div>
-      <?php endif; ?>
+      <div class="d-flex align-items-center gap-2">
+        <span class="chip-dealer d-none d-md-inline-flex">
+          <i class="bi bi-briefcase me-1"></i> Bayi
+        </span>
 
-      <?php if (session()->getFlashdata('error')): ?>
-        <div class="alert alert-danger d-flex align-items-center gap-2 shadow-soft">
-          <i class="bi bi-exclamation-triangle"></i>
-          <div><?= esc(session()->getFlashdata('error')) ?></div>
-        </div>
-      <?php endif; ?>
-
-      <?= $this->renderSection('content') ?>
+        <form action="<?= site_url('auth/logout'); ?>" method="post" class="m-0">
+          <?= csrf_field() ?>
+          <button type="submit" class="btn-ghost">
+            <i class="bi bi-box-arrow-right me-1"></i> Çıkış
+          </button>
+        </form>
+      </div>
     </div>
+
+    <?= $this->renderSection('content') ?>
   </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  const sidebar = document.getElementById('sidebar');
+  const sidebarOverlay = document.getElementById('sidebarOverlay');
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+      sidebarOverlay.classList.toggle('show');
+    });
+  }
+
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      sidebarOverlay.classList.remove('show');
+    });
+  }
+</script>
+
 <?= $this->renderSection('scripts') ?>
 </body>
 </html>
