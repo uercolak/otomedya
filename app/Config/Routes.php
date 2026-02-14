@@ -106,3 +106,13 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     
 });
     $routes->post('admin/users/stop-impersonate', 'Admin\Users::stopImpersonate', ['filter' => 'auth']);
+
+    $routes->group('dealer', ['namespace' => 'App\Controllers\Dealer','filter'    => 'dealer',], static function ($routes) {
+
+    $routes->get('/', 'Dashboard::index');
+
+    $routes->get('users',                       'Users::index');
+    $routes->post('users',                      'Users::store');
+    $routes->post('users/(:num)/toggle-status', 'Users::toggleStatus/$1');
+
+});

@@ -7,7 +7,6 @@ use App\Models\UserModel;
 
 class Auth extends BaseController
 {
-    
     public function loginForm()
     {
         if (session('is_logged_in')) {
@@ -42,7 +41,6 @@ class Auth extends BaseController
                 ->with('errors', ['email' => 'E-posta veya şifre hatalı.']);
         }
 
-        // ✅ TAM OLARAK BURAYA (session set etmeden önce)
         if (($user['status'] ?? 'active') !== 'active') {
             return redirect()->back()
                 ->withInput()
@@ -52,12 +50,19 @@ class Auth extends BaseController
         $session = session();
         $session->regenerate(true);
 
+        // admin kalmış olabilir diye güvence
+        $role = $user['role'] ?? 'user';
+        if ($role === 'admin') {
+            $role = 'root';
+        }
+
         $session->set([
             'is_logged_in' => true,
-            'user_id'      => $user['id'],
+            'user_id'      => (int)$user['id'],
             'user_email'   => $user['email'],
             'user_name'    => $user['name'] ?? '',
-            'user_role'    => $user['role'] ?? 'user',
+            'user_role'    => $role,
+            'tenant_id'    => $user['tenant_id'] ?? null,
         ]);
 
         return $this->redirectByRole();
@@ -71,8 +76,20 @@ class Auth extends BaseController
 
     private function redirectByRole()
     {
-        return (session('user_role') === 'admin')
-            ? redirect()->to('/admin')
-            : redirect()->to('/panel');
+        $role = session('user_role') ?? 'user';
+
+        if ($role === 'admin') {
+            $role = 'root';
+        }
+
+        if ($role === 'root') {
+            return redirect()->to('/admin');
+        }
+
+        if ($role === 'dealer') {
+            return redirect()->to('/dealer');
+        }
+
+        return redirect()->to('/panel');
     }
 }

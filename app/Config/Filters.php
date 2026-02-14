@@ -15,7 +15,6 @@ use CodeIgniter\Filters\SecureHeaders;
 
 class Filters extends BaseFilters
 {
-
     public array $aliases = [
         'csrf'          => CSRF::class,
         'toolbar'       => DebugToolbar::class,
@@ -26,32 +25,31 @@ class Filters extends BaseFilters
         'forcehttps'    => ForceHTTPS::class,
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
+
         'auth'          => \App\Filters\AuthFilter::class,
         'admin'         => \App\Filters\AdminFilter::class,
+        'dealer'        => \App\Filters\DealerFilter::class,   // ✅ EKLENDİ
         'deploywebhook' => \App\Filters\DeployWebhookFilter::class,
     ];
 
-
     public array $required = [
         'before' => [
-            'forcehttps', // Force Global Secure Requests
-            'pagecache',  // Web Page Caching
+            'forcehttps',
+            'pagecache',
         ],
         'after' => [
-            'pagecache',   // Web Page Caching
-            'performance', // Performance Metrics
-            'toolbar',     // Debug Toolbar
+            'pagecache',
+            'performance',
+            'toolbar',
         ],
     ];
 
-
     public array $globals = [
         'before' => [
-            // ...
             'csrf' => [
-            'except' => [
-                'deploy/webhook',
-                'deploy/webhook/*',
+                'except' => [
+                    'deploy/webhook',
+                    'deploy/webhook/*',
                 ],
             ],
         ],
@@ -62,8 +60,5 @@ class Filters extends BaseFilters
 
     public array $methods = [];
 
-
-    public array $filters = [
-
-    ];
+    public array $filters = [];
 }
