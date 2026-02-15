@@ -9,3 +9,7 @@
 <a class="nav-link <?= url_is('dealer/publishes*') ? 'active' : '' ?>" href="<?= base_url('dealer/publishes') ?>">
   <i class="bi bi-send me-2"></i> Paylaşımlar
 </a>
+
+<a class="nav-link <?= url_is('dealer/jobs*') ? 'active' : '' ?>" href="<?= base_url('dealer/jobs') ?>">
+  <i class="bi bi-cpu me-2"></i> Arka Plan İşleri
+</a>
