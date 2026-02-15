@@ -2,8 +2,7 @@
 <?php $uri = service('uri'); ?>
 
 <?php
-// Güvenli: segment yoksa bile hata vermez
-$segments = $uri->getSegments();   // örn: ['admin','publishes','create']
+$segments = $uri->getSegments();   
 $seg1 = $segments[0] ?? '';
 $seg2 = $segments[1] ?? '';
 $seg3 = $segments[2] ?? '';
