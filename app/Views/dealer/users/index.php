@@ -32,6 +32,20 @@
   </div>
 <?php endif; ?>
 
+<?php if (session()->getFlashdata('success')): ?>
+  <div class="alert alert-success d-flex align-items-center gap-2">
+    <i class="bi bi-check-circle"></i>
+    <div><?= esc(session()->getFlashdata('success')) ?></div>
+  </div>
+<?php endif; ?>
+
+<?php if (session()->getFlashdata('error')): ?>
+  <div class="alert alert-danger d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-triangle"></i>
+    <div><?= esc(session()->getFlashdata('error')) ?></div>
+  </div>
+<?php endif; ?>
+
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
     <form method="get" action="<?= base_url('dealer/users') ?>" class="row g-2 align-items-center">
