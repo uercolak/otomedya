@@ -58,7 +58,7 @@
               <label class="form-label">Durum</label>
               <select name="status" class="form-select">
                 <option value="active"   <?= old('status','active')==='active' ? 'selected' : '' ?>>Aktif</option>
-                <option value="inactive" <?= old('status')==='inactive' ? 'selected' : '' ?>>Pasif</option>
+                <option value="passive" <?= old('status')==='passive' ? 'selected' : '' ?>>Pasif</option>
               </select>
               <div class="form-text">Pasif kullanıcı giriş yapamaz.</div>
             </div>
