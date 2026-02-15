@@ -118,5 +118,11 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->post('users/(:num)',                               'Users::update/$1');
     $routes->post('users/(:num)/delete',                        'Users::delete/$1');
     $routes->post('users/(:num)/toggle-status',                 'Users::toggleStatus/$1');
+    $routes->get('publishes',                                   'PublishesController::index');
+    $routes->get('publishes/(:num)',                            'PublishesController::show/$1');
+    $routes->post('publishes/(:num)/cancel',                    'PublishesController::cancel/$1');
+    $routes->post('publishes/(:num)/retry',                     'PublishesController::retry/$1');
+    $routes->post('publishes/(:num)/check',                     'PublishesController::check/$1');
+    $routes->post('publishes/(:num)/reset-job',                 'PublishesController::resetJob/$1');
 
 });
