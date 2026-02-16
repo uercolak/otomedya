@@ -298,7 +298,7 @@
     </div>
 
     <div class="page-footer">
-      &copy; <?= date('Y'); ?> Sosyal Medya Planlama. Tüm hakları saklıdır.
+      &copy; <?= date('Y'); ?> Sosyal Medya Planlama. Tüm hakları saklıdır. / EN YAZILIM TEKSTİL PLASTİK KOZMETİK PAZARLAMA DANIŞMANLIK LTD. ŞTİ.
     </div>
   </div>
 
