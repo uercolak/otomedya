@@ -30,7 +30,7 @@ class Dashboard extends BaseController
             ->where('status', 'passive')
             ->countAllResults();
 
-        // Alt kullanıcı ID listesi (planlı paylaşımları çekmek için)
+        // Alt kullanıcı ID listesi
         $subUserRows = $db->table('users')
             ->select('id')
             ->where('tenant_id', $tenantId)
@@ -40,27 +40,30 @@ class Dashboard extends BaseController
 
         $subUserIds = array_map('intval', array_column($subUserRows, 'id'));
 
-        // Planlı Paylaşımlar (yaklaşan ilk 10)
+        // Planlı Paylaşımlar (yaklaşan)
         $upcomingPosts = [];
         $upcomingCount = 0;
 
         if (!empty($subUserIds)) {
-            // scheduled_posts: kolon adların farklıysa burayı güncelle
-            // Örn: schedule_at yerine publish_at / scheduled_for vs.
+            $now = date('Y-m-d H:i:s');
+
+            // scheduled_posts kolon adı: scheduled_at ✅
             $upcomingPosts = $db->table('scheduled_posts sp')
-                ->select('sp.id, sp.schedule_at, sp.status, u.name as user_name, u.email as user_email')
-                ->join('users u', 'u.id = sp.user_id', 'left')
-                ->where('sp.tenant_id', $tenantId)
-                ->whereIn('sp.user_id', $subUserIds)
-                ->where('sp.schedule_at >=', date('Y-m-d H:i:s'))
-                ->orderBy('sp.schedule_at', 'ASC')
+                ->select('sp.id, sp.scheduled_at, sp.status, sp.platform, u.name as user_name, u.email as user_email')
+                ->join('users u', 'u.id = sp.publish_id', 'left') // publish_id kullanıcı id'si ise
+                // publish_id user_id değilse, aşağıdaki satırı düzelt:
+                // ->join('users u', 'u.id = sp.user_id', 'left')
+                ->whereIn('sp.publish_id', $subUserIds) // publish_id kullanıcı id'si ise
+                // publish_id user_id değilse, bunu değiştir:
+                // ->whereIn('sp.user_id', $subUserIds)
+                ->where('sp.scheduled_at >=', $now)
+                ->orderBy('sp.scheduled_at', 'ASC')
                 ->limit(10)
                 ->get()->getResultArray();
 
             $upcomingCount = $db->table('scheduled_posts sp')
-                ->where('sp.tenant_id', $tenantId)
-                ->whereIn('sp.user_id', $subUserIds)
-                ->where('sp.schedule_at >=', date('Y-m-d H:i:s'))
+                ->whereIn('sp.publish_id', $subUserIds)
+                ->where('sp.scheduled_at >=', $now)
                 ->countAllResults();
         }
 

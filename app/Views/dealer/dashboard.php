@@ -43,7 +43,7 @@
           </div>
 
           <div class="text-muted small mb-2">
-            Alt kullanıcılarının planladığı en yakın paylaşımlar:
+            Alt kullanıcılarının en yakın planlı paylaşımları:
           </div>
 
           <?php if (!empty($upcomingPosts)): ?>
@@ -52,6 +52,7 @@
                 <thead class="small text-muted">
                   <tr>
                     <th>Kullanıcı</th>
+                    <th>Platform</th>
                     <th>Tarih</th>
                     <th class="text-end">Durum</th>
                   </tr>
@@ -72,7 +73,10 @@
                         <div class="text-muted small"><?= esc($p['user_email'] ?? '') ?></div>
                       </td>
                       <td class="small">
-                        <?= esc($p['schedule_at'] ?? '-') ?>
+                        <?= esc($p['platform'] ?? '-') ?>
+                      </td>
+                      <td class="small">
+                        <?= esc($p['scheduled_at'] ?? '-') ?>
                       </td>
                       <td class="text-end">
                         <span class="badge <?= esc($badge) ?>">
@@ -83,12 +87,6 @@
                   <?php endforeach; ?>
                 </tbody>
               </table>
-            </div>
-
-            <div class="mt-2 text-end">
-              <a href="<?= base_url('dealer/shares') ?>" class="btn btn-sm btn-outline-secondary">
-                Tümünü Gör
-              </a>
             </div>
           <?php else: ?>
             <div class="text-muted small">
@@ -127,7 +125,7 @@
               <div class="p-3 rounded border bg-white">
                 <div class="text-muted small mb-1">Paylaşım Takibi</div>
                 <div class="fw-semibold">Hazır</div>
-                <div class="text-muted small">Planlı paylaşımlar sağ üst kartta listelenir.</div>
+                <div class="text-muted small">Yaklaşan planlı paylaşımlar listelenir.</div>
               </div>
             </div>
             <div class="col-md-4">
