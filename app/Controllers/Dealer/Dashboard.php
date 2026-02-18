@@ -12,6 +12,8 @@ class Dashboard extends BaseController
         $tenantId = (int) session('tenant_id');
         $dealerId = (int) session('user_id');
 
+        $db = \Config\Database::connect();
+
         $totalUsers = (new \App\Models\UserModel())
             ->where('tenant_id', $tenantId)
             ->where('role', 'user')
