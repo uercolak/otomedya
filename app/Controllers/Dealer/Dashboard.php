@@ -10,23 +10,25 @@ class Dashboard extends BaseController
     public function index()
     {
         $tenantId = (int) session('tenant_id');
-        $dealerId = (int) session('user_id'); // bayi hesabının id'si
+        $dealerId = (int) session('user_id');
 
-        $userModel = new UserModel();
-        $db = \Config\Database::connect();
-
-        // Bayinin alt kullanıcıları: created_by = bayi_id
-        $baseUsers = $userModel->where('tenant_id', $tenantId)
+        $totalUsers = (new \App\Models\UserModel())
+            ->where('tenant_id', $tenantId)
             ->where('role', 'user')
-            ->where('created_by', $dealerId);
+            ->where('created_by', $dealerId)
+            ->countAllResults();
 
-        $totalUsers = (clone $baseUsers)->countAllResults();
-
-        $activeUsers = (clone $baseUsers)
+        $activeUsers = (new \App\Models\UserModel())
+            ->where('tenant_id', $tenantId)
+            ->where('role', 'user')
+            ->where('created_by', $dealerId)
             ->where('status', 'active')
             ->countAllResults();
 
-        $passiveUsers = (clone $baseUsers)
+        $passiveUsers = (new \App\Models\UserModel())
+            ->where('tenant_id', $tenantId)
+            ->where('role', 'user')
+            ->where('created_by', $dealerId)
             ->where('status', 'passive')
             ->countAllResults();
 
