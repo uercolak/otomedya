@@ -7,7 +7,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Arka Plan İşleri</h1>
-      <p class="text-muted mb-4">Sadece sizin oluşturduğunuz kullanıcıların paylaşımlarına ait işler.</p>
+      <p class="text-muted mb-4">Kullanıcılarınıza ait paylaşımları görüntüleyebilir, hatalı gönderileri takip edebilir ve hata detaylarını inceleyebilirsiniz.</p>
     </div>
   </div>
 

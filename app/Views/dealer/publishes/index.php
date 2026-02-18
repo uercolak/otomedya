@@ -5,7 +5,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Paylaşımlar</h1>
-    <p class="text-muted mb-4">Sadece sizin oluşturduğunuz kullanıcıların paylaşımları.</p>
+    <p class="text-muted mb-4">Kullanıcılarınıza ait paylaşımları görüntüleyebilir, askıda kalan içerikleri yeniden kuyruğa alarak gönderim sürecini başlatabilirsiniz. </p>
   </div>
 </div>
 
