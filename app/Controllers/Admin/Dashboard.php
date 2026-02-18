@@ -85,7 +85,7 @@ class Dashboard extends BaseController
         $accountsListBuilder = $db->table('social_accounts sa');
         $tenantFilter($accountsListBuilder);
         $accountsList = $accountsListBuilder
-            ->select('sa.id, sa.platform, sa.username, sa.name, sa.status')
+            ->select('sa.id, sa.platform, sa.username, sa.name')
             ->orderBy('sa.id', 'DESC')
             ->limit(3)
             ->get()->getResultArray();
