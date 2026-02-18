@@ -11,13 +11,12 @@ class Dashboard extends BaseController
     {
         if ($r = $this->ensureDealer()) return $r;
 
-        $dealerId = (int) session('user_id');
+        $dealerId = (int) session('user_id');          // bayi user id
         $tenantId = (int) (session('tenant_id') ?? 0);
 
         $userModel = new UserModel();
-        $db = \Config\Database::connect();
 
-        // Alt kullanıcılar: created_by = bayi
+        // Sadece bayinin oluşturduğu alt kullanıcılar
         $base = $userModel->where('tenant_id', $tenantId)
                           ->where('role', 'user')
                           ->where('created_by', $dealerId);
@@ -26,40 +25,45 @@ class Dashboard extends BaseController
         $activeUsers  = (clone $base)->where('status', 'active')->countAllResults();
         $passiveUsers = (clone $base)->where('status', 'passive')->countAllResults();
 
-        // Alt kullanıcı id listesi (subquery)
-        $subUserIds = $db->table('users')
-            ->select('id')
+        // Alt kullanıcı id’leri (publishes/jobs filtrelemek için)
+        $childIds = $userModel->select('id')
             ->where('tenant_id', $tenantId)
             ->where('role', 'user')
-            ->where('created_by', $dealerId);
+            ->where('created_by', $dealerId)
+            ->findColumn('id') ?? [];
 
-        $now = date('Y-m-d H:i:s');
-        $plus7 = date('Y-m-d H:i:s', time() + 7 * 86400);
-        $minus7 = date('Y-m-d H:i:s', time() - 7 * 86400);
+        $plannedCount = 0;
+        $failed7dCount = 0;
+        $recentPublishes = [];
 
-        // 7 günlük planlı paylaşımlar (status isimlerin sende nasıl: queued/scheduled vs)
-        $plannedCount = $db->table('publishes')
-            ->whereIn('user_id', $subUserIds)
-            ->where('schedule_at >=', $now)
-            ->where('schedule_at <=', $plus7)
-            ->whereIn('status', ['queued', 'scheduled', 'running'])
-            ->countAllResults();
+        // Publishes tablon varsa (senin projede var diye ilerliyorum)
+        if (!empty($childIds)) {
+            $db = \Config\Database::connect();
 
-        // Son 7 günde hata
-        $failed7dCount = $db->table('publishes')
-            ->whereIn('user_id', $subUserIds)
-            ->whereIn('status', ['failed', 'error'])
-            ->where('updated_at >=', $minus7) // yoksa published_at veya created_at kullan
-            ->countAllResults();
+            // 7 gün içinde planlı (queued/scheduled) sayısı
+            $plannedCount = (int) $db->table('publishes')
+                ->whereIn('user_id', $childIds)
+                ->whereIn('status', ['queued','scheduled'])
+                ->where('schedule_at >=', date('Y-m-d H:i:s', strtotime('-7 days')))
+                ->countAllResults();
 
-        // Son paylaşımlar (dealer panel tablosu)
-        $recentPublishes = $db->table('publishes p')
-            ->select('p.id, p.platform, p.status, p.schedule_at, p.published_at, u.name as user_name, u.email as user_email')
-            ->join('users u', 'u.id = p.user_id', 'left')
-            ->whereIn('p.user_id', $subUserIds)
-            ->orderBy('p.id', 'DESC')
-            ->limit(8)
-            ->get()->getResultArray();
+            // 7 gün içinde failed sayısı
+            $failed7dCount = (int) $db->table('publishes')
+                ->whereIn('user_id', $childIds)
+                ->whereIn('status', ['failed','error'])
+                ->where('updated_at >=', date('Y-m-d H:i:s', strtotime('-7 days')))
+                ->countAllResults();
+
+            // Son 10 paylaşım (kullanıcı adı/email ile)
+            $recentPublishes = $db->table('publishes p')
+                ->select('p.id, p.platform, p.status, p.schedule_at, p.published_at, u.name as user_name, u.email as user_email')
+                ->join('users u', 'u.id = p.user_id', 'left')
+                ->whereIn('p.user_id', $childIds)
+                ->orderBy('p.id', 'DESC')
+                ->limit(10)
+                ->get()
+                ->getResultArray();
+        }
 
         return view('dealer/dashboard', [
             'pageTitle'       => 'Gösterge Paneli',
