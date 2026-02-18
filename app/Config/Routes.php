@@ -124,5 +124,10 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->post('publishes/(:num)/retry',                     'PublishesController::retry/$1');
     $routes->post('publishes/(:num)/check',                     'PublishesController::check/$1');
     $routes->post('publishes/(:num)/reset-job',                 'PublishesController::resetJob/$1');
+    $routes->get('jobs',                                        'JobsController::index');
+    $routes->get('jobs/(:num)',                                 'JobsController::show/$1');
+    $routes->post('jobs/(:num)/retry',                          'JobsController::retry/$1');
+    $routes->post('jobs/(:num)/reset',                          'JobsController::reset/$1');
+    $routes->post('jobs/(:num)/cancel',                         'JobsController::cancel/$1');
 
 });
