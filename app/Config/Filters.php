@@ -28,7 +28,7 @@ class Filters extends BaseFilters
 
         'auth'          => \App\Filters\AuthFilter::class,
         'admin'         => \App\Filters\AdminFilter::class,
-        'dealer'        => \App\Filters\DealerFilter::class,   // ✅ EKLENDİ
+        'dealer'        => \App\Filters\DealerFilter::class, 
         'deploywebhook' => \App\Filters\DeployWebhookFilter::class,
     ];
 
