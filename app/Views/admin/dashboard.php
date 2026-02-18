@@ -235,7 +235,7 @@ $monthTitle = mb_strtoupper(strftime('%B %Y'));
             <div class="text-muted small">Bu ayın planlı ve yayınlanan paylaşımlarını hızlıca görün.</div>
           </div>
           <div class="d-flex gap-2 align-items-center">
-            <span class="badge text-bg-primary">Planlı</span>
+            <span class="badge text-bg-warning">Planlı</span>
             <span class="badge text-bg-success">Yayınlanan</span>
           </div>
         </div>
@@ -267,7 +267,7 @@ $monthTitle = mb_strtoupper(strftime('%B %Y'));
                       echo '<td style="min-width:92px; vertical-align:top;">';
                       echo '<div class="small fw-semibold">'.$d.'</div>';
                       echo '<div class="mt-1 d-flex justify-content-center gap-1 flex-wrap">';
-                      if ($planned > 0) echo '<span class="badge text-bg-primary">'.$planned.'</span>';
+                      if ($planned > 0) echo '<span class="badge text-bg-warning">'.$planned.'</span>';
                       if ($posted  > 0) echo '<span class="badge text-bg-success">'.$posted.'</span>';
                       if ($planned==0 && $posted==0) echo '<span class="text-muted small">-</span>';
                       echo '</div>';
