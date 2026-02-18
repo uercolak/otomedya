@@ -159,8 +159,8 @@ $monthTitle = mb_strtoupper(strftime('%B %Y'));
           <?php foreach ($latestAccounts as $a): ?>
             <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
               <div class="small">
-                <div class="fw-semibold"><?= esc($a['username'] ?? '-') ?></div>
-                <div class="text-muted"><?= esc($a['platform'] ?? '-') ?></div>
+                <div class="fw-semibold"><?= esc($a['username'] ?? '@Kullanıcı') ?></div>
+                <div class="text-muted"><?= esc($a['platform'] ?? '#Platform') ?></div>
               </div>
               <span class="badge text-bg-light border">Bağlı</span>
             </div>
@@ -292,9 +292,6 @@ $monthTitle = mb_strtoupper(strftime('%B %Y'));
           </div>
 
           <div class="mt-3 d-flex gap-2">
-            <a href="<?= base_url('admin/scheduled') ?>" class="btn btn-sm btn-outline-secondary">
-              <i class="bi bi-calendar3 me-1"></i> Takvime git
-            </a>
             <a href="<?= base_url('admin/templates') ?>" class="btn btn-sm btn-outline-secondary">
               <i class="bi bi-images me-1"></i> Şablonlardan oluştur
             </a>
