@@ -3,13 +3,13 @@
 
 <div class="row g-3 mb-3">
     <!-- Toplam Kullanıcı -->
-    <div class="col-lg-4">
+    <div class="col-lg-3">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
                 <div class="d-flex align-items-start justify-content-between">
                     <div>
                         <div class="text-muted small mb-1 text-uppercase" style="letter-spacing:.08em;">
-                            Bu Hafta Toplam Kullanıcı
+                            Toplam Kullanıcı
                         </div>
                         <div class="display-6 mb-1"><?= esc($totalUsers) ?></div>
                         <div class="text-muted small">
@@ -24,14 +24,14 @@
         </div>
     </div>
 
-    <!-- Admin Sayısı -->
-    <div class="col-lg-4">
+    <!-- Root Sayısı -->
+    <div class="col-lg-3">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
                 <div class="d-flex align-items-start justify-content-between">
                     <div>
                         <div class="text-muted small mb-1 text-uppercase" style="letter-spacing:.08em;">
-                            Admin Sayısı
+                            Root Sayısı
                         </div>
                         <div class="display-6 mb-1"><?= esc($admins) ?></div>
                         <div class="text-muted small">
@@ -39,7 +39,29 @@
                         </div>
                     </div>
                     <span class="badge rounded-pill text-bg-danger" style="height: fit-content;">
-                        <i class="bi bi-shield-lock me-1"></i> Admin
+                        <i class="bi bi-shield-lock me-1"></i> Root
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dealer Sayısı -->
+    <div class="col-lg-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between">
+                    <div>
+                        <div class="text-muted small mb-1 text-uppercase" style="letter-spacing:.08em;">
+                            Dealer Sayısı
+                        </div>
+                        <div class="display-6 mb-1"><?= esc($dealers ?? 0) ?></div>
+                        <div class="text-muted small">
+                            Bayilik paneline erişebilen hesaplar.
+                        </div>
+                    </div>
+                    <span class="badge rounded-pill text-bg-warning" style="height: fit-content;">
+                        <i class="bi bi-diagram-3 me-1"></i> Dealer
                     </span>
                 </div>
             </div>
@@ -47,13 +69,13 @@
     </div>
 
     <!-- Normal Kullanıcı -->
-    <div class="col-lg-4">
+    <div class="col-lg-3">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
                 <div class="d-flex align-items-start justify-content-between">
                     <div>
                         <div class="text-muted small mb-1 text-uppercase" style="letter-spacing:.08em;">
-                            Normal Kullanıcı
+                            User Sayısı
                         </div>
                         <div class="display-6 mb-1"><?= esc($normalUsers) ?></div>
                         <div class="text-muted small">
@@ -70,7 +92,6 @@
 </div>
 
 <div class="row g-3">
-    <!-- Genel Durum -->
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
@@ -120,7 +141,6 @@
         </div>
     </div>
 
-    <!-- Son İşlemler / Kısayollar -->
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm">
             <div class="card-body">
