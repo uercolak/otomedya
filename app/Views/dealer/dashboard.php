@@ -36,8 +36,66 @@
       <div class="card border-0 shadow-sm h-100" style="border-radius:16px;">
         <div class="card-body">
           <div class="text-muted small text-uppercase" style="letter-spacing:.08em;">Planlı Paylaşımlar</div>
-          <div class="display-6 mb-1">Yakında</div>
-          <div class="text-muted small">Alt kullanıcıların planladığı paylaşımlar burada özetlenecek.</div>
+
+          <div class="d-flex align-items-end justify-content-between">
+            <div class="display-6 mb-1"><?= esc($upcomingCount ?? 0) ?></div>
+            <div class="text-muted small mb-2">Yaklaşan</div>
+          </div>
+
+          <div class="text-muted small mb-2">
+            Alt kullanıcılarının planladığı en yakın paylaşımlar:
+          </div>
+
+          <?php if (!empty($upcomingPosts)): ?>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="small text-muted">
+                  <tr>
+                    <th>Kullanıcı</th>
+                    <th>Tarih</th>
+                    <th class="text-end">Durum</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($upcomingPosts as $p): ?>
+                    <?php
+                      $status = strtolower((string)($p['status'] ?? 'scheduled'));
+                      $badge  = 'text-bg-secondary';
+                      if ($status === 'scheduled') $badge = 'text-bg-primary';
+                      if ($status === 'queued')    $badge = 'text-bg-info';
+                      if ($status === 'failed')    $badge = 'text-bg-danger';
+                      if ($status === 'posted')    $badge = 'text-bg-success';
+                    ?>
+                    <tr>
+                      <td>
+                        <div class="fw-semibold"><?= esc($p['user_name'] ?? '-') ?></div>
+                        <div class="text-muted small"><?= esc($p['user_email'] ?? '') ?></div>
+                      </td>
+                      <td class="small">
+                        <?= esc($p['schedule_at'] ?? '-') ?>
+                      </td>
+                      <td class="text-end">
+                        <span class="badge <?= esc($badge) ?>">
+                          <?= esc($p['status'] ?? 'scheduled') ?>
+                        </span>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="mt-2 text-end">
+              <a href="<?= base_url('dealer/shares') ?>" class="btn btn-sm btn-outline-secondary">
+                Tümünü Gör
+              </a>
+            </div>
+          <?php else: ?>
+            <div class="text-muted small">
+              Şu an yaklaşan planlı paylaşım yok.
+            </div>
+          <?php endif; ?>
+
         </div>
       </div>
     </div>
@@ -68,8 +126,8 @@
             <div class="col-md-4">
               <div class="p-3 rounded border bg-white">
                 <div class="text-muted small mb-1">Paylaşım Takibi</div>
-                <div class="fw-semibold">Yakında</div>
-                <div class="text-muted small">Alt kullanıcı paylaşımları ve tekrar deneme.</div>
+                <div class="fw-semibold">Hazır</div>
+                <div class="text-muted small">Planlı paylaşımlar sağ üst kartta listelenir.</div>
               </div>
             </div>
             <div class="col-md-4">
