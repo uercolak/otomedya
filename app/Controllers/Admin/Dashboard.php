@@ -3,7 +3,6 @@
 namespace App\Controllers\Admin;
 
 use App\Controllers\BaseController;
-use App\Models\UserModel;
 
 class Dashboard extends BaseController
 {
@@ -11,180 +10,111 @@ class Dashboard extends BaseController
     {
         $db = db_connect();
 
-        // Eğer sistem tenant bazlı çalışıyorsa session('tenant_id') dolu olur.
-        // Boşsa "global" say.
-        $tenantId = session('tenant_id');
-        $tenantFilter = function ($builder) use ($tenantId) {
-            if (!empty($tenantId)) {
-                $builder->where('tenant_id', (int)$tenantId);
-            }
-            return $builder;
-        };
+        $totalUsers = (int) $db->table('users')->countAllResults();
 
-        // -------------------------
-        // ÜST KARTLAR
-        // -------------------------
-        $userModel = new UserModel();
+        $rootCount = (int) $db->table('users')->where('role', 'root')->countAllResults();
 
-        // Toplam kullanıcı (bu tenant içinde) + (istersen admin/root hariç saydırabiliriz)
-        $totalUsersQ = $userModel->builder();
-        $tenantFilter($totalUsersQ);
-        $totalUsers = $totalUsersQ->countAllResults();
+        $dealerCount = (int) $db->table('users')->where('role', 'dealer')->countAllResults();
 
-        // Yönetici sayısı (role = admin)
-        $adminQ = $userModel->builder();
-        $tenantFilter($adminQ);
-        $admins = $adminQ->where('role', 'admin')->countAllResults();
-
-        // Bayi sayısı (role = dealer)
-        $dealerQ = $userModel->builder();
-        $tenantFilter($dealerQ);
-        $dealers = $dealerQ->where('role', 'dealer')->countAllResults();
-
-        // Aktif kullanıcı sayısı (role=user + status=active)
-        $activeUserQ = $userModel->builder();
-        $tenantFilter($activeUserQ);
-        $activeUsers = $activeUserQ->where('role', 'user')->where('status', 'active')->countAllResults();
-
-        // -------------------------
-        // BU HAFTA PLANLI + SON 5 YAKLAŞAN
-        // publishes tablosu: schedule_at var (senin ekran görüntüsünde var)
-        // -------------------------
-        $now = date('Y-m-d H:i:s');
-
-        // Haftanın başlangıcı (Pzt) - bitiş (Paz)
-        $monday = date('Y-m-d 00:00:00', strtotime('monday this week'));
-        $sunday = date('Y-m-d 23:59:59', strtotime('sunday this week'));
-
-        $weekPlannedBuilder = $db->table('publishes p');
-        $tenantFilter($weekPlannedBuilder);
-        $weekPlanned = $weekPlannedBuilder
-            ->where('p.schedule_at >=', $monday)
-            ->where('p.schedule_at <=', $sunday)
+        $activeUserCount = (int) $db->table('users')
+            ->where('role', 'user')
+            ->where('status', 'active')
             ->countAllResults();
 
-        $upcomingBuilder = $db->table('publishes p');
-        $tenantFilter($upcomingBuilder);
-        $upcomingPlans = $upcomingBuilder
-            ->select('p.id, p.platform, p.status, p.schedule_at, u.name as user_name, u.email as user_email')
-            ->join('users u', 'u.id = p.user_id', 'left')
-            ->where('p.schedule_at IS NOT NULL', null, false)
-            ->where('p.schedule_at >=', $now)
-            ->orderBy('p.schedule_at', 'ASC')
-            ->limit(5)
-            ->get()->getResultArray();
+        $connectedAccountsCount = (int) $db->table('social_accounts')->countAllResults();
 
-        // -------------------------
-        // BAĞLI SOSYAL HESAPLAR (Son 3)
-        // social_accounts tablosu var
-        // -------------------------
-        $accountsBuilder = $db->table('social_accounts sa');
-        $tenantFilter($accountsBuilder);
-        $accountsCount = $accountsBuilder->countAllResults();
-
-        $accountsListBuilder = $db->table('social_accounts sa');
-        $tenantFilter($accountsListBuilder);
-        $accountsList = $accountsListBuilder
-            ->select('sa.id, sa.platform, sa.username, sa.name')
+        $connectedAccounts = $db->table('social_accounts sa')
+            ->select('sa.id, sa.platform, sa.username, sa.created_at')
             ->orderBy('sa.id', 'DESC')
             ->limit(3)
             ->get()->getResultArray();
 
-        // -------------------------
-        // AKTİF ŞABLONLAR (Son 3) + küçük görsel (thumb_path)
-        // templates tablosu var ve thumb_path alanı var.
-        // -------------------------
-        $tplBuilder = $db->table('templates t');
-        $tenantFilter($tplBuilder);
-        $activeTemplateCount = $tplBuilder->where('t.is_active', 1)->countAllResults();
+        $startOfWeek = (new \DateTime('monday this week'))->setTime(0, 0, 0)->format('Y-m-d H:i:s');
+        $endOfWeek   = (new \DateTime('sunday this week'))->setTime(23, 59, 59)->format('Y-m-d H:i:s');
 
-        $tplListBuilder = $db->table('templates t');
-        $tenantFilter($tplListBuilder);
-        $activeTemplates = $tplListBuilder
-            ->select('t.id, t.name, t.platform_scope, t.type, t.thumb_path')
+        $thisWeekPlannedCount = (int) $db->table('publishes p')
+            ->where('p.schedule_at >=', $startOfWeek)
+            ->where('p.schedule_at <=', $endOfWeek)
+            ->countAllResults();
+
+        $upcomingPublishes = $db->table('publishes p')
+            ->select('p.id, p.platform, p.status, p.schedule_at, u.name as user_name, u.email as user_email')
+            ->join('users u', 'u.id = p.user_id', 'left')
+            ->where('p.schedule_at IS NOT NULL', null, false)
+            ->where('p.schedule_at >=', date('Y-m-d H:i:s'))
+            ->orderBy('p.schedule_at', 'ASC')
+            ->limit(5)
+            ->get()->getResultArray();
+
+        $activeTemplatesCount = (int) $db->table('templates')->where('is_active', 1)->countAllResults();
+
+        $activeTemplates = $db->table('templates t')
+            ->select('t.id, t.name, t.platform_type, t.type, t.base_media_id, t.thumb_path')
             ->where('t.is_active', 1)
             ->orderBy('t.id', 'DESC')
             ->limit(3)
             ->get()->getResultArray();
 
-        // -------------------------
-        // TAKVİM ÖZETİ (o ayın günleri: planlı ve yayınlanan sayıları)
-        // publishes.schedule_at / publishes.published_at ile dolduracağız
-        // -------------------------
-        $year  = (int)($this->request->getGet('y') ?: date('Y'));
-        $month = (int)($this->request->getGet('m') ?: date('m'));
+        $monthParam = $this->request->getGet('month');
+        if (!$monthParam) $monthParam = date('Y-m');
 
-        $monthStart = sprintf('%04d-%02d-01 00:00:00', $year, $month);
-        $monthEnd   = date('Y-m-t 23:59:59', strtotime($monthStart));
+        $monthStart = \DateTime::createFromFormat('Y-m-d H:i:s', $monthParam . '-01 00:00:00');
+        if (!$monthStart) $monthStart = new \DateTime(date('Y-m-01 00:00:00'));
 
-        // Planlı (schedule_at)
-        $plannedMonthBuilder = $db->table('publishes p');
-        $tenantFilter($plannedMonthBuilder);
-        $plannedMonthRows = $plannedMonthBuilder
-            ->select("DATE(p.schedule_at) as d, COUNT(*) as c")
-            ->where('p.schedule_at IS NOT NULL', null, false)
-            ->where('p.schedule_at >=', $monthStart)
-            ->where('p.schedule_at <=', $monthEnd)
+        $monthEnd = (clone $monthStart)->modify('last day of this month')->setTime(23, 59, 59);
+
+        $rowsPlanned = $db->table('publishes p')
+            ->select("DATE(p.schedule_at) as d, COUNT(*) as c", false)
+            ->where('p.schedule_at >=', $monthStart->format('Y-m-d H:i:s'))
+            ->where('p.schedule_at <=', $monthEnd->format('Y-m-d H:i:s'))
             ->groupBy('d')
             ->get()->getResultArray();
 
-        // Yayınlanan (published_at)
-        $publishedMonthBuilder = $db->table('publishes p');
-        $tenantFilter($publishedMonthBuilder);
-        $publishedMonthRows = $publishedMonthBuilder
-            ->select("DATE(p.published_at) as d, COUNT(*) as c")
+        $rowsPublished = $db->table('publishes p')
+            ->select("DATE(p.published_at) as d, COUNT(*) as c", false)
             ->where('p.published_at IS NOT NULL', null, false)
-            ->where('p.published_at >=', $monthStart)
-            ->where('p.published_at <=', $monthEnd)
+            ->where('p.published_at >=', $monthStart->format('Y-m-d H:i:s'))
+            ->where('p.published_at <=', $monthEnd->format('Y-m-d H:i:s'))
             ->groupBy('d')
             ->get()->getResultArray();
 
-        $calendarPlanned = [];
-        foreach ($plannedMonthRows as $r) $calendarPlanned[$r['d']] = (int)$r['c'];
+        $plannedByDay = [];
+        foreach ($rowsPlanned as $r) $plannedByDay[$r['d']] = (int)$r['c'];
 
-        $calendarPublished = [];
-        foreach ($publishedMonthRows as $r) $calendarPublished[$r['d']] = (int)$r['c'];
+        $publishedByDay = [];
+        foreach ($rowsPublished as $r) $publishedByDay[$r['d']] = (int)$r['c'];
 
-        // -------------------------
-        // SON AKTİVİTELER (logs tablosundan daha okunur)
-        // "info / job.succeeded" yerine TR etiketleyeceğiz (View'da)
-        // logs tablosu var.
-        // -------------------------
-        $logs = [];
-        if ($db->tableExists('logs')) {
-            $logBuilder = $db->table('logs l');
-            $tenantFilter($logBuilder);
-            $logs = $logBuilder
-                ->select('l.level, l.message, l.created_at')
-                ->orderBy('l.id', 'DESC')
-                ->limit(5)
-                ->get()->getResultArray();
-        }
+        $recentActivities = $db->table('publishes p')
+            ->select('p.id, p.platform, p.status, p.created_at, p.published_at, p.schedule_at, u.name as user_name, u.email as user_email')
+            ->join('users u', 'u.id = p.user_id', 'left')
+            ->orderBy('p.id', 'DESC')
+            ->limit(5)
+            ->get()->getResultArray();
 
         return view('admin/dashboard', [
-            'pageTitle'          => 'Yönetici Paneli',
-            'pageSubtitle'       => 'Planlı gönderiler, bağlı hesaplar ve son işlemlerin özeti.',
+            'pageTitle'   => 'Yönetici Paneli',
+            'pageSubtitle'=> 'Planlı gönderiler, bağlı hesaplar ve son işlemlerin özeti.',
 
-            'totalUsers'         => $totalUsers,
-            'admins'             => $admins,
-            'dealers'            => $dealers,
-            'activeUsers'        => $activeUsers,
+            'totalUsers'          => $totalUsers,
+            'rootCount'           => $rootCount,
+            'dealerCount'         => $dealerCount,
+            'activeUserCount'     => $activeUserCount,
 
-            'weekPlanned'        => $weekPlanned,
-            'upcomingPlans'      => $upcomingPlans,
+            'connectedAccountsCount' => $connectedAccountsCount,
+            'connectedAccounts'      => $connectedAccounts,
 
-            'accountsCount'      => $accountsCount,
-            'accountsList'       => $accountsList,
+            'thisWeekPlannedCount' => $thisWeekPlannedCount,
+            'upcomingPublishes'     => $upcomingPublishes,
 
-            'activeTemplateCount'=> $activeTemplateCount,
-            'activeTemplates'    => $activeTemplates,
+            'activeTemplatesCount'  => $activeTemplatesCount,
+            'activeTemplates'       => $activeTemplates,
 
-            'calendarYear'       => $year,
-            'calendarMonth'      => $month,
-            'calendarPlanned'    => $calendarPlanned,
-            'calendarPublished'  => $calendarPublished,
+            'monthParam'     => $monthStart->format('Y-m'),
+            'monthStart'     => $monthStart,
+            'plannedByDay'   => $plannedByDay,
+            'publishedByDay' => $publishedByDay,
 
-            'logs'               => $logs,
+            'recentActivities' => $recentActivities,
         ]);
     }
 }
