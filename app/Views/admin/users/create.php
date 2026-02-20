@@ -50,26 +50,10 @@
             <select name="role" id="roleSelect" class="form-select" required>
                 <option value="user"   <?= $roleOld === 'user' ? 'selected' : '' ?>>Kullanıcı</option>
                 <option value="dealer" <?= $roleOld === 'dealer' ? 'selected' : '' ?>>Bayi</option>
-                <!-- Root oluşturmayı buradan istemiyorsun, o yüzden koymuyoruz -->
             </select>
 
             <div class="form-text">
                 Bayi seçersen bu kullanıcı bayi paneline girebilir ve kendi alt kullanıcılarını oluşturabilir.
-            </div>
-            </div>
-
-            <div class="col-12 col-md-6" id="tenantWrap">
-            <label class="form-label">Tenant ID</label>
-            <input
-                type="number"
-                name="tenant_id"
-                min="1"
-                class="form-control"
-                value="<?= esc(old('tenant_id')) ?>"
-                placeholder="Örn: 1"
-            >
-            <div class="form-text">
-                Dealer/User için zorunlu. Root için boş bırakılır.
             </div>
             </div>
 
