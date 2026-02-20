@@ -23,11 +23,6 @@ $seg3 = $segments[2] ?? '';
     <i class="bi bi-people"></i> <span>Kullanıcılar</span>
   </a>
 
-  <a href="<?= site_url('admin/publishes/create') ?>"
-     class="nav-link <?= ($seg1 === 'admin' && $seg2 === 'publishes' && $seg3 === 'create') ? 'active' : '' ?>">
-    <span class="me-2">🗓️</span> Planlı Paylaşım Oluştur
-  </a>
-
   <a href="<?= site_url('admin/publishes') ?>"
      class="nav-link <?= ($seg1 === 'admin' && $seg2 === 'publishes' && $seg3 !== 'create') ? 'active' : '' ?>">
     <span class="me-2">📤</span> Paylaşımlar
