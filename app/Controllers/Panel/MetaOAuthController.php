@@ -462,7 +462,8 @@ class MetaOAuthController extends BaseController
 
     public function callback()
     {
-
+    log_message('error', 'META CALLBACK RAW: ' . ($this->request->getServer('REQUEST_URI') ?? 'NO_URI'));
+    log_message('error', 'META CALLBACK QUERY_STRING: ' . ($this->request->getServer('QUERY_STRING') ?? 'NO_QS'));
     log_message('error', 'META CALLBACK HIT: ' . json_encode([
         'full_url' => current_url(true)->__toString(),
         'get'      => $_GET,
