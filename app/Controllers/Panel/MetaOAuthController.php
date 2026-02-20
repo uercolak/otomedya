@@ -435,11 +435,12 @@ class MetaOAuthController extends BaseController
             'redirect_uri'  => $cfg['redirect_uri'],
             'state'         => $state,
             'response_type' => 'code',
+            'config_id' => getenv('META_CONFIG_ID'), 
             'scope'         => implode(',', $cfg['scopes']),
         ]);
 
         log_message('error', 'META SCOPES: ' . implode(',', $cfg['scopes']));
-        
+
         return redirect()->to($loginUrl);
     }
 
