@@ -427,9 +427,9 @@ class MetaOAuthController extends BaseController
         }
 
         if (empty($cfg['app_id']) || empty($cfg['redirect_uri'])) {
-            log_message('error', 'META missing app_id/redirect_uri');
+            log_message('error', 'META CONFIG ERROR: app_id veya redirect_uri boş');
             return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                ->with('error', 'Meta yapılandırması eksik (META_APP_ID / META_REDIRECT_URI).');
+                ->with('error', 'Meta ayarları eksik: META_APP_ID / META_REDIRECT_URI kontrol et.');
         }
 
         $state = bin2hex(random_bytes(16));
@@ -442,16 +442,12 @@ class MetaOAuthController extends BaseController
             'redirect_uri'  => $cfg['redirect_uri'],
             'state'         => $state,
             'response_type' => 'code',
-            'auth_type'     => 'rerequest',
+
+            'scope'         => implode(',', $cfg['scopes']),
         ];
 
-        // ✅ config_id varsa onu kullan (Facebook Login for Business)
         if ($configId !== '') {
             $params['config_id'] = $configId;
-            // config_id varken scope göndermiyoruz
-        } else {
-            // ✅ config_id yoksa klasik scope akışı
-            $params['scope'] = implode(',', $cfg['scopes']);
         }
 
         $loginUrl = 'https://www.facebook.com/' . $cfg['graph_ver'] . '/dialog/oauth?' . http_build_query($params);

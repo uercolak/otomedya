@@ -11,7 +11,6 @@ $routes->get('/', function () {
     $routes->get('data-deletion',               'Legal::dataDeletion');
     $routes->get('media/(:num)',                'MediaController::show/$1');
     $routes->post('deploy/webhook',             'DeployWebhookController::github', ['filter' => 'deploywebhook']);
-    $routes->get('media/(:num)',                'MediaController::show/$1');
     $routes->get('contact',                     'PagesController::contact');
     $routes->post('contact',                    'PagesController::contactPost');
 
@@ -44,7 +43,6 @@ $routes->group('panel', ['filter' => 'auth'], static function ($routes) {
     $routes->get('social-accounts/meta/callback',                   'Panel\MetaOAuthController::callback');
     $routes->post('social-accounts/meta/attach',                    'Panel\MetaOAuthController::attach');
     $routes->post('social-accounts/meta/disconnect',                'Panel\MetaOAuthController::disconnect');
-    $routes->get('social-accounts/meta/health',                     'Panel\MetaOAuthController::health');
     $routes->get('help/account-linking',                            'Panel\HelpController::accountLinking');
     $routes->get('social-accounts/youtube/wizard',                  'Panel\YouTubeOAuthController::wizard');
     $routes->get('social-accounts/youtube/connect',                 'Panel\YouTubeOAuthController::connect');
