@@ -30,11 +30,6 @@ class MetaOAuthController extends BaseController
             $scopes = array_values(array_unique($defaultScopes));
         }
 
-        // safety: her durumda business_management garantile
-        if (!in_array('business_management', $scopes, true)) {
-            $scopes[] = 'business_management';
-        }
-
         return [
             'app_id'       => (string) (getenv('META_APP_ID') ?: ''),
             'app_secret'   => (string) (getenv('META_APP_SECRET') ?: ''),
