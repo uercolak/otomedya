@@ -426,30 +426,28 @@ class MetaOAuthController extends BaseController
                 ->with('error', 'Devam etmek için önce onayı kabul etmelisin.');
         }
 
+        if (empty($cfg['app_id']) || empty($cfg['app_secret'])) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'META_APP_ID / META_APP_SECRET boş. .env kontrol et.');
+        }
+
         $state = bin2hex(random_bytes(16));
         session()->set('meta_oauth_state', $state);
 
-        $configId = trim((string) getenv('META_CONFIG_ID'));
-
-        // Base params
+        // ✅ Klasik OAuth (scope zorunlu)
         $params = [
             'client_id'     => $cfg['app_id'],
             'redirect_uri'  => $cfg['redirect_uri'],
             'state'         => $state,
             'response_type' => 'code',
+            'scope'         => implode(',', $cfg['scopes']),
         ];
-
-        if ($configId !== '') {
-            $params['config_id'] = $configId;
-        } else {
-            $params['scope'] = implode(',', $cfg['scopes']);
-        }
 
         $loginUrl = 'https://www.facebook.com/' . $cfg['graph_ver'] . '/dialog/oauth?' . http_build_query($params);
 
-        log_message('error', 'META CONFIG_ID: ' . ($configId !== '' ? $configId : 'EMPTY'));
         log_message('error', 'META SCOPES: ' . implode(',', $cfg['scopes']));
-        log_message('error', 'META LOGIN URL: ' . $loginUrl);
+        // URL bazen kesiliyor; debug için parça parça yazalım:
+        log_message('error', 'META LOGIN URL LEN: ' . strlen($loginUrl));
 
         return redirect()->to($loginUrl);
     }
