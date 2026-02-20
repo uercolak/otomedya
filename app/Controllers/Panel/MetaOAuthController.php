@@ -432,8 +432,23 @@ class MetaOAuthController extends BaseController
                 ->with('error', 'Meta ayarları eksik: META_APP_ID / META_REDIRECT_URI kontrol et.');
         }
 
-        $state = bin2hex(random_bytes(16));
-        session()->set('meta_oauth_state', $state);
+        $userId = $this->userId();
+        $nonce  = bin2hex(random_bytes(16));
+        $ts     = time();
+
+        $payloadArr = ['u' => $userId, 'n' => $nonce, 't' => $ts];
+        $payload    = $this->b64urlEncode(json_encode($payloadArr));
+        $sig        = hash_hmac('sha256', $payload, $cfg['app_secret']);
+        $state      = $payload . '.' . $sig;
+
+        // nonce'u DB'ye yaz (meta_tokens.meta_json içine)
+        $metaRow = $this->getMetaTokenRow($userId);
+        $this->saveUserAccessToken(
+            $userId,
+            $metaRow['access_token'] ?? '',
+            $metaRow['expires_at'] ?? null,
+            ['oauth_nonce' => $nonce, 'oauth_ts' => $ts]
+        );
 
         $configId = trim((string) getenv('META_CONFIG_ID'));
 
@@ -475,11 +490,50 @@ class MetaOAuthController extends BaseController
         $cfg = $this->metaConfig();
         $userId = $this->userId();
 
-        $state = (string) $this->request->getGet('state');
-        $expected = (string) session('meta_oauth_state');
-        if (!$expected || !$state || !hash_equals($expected, $state)) {
+        $stateRaw = (string) $this->request->getGet('state');
+        if (!$stateRaw || !str_contains($stateRaw, '.')) {
             return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                ->with('error', 'OAuth state doğrulanamadı. Tekrar dene.');
+                ->with('error', 'OAuth state eksik.');
+        }
+
+        [$payload, $sig] = explode('.', $stateRaw, 2);
+        $calc = hash_hmac('sha256', $payload, $cfg['app_secret']);
+
+        if (!hash_equals($calc, $sig)) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'OAuth state imzası geçersiz.');
+        }
+
+        $decoded = $this->b64urlDecode($payload);
+        $arr = json_decode($decoded, true);
+
+        $userId = (int)($arr['u'] ?? 0);
+        $nonce  = (string)($arr['n'] ?? '');
+        $ts     = (int)($arr['t'] ?? 0);
+
+        if ($userId <= 0 || $nonce === '' || $ts <= 0) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'OAuth state içeriği geçersiz.');
+        }
+
+        // 10 dk timeout (istersen 30 dk yap)
+        if (abs(time() - $ts) > 600) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'OAuth state zaman aşımı. Tekrar dene.');
+        }
+
+        // nonce DB ile eşleşiyor mu?
+        $row = $this->getMetaTokenRow($userId);
+        $meta = [];
+        if ($row && !empty($row['meta_json'])) {
+            $tmp = json_decode((string)$row['meta_json'], true);
+            if (is_array($tmp)) $meta = $tmp;
+        }
+        $dbNonce = (string)($meta['oauth_nonce'] ?? '');
+
+        if ($dbNonce === '' || !hash_equals($dbNonce, $nonce)) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'OAuth state doğrulanamadı (nonce).');
         }
 
         $code = (string) $this->request->getGet('code');
@@ -1494,5 +1548,15 @@ class MetaOAuthController extends BaseController
         ]);
 
         return redirect()->back()->with('success', 'Paylaşım tetiklendi ✅ Media ID: ' . (string)$publishRes['id']);
+    }
+
+    private function b64urlEncode(string $raw): string
+    {
+        return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
+    }
+    private function b64urlDecode(string $b64): string
+    {
+        $b64 = strtr($b64, '-_', '+/');
+        return base64_decode($b64 . str_repeat('=', (4 - strlen($b64) % 4) % 4)) ?: '';
     }
 }
