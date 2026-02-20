@@ -418,7 +418,7 @@ class MetaOAuthController extends BaseController
 
     public function connect()
     {
-        $cfg = $this->metaConfig();
+        $cfg    = $this->metaConfig();
         $userId = $this->userId();
 
         if (!$this->hasConsent($userId)) {
@@ -429,15 +429,25 @@ class MetaOAuthController extends BaseController
         $state = bin2hex(random_bytes(16));
         session()->set('meta_oauth_state', $state);
 
-        $loginUrl = 'https://www.facebook.com/' . $cfg['graph_ver'] . '/dialog/oauth?' . http_build_query([
+        $configId = trim((string) getenv('META_CONFIG_ID'));
+
+        // Base params
+        $params = [
             'client_id'     => $cfg['app_id'],
             'redirect_uri'  => $cfg['redirect_uri'],
             'state'         => $state,
             'response_type' => 'code',
-            //'config_id' => getenv('META_CONFIG_ID'), 
-            'scope'         => implode(',', $cfg['scopes']),
-        ]);
+        ];
 
+        if ($configId !== '') {
+            $params['config_id'] = $configId;
+        } else {
+            $params['scope'] = implode(',', $cfg['scopes']);
+        }
+
+        $loginUrl = 'https://www.facebook.com/' . $cfg['graph_ver'] . '/dialog/oauth?' . http_build_query($params);
+
+        log_message('error', 'META CONFIG_ID: ' . ($configId !== '' ? $configId : 'EMPTY'));
         log_message('error', 'META SCOPES: ' . implode(',', $cfg['scopes']));
         log_message('error', 'META LOGIN URL: ' . $loginUrl);
 
