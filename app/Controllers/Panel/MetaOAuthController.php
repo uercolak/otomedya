@@ -474,10 +474,19 @@ class MetaOAuthController extends BaseController
 
         $code = (string) $this->request->getGet('code');
         if (!$code) {
-            $err = (string) $this->request->getGet('error_message');
-            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                ->with('error', 'Meta callback hatası: ' . ($err ?: 'code yok'));
-        }
+        $err1 = (string) $this->request->getGet('error');
+        $err2 = (string) $this->request->getGet('error_reason');
+        $err3 = (string) $this->request->getGet('error_description');
+        $err4 = (string) $this->request->getGet('error_message');
+
+        log_message('error', 'META CALLBACK NO CODE: ' . json_encode([
+            'error' => $err1, 'reason' => $err2, 'desc' => $err3, 'msg' => $err4,
+            'qs' => $_GET
+        ], JSON_UNESCAPED_UNICODE));
+
+        return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+            ->with('error', 'Meta callback hatası: ' . ($err3 ?: $err4 ?: $err2 ?: $err1 ?: 'code yok'));
+            }
 
         $tokenRes = $this->httpGetJson(
             $this->graphUrl($cfg, 'oauth/access_token', [
