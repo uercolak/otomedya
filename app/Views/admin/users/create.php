@@ -44,15 +44,34 @@
             </div>
 
             <div class="col-12 col-md-6">
-                <label class="form-label">Rol</label>
+            <label class="form-label">Rol</label>
 
-                <!-- Görsel select (pasif) -->
-                <select class="form-select" disabled>
-                    <option selected>Kullanıcı</option>
-                </select>
-                <input type="hidden" name="role" value="user">
+            <?php $roleOld = old('role', 'user'); ?>
+            <select name="role" id="roleSelect" class="form-select" required>
+                <option value="user"   <?= $roleOld === 'user' ? 'selected' : '' ?>>Kullanıcı</option>
+                <option value="dealer" <?= $roleOld === 'dealer' ? 'selected' : '' ?>>Bayi</option>
+                <!-- Root oluşturmayı buradan istemiyorsun, o yüzden koymuyoruz -->
+            </select>
 
-                </div>
+            <div class="form-text">
+                Bayi seçersen bu kullanıcı bayi paneline girebilir ve kendi alt kullanıcılarını oluşturabilir.
+            </div>
+            </div>
+
+            <div class="col-12 col-md-6" id="tenantWrap">
+            <label class="form-label">Tenant ID</label>
+            <input
+                type="number"
+                name="tenant_id"
+                min="1"
+                class="form-control"
+                value="<?= esc(old('tenant_id')) ?>"
+                placeholder="Örn: 1"
+            >
+            <div class="form-text">
+                Dealer/User için zorunlu. Root için boş bırakılır.
+            </div>
+            </div>
 
             <div class="col-12 col-md-6">
               <label class="form-label">Durum</label>
@@ -95,5 +114,19 @@
     </div>
   </div>
 </form>
+<script>
+  (function(){
+    const role = document.getElementById('roleSelect');
+    const tenantWrap = document.getElementById('tenantWrap');
 
+    function sync(){
+      const v = role.value;
+      // user ve dealer seçilince tenant göster (çünkü controller zorunlu tutuyor)
+      tenantWrap.style.display = (v === 'user' || v === 'dealer') ? '' : 'none';
+    }
+
+    role.addEventListener('change', sync);
+    sync();
+  })();
+</script>
 <?= $this->endSection() ?>
