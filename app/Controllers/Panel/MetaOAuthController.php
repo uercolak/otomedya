@@ -462,6 +462,15 @@ class MetaOAuthController extends BaseController
 
     public function callback()
     {
+
+    log_message('error', 'META CALLBACK HIT: ' . json_encode([
+        'full_url' => current_url(true)->__toString(),
+        'get'      => $_GET,
+        'cookie'   => $_COOKIE,
+        'sid'      => session_id(),
+        'sess_state' => session('meta_oauth_state'),
+    ], JSON_UNESCAPED_UNICODE));
+
         $cfg = $this->metaConfig();
         $userId = $this->userId();
 
