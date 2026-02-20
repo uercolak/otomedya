@@ -426,27 +426,39 @@ class MetaOAuthController extends BaseController
                 ->with('error', 'Devam etmek için önce onayı kabul etmelisin.');
         }
 
-        if (empty($cfg['app_id']) || empty($cfg['app_secret'])) {
+        if (empty($cfg['app_id']) || empty($cfg['redirect_uri'])) {
+            log_message('error', 'META missing app_id/redirect_uri');
             return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                ->with('error', 'META_APP_ID / META_APP_SECRET boş. .env kontrol et.');
+                ->with('error', 'Meta yapılandırması eksik (META_APP_ID / META_REDIRECT_URI).');
         }
 
         $state = bin2hex(random_bytes(16));
         session()->set('meta_oauth_state', $state);
 
-        // ✅ Klasik OAuth (scope zorunlu)
+        $configId = trim((string) getenv('META_CONFIG_ID'));
+
         $params = [
             'client_id'     => $cfg['app_id'],
             'redirect_uri'  => $cfg['redirect_uri'],
             'state'         => $state,
             'response_type' => 'code',
-            'scope'         => implode(',', $cfg['scopes']),
+            'auth_type'     => 'rerequest',
         ];
+
+        // ✅ config_id varsa onu kullan (Facebook Login for Business)
+        if ($configId !== '') {
+            $params['config_id'] = $configId;
+            // config_id varken scope göndermiyoruz
+        } else {
+            // ✅ config_id yoksa klasik scope akışı
+            $params['scope'] = implode(',', $cfg['scopes']);
+        }
 
         $loginUrl = 'https://www.facebook.com/' . $cfg['graph_ver'] . '/dialog/oauth?' . http_build_query($params);
 
+        log_message('error', 'META CONFIG_ID: ' . ($configId !== '' ? $configId : 'EMPTY'));
         log_message('error', 'META SCOPES: ' . implode(',', $cfg['scopes']));
-        // URL bazen kesiliyor; debug için parça parça yazalım:
+        log_message('error', 'META REDIRECT_URI: ' . $cfg['redirect_uri']);
         log_message('error', 'META LOGIN URL LEN: ' . strlen($loginUrl));
 
         return redirect()->to($loginUrl);
