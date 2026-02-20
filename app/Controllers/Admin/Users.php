@@ -8,12 +8,10 @@ use App\Models\UserModel;
 class Users extends BaseController
 {
     protected $userModel;
-    protected $db;
 
     public function __construct()
     {
         $this->userModel = new UserModel();
-        $this->db = \Config\Database::connect();
         helper(['form', 'url']);
     }
 
@@ -22,8 +20,7 @@ class Users extends BaseController
         $q      = trim((string) $this->request->getGet('q'));
         $status = trim((string) $this->request->getGet('status'));
 
-        // dealer_id’yi de listeye ekleyelim (istersen view’de gösterirsin)
-        $builder = $this->userModel->select('id, tenant_id, dealer_id, created_by, name, email, role, status, created_at');
+        $builder = $this->userModel->select('id, tenant_id, created_by, name, email, role, status, created_at');
 
         if ($q !== '') {
             $builder->groupStart()
@@ -51,38 +48,23 @@ class Users extends BaseController
 
     public function create()
     {
-        // Root ekranında user oluştururken bayiye bağlamak istersen diye dealer listesi
-        $dealers = $this->userModel
-            ->select('id, name, email, tenant_id')
-            ->where('role', 'dealer')
-            ->orderBy('id', 'DESC')
-            ->findAll();
-
         return view('admin/users/create', [
             'pageTitle'    => 'Yeni Kullanıcı',
             'pageSubtitle' => 'Yeni kullanıcı oluşturun.',
             'errors'       => session()->getFlashdata('errors') ?? [],
-            'dealers'      => $dealers,
         ]);
     }
 
     public function store()
     {
-        /**
-         * Önemli:
-         * - tenant_id artık manuel istenmiyor.
-         * - dealer oluşturulunca tenant otomatik açılacak.
-         * - user oluşturulunca isterse dealer seçerek bağlanabilecek.
-         */
+        // tenant_id artık input olarak zorunlu değil (dealer için otomatik üretilecek)
         $rules = [
-            'name'             => 'required|min_length[3]|max_length[150]',
+            'name'             => 'required|min_length[3]|max_length[100]',
             'email'            => 'required|valid_email|is_unique[users.email]',
             'password'         => 'required|min_length[6]',
             'password_confirm' => 'required|matches[password]',
             'role'             => 'required|in_list[root,dealer,user]',
             'status'           => 'required|in_list[active,passive]',
-            // user için opsiyonel bayi seçimi
-            'dealer_id'        => 'permit_empty|is_natural_no_zero',
         ];
 
         if (! $this->validate($rules)) {
@@ -92,115 +74,56 @@ class Users extends BaseController
 
         $post = $this->request->getPost();
 
-        $role = (string)($post['role'] ?? 'user');
-        if ($role === 'admin') $role = 'root'; // geriye dönük
+        $role = (string) ($post['role'] ?? 'user');
+        if ($role === 'admin') $role = 'root';
 
-        $dealerId = $post['dealer_id'] ?? null;
-        $dealerId = ($dealerId === '' || $dealerId === null) ? null : (int)$dealerId;
-
-        // Transaction ile garanti altına alalım
-        $this->db->transBegin();
-
-        try {
-            // ROOT: tenant_id her zaman null
-            if ($role === 'root') {
-                $this->userModel->insert([
-                    'tenant_id'      => null,
-                    'dealer_id'      => null,
-                    'created_by'     => null,
-                    'name'           => $post['name'],
-                    'email'          => $post['email'],
-                    'role'           => 'root',
-                    'status'         => $post['status'],
-                    'password_hash'  => password_hash($post['password'], PASSWORD_DEFAULT),
-                    'created_at'     => date('Y-m-d H:i:s'),
-                ]);
-
-                $this->db->transCommit();
-
-                return redirect()->to(base_url('admin/users'))
-                    ->with('success', 'Root kullanıcı başarıyla oluşturuldu.');
-            }
-
-            // DEALER: önce user aç -> sonra tenant aç -> sonra user.tenant_id güncelle
-            if ($role === 'dealer') {
-
-                // 1) Dealer user kaydı (tenant_id şimdilik null)
-                $this->userModel->insert([
-                    'tenant_id'      => null,
-                    'dealer_id'      => null,
-                    'created_by'     => null,
-                    'name'           => $post['name'],
-                    'email'          => $post['email'],
-                    'role'           => 'dealer',
-                    'status'         => $post['status'],
-                    'password_hash'  => password_hash($post['password'], PASSWORD_DEFAULT),
-                    'created_at'     => date('Y-m-d H:i:s'),
-                ]);
-
-                $newDealerUserId = (int)$this->userModel->getInsertID();
-
-                // 2) Tenant oluştur (AUTO_INCREMENT id)
-                $this->db->table('tenants')->insert([
-                    'name'          => $post['name'],          // istersen "Şirket adı" ayrı alan yaparız
-                    'owner_user_id' => $newDealerUserId,
-                    'created_at'    => date('Y-m-d H:i:s'),
-                ]);
-
-                $newTenantId = (int)$this->db->insertID();
-
-                // 3) Dealer user'ı tenant'a bağla
-                $this->userModel->update($newDealerUserId, [
-                    'tenant_id' => $newTenantId,
-                ]);
-
-                $this->db->transCommit();
-
-                return redirect()->to(base_url('admin/users'))
-                    ->with('success', 'Bayi başarıyla oluşturuldu. Tenant otomatik atandı (ID: '.$newTenantId.').');
-            }
-
-            // USER:
-            // - Root isterse genel kullanıcı açabilir (tenant null)
-            // - Dealer seçerse: user o dealer'ın tenantına bağlanır + created_by/dealer_id set edilir
+        // Root oluşturduğu user: tenant_id NULL kalsın (genel kullanıcı)
+        // Dealer: tenant otomatik açılacak
+        $tenantId = null;
+        if ($role === 'root') {
             $tenantId = null;
-            $createdBy = null;
+        }
 
-            if (!empty($dealerId)) {
-                $dealer = $this->userModel->select('id, tenant_id')->find($dealerId);
+        $db = \Config\Database::connect();
+        $db->transStart();
 
-                if (!$dealer || ($dealer['tenant_id'] ?? null) === null) {
-                    throw new \RuntimeException('Seçilen bayi bulunamadı veya tenant bilgisi yok.');
-                }
+        // 1) user kaydı
+        $this->userModel->insert([
+            'tenant_id'     => $tenantId,
+            'created_by'    => null,
+            'name'          => $post['name'],
+            'email'         => $post['email'],
+            'role'          => $role,
+            'status'        => $post['status'],
+            'password_hash' => password_hash($post['password'], PASSWORD_DEFAULT),
+        ]);
 
-                $tenantId   = (int)$dealer['tenant_id'];
-                $createdBy  = (int)$dealer['id'];
-            }
+        $newUserId = (int) $this->userModel->getInsertID();
 
-            $this->userModel->insert([
-                'tenant_id'      => $tenantId,          // null olabilir (genel user)
-                'dealer_id'      => $dealerId,          // null olabilir
-                'created_by'     => $createdBy,         // dealer seçildiyse dealer id
-                'name'           => $post['name'],
-                'email'          => $post['email'],
-                'role'           => 'user',
-                'status'         => $post['status'],
-                'password_hash'  => password_hash($post['password'], PASSWORD_DEFAULT),
-                'created_at'     => date('Y-m-d H:i:s'),
+        // 2) dealer ise tenant oluştur ve bağla
+        if ($role === 'dealer') {
+            // tenants tablosu: (id AI), name, owner_user_id (unique), created_at
+            $db->table('tenants')->insert([
+                'name'          => (string) $post['name'],
+                'owner_user_id' => $newUserId,
             ]);
 
-            $this->db->transCommit();
+            $newTenantId = (int) $db->insertID();
 
-            return redirect()->to(base_url('admin/users'))
-                ->with('success', 'Kullanıcı başarıyla oluşturuldu.');
-        }
-        catch (\Throwable $e) {
-            $this->db->transRollback();
-
-            return redirect()->back()->withInput()->with('errors', [
-                'store' => $e->getMessage()
+            $this->userModel->update($newUserId, [
+                'tenant_id' => $newTenantId,
             ]);
         }
+
+        $db->transComplete();
+
+        if ($db->transStatus() === false) {
+            return redirect()->back()->withInput()
+                ->with('error', 'Kayıt sırasında hata oluştu. Lütfen tekrar deneyin.');
+        }
+
+        return redirect()->to(base_url('admin/users'))
+            ->with('success', 'Kullanıcı başarıyla oluşturuldu.');
     }
 
     public function edit(int $id)
@@ -212,18 +135,10 @@ class Users extends BaseController
                 ->with('error', 'Kullanıcı bulunamadı.');
         }
 
-        // edit ekranında da dealer listesi lazım olabilir (istersen view’e koyarız)
-        $dealers = $this->userModel
-            ->select('id, name, email, tenant_id')
-            ->where('role', 'dealer')
-            ->orderBy('id', 'DESC')
-            ->findAll();
-
         return view('admin/users/edit', [
             'pageTitle'    => 'Kullanıcı Düzenle',
             'pageSubtitle' => 'Kullanıcı bilgilerini güncelleyin.',
             'user'         => $user,
-            'dealers'      => $dealers,
             'errors'       => session()->getFlashdata('errors') ?? [],
         ]);
     }
@@ -236,18 +151,13 @@ class Users extends BaseController
                 ->with('error', 'Kullanıcı bulunamadı.');
         }
 
-        // rol edit ekranında zaten değişmiyor (senin view’in öyle)
-        $role = $user['role'] ?? 'user';
-        if ($role === 'admin') $role = 'root';
-
         $rules = [
-            'name'             => 'required|min_length[3]|max_length[150]',
+            'name'             => 'required|min_length[3]|max_length[100]',
             'email'            => 'required|valid_email|is_unique[users.email,id,' . $id . ']',
+            'role'             => 'required|in_list[root,dealer,user]',
             'status'           => 'required|in_list[active,passive]',
             'password'         => 'permit_empty|min_length[6]',
             'password_confirm' => 'permit_empty|matches[password]',
-            // editte istersek user’ı bayiye bağlama için kullanılabilir
-            'dealer_id'        => 'permit_empty|is_natural_no_zero',
         ];
 
         if (! $this->validate($rules)) {
@@ -257,43 +167,67 @@ class Users extends BaseController
 
         $post = $this->request->getPost();
 
-        $dealerId = $post['dealer_id'] ?? null;
-        $dealerId = ($dealerId === '' || $dealerId === null) ? null : (int)$dealerId;
+        $newRole = (string) ($post['role'] ?? ($user['role'] ?? 'user'));
+        if ($newRole === 'admin') $newRole = 'root';
+
+        // son root koruması
+        $oldRole = (string)($user['role'] ?? 'user');
+        if ($oldRole === 'admin') $oldRole = 'root';
+
+        if ($oldRole === 'root' && $newRole !== 'root') {
+            $rootCount = $this->userModel->where('role', 'root')->countAllResults();
+            if ($rootCount <= 1) {
+                return redirect()->back()->withInput()
+                    ->with('error', 'Son root rolü değiştirilemez.');
+            }
+        }
+
+        $db = \Config\Database::connect();
+        $db->transStart();
 
         $updateData = [
             'name'   => $post['name'],
             'email'  => $post['email'],
+            'role'   => $newRole,
             'status' => $post['status'],
         ];
-
-        // Root kullanıcıda bayi/tenant bağlama yok
-        if ($role !== 'root') {
-            // user ise: dealer seçildiyse bağla, seçilmediyse genel bırak (tenant null)
-            if ($role === 'user') {
-                $tenantId = null;
-                $createdBy = null;
-
-                if (!empty($dealerId)) {
-                    $dealer = $this->userModel->select('id, tenant_id')->find($dealerId);
-                    if (!$dealer || ($dealer['tenant_id'] ?? null) === null) {
-                        return redirect()->back()->withInput()
-                            ->with('errors', ['dealer_id' => 'Seçilen bayi bulunamadı veya tenant bilgisi yok.']);
-                    }
-                    $tenantId = (int)$dealer['tenant_id'];
-                    $createdBy = (int)$dealer['id'];
-                }
-
-                $updateData['dealer_id']  = $dealerId;
-                $updateData['tenant_id']  = $tenantId;
-                $updateData['created_by'] = $createdBy;
-            }
-        }
 
         if (! empty($post['password'])) {
             $updateData['password_hash'] = password_hash($post['password'], PASSWORD_DEFAULT);
         }
 
+        // Root için tenant temizliği
+        if ($newRole === 'root') {
+            $updateData['tenant_id'] = null;
+        }
+
         $this->userModel->update($id, $updateData);
+
+        // Eğer dealer olup tenant_id yoksa otomatik üret (eski kayıtları da kurtarır)
+        $fresh = $this->userModel->find($id);
+        if (($fresh['role'] ?? '') === 'dealer' && empty($fresh['tenant_id'])) {
+            // tenant var mı owner_user_id üzerinden kontrol
+            $tenant = $db->table('tenants')->where('owner_user_id', $id)->get()->getRowArray();
+
+            if (! $tenant) {
+                $db->table('tenants')->insert([
+                    'name'          => (string)($fresh['name'] ?? ('Dealer #' . $id)),
+                    'owner_user_id' => $id,
+                ]);
+                $tenantId = (int)$db->insertID();
+            } else {
+                $tenantId = (int)$tenant['id'];
+            }
+
+            $this->userModel->update($id, ['tenant_id' => $tenantId]);
+        }
+
+        $db->transComplete();
+
+        if ($db->transStatus() === false) {
+            return redirect()->back()->withInput()
+                ->with('error', 'Güncelleme sırasında hata oluştu.');
+        }
 
         return redirect()->to(base_url('admin/users'))
             ->with('success', 'Kullanıcı güncellendi.');
@@ -312,7 +246,7 @@ class Users extends BaseController
                 ->with('error', 'Kendi hesabını silemezsin.');
         }
 
-        $role = $user['role'] ?? 'user';
+        $role = (string)($user['role'] ?? 'user');
         if ($role === 'admin') $role = 'root';
 
         if ($role === 'root') {
@@ -323,8 +257,6 @@ class Users extends BaseController
             }
         }
 
-        // Eğer silinen kullanıcı dealer ise, tenant temizliği de isteğe bağlı.
-        // Şimdilik kullanıcıyı siliyoruz, tenant’ı ayrıca ele alırız.
         $this->userModel->delete($id);
 
         return redirect()->to(base_url('admin/users'))
@@ -361,7 +293,6 @@ class Users extends BaseController
 
     public function impersonate(int $id)
     {
-        // admin->root uyumu
         $role = session('user_role') ?? 'user';
         if ($role === 'admin') $role = 'root';
 
@@ -378,7 +309,6 @@ class Users extends BaseController
             return redirect()->back()->with('error', 'Zaten bu hesaptasın.');
         }
 
-        // root hesabına geçişi engelle (isteğe bağlı güvenlik)
         $tRole = $target['role'] ?? 'user';
         if ($tRole === 'admin') $tRole = 'root';
         if ($tRole === 'root') {
@@ -387,17 +317,15 @@ class Users extends BaseController
 
         $session = session();
 
-        // impersonator bilgilerini sakla
         $session->set([
-            'impersonator_id'       => (int) session('user_id'),
-            'impersonator_role'     => (string) session('user_role'),
-            'impersonator_email'    => (string) session('user_email'),
-            'impersonator_name'     => (string) session('user_name'),
-            'impersonator_tenant_id'=> session('tenant_id'),
-            'is_impersonating'      => true,
+            'impersonator_id'        => (int) session('user_id'),
+            'impersonator_role'      => (string) session('user_role'),
+            'impersonator_email'     => (string) session('user_email'),
+            'impersonator_name'      => (string) session('user_name'),
+            'impersonator_tenant_id' => session('tenant_id'),
+            'is_impersonating'       => true,
         ]);
 
-        // hedef kullanıcıya geç (tenant_id dahil)
         $session->set([
             'is_logged_in' => true,
             'user_id'      => (int) $target['id'],
@@ -442,7 +370,7 @@ class Users extends BaseController
             'user_email'   => (string) ($root['email'] ?? ''),
             'user_name'    => (string) ($root['name'] ?? ''),
             'user_role'    => $rRole,
-            'tenant_id'    => $root['tenant_id'] ?? null, // root için null beklenir
+            'tenant_id'    => $root['tenant_id'] ?? null,
         ]);
 
         $session->remove([
