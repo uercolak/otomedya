@@ -11,10 +11,7 @@ class MetaOAuthController extends BaseController
         $scopesEnv = trim((string) getenv('META_SCOPES'));
 
     $defaultScopes = [
-        'pages_show_list',
-        'pages_read_engagement',
-        'instagram_basic',
-        'instagram_content_publish',
+        'public_profile'
     ];
 
         $scopes = $defaultScopes;
