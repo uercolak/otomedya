@@ -417,64 +417,78 @@ class MetaOAuthController extends BaseController
     }
 
     public function connect()
-    {
-        $cfg    = $this->metaConfig();
-        $userId = $this->userId();
+{
+    $cfg    = $this->metaConfig();
+    $userId = $this->userId();
 
-        if (!$this->hasConsent($userId)) {
-            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                ->with('error', 'Devam etmek için önce onayı kabul etmelisin.');
-        }
-
-        if (empty($cfg['app_id']) || empty($cfg['redirect_uri'])) {
-            log_message('error', 'META CONFIG ERROR: app_id veya redirect_uri boş');
-            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                ->with('error', 'Meta ayarları eksik: META_APP_ID / META_REDIRECT_URI kontrol et.');
-        }
-
-        $userId = $this->userId();
-        $nonce  = bin2hex(random_bytes(16));
-        $ts     = time();
-
-        $payloadArr = ['u' => $userId, 'n' => $nonce, 't' => $ts];
-        $payload    = $this->b64urlEncode(json_encode($payloadArr));
-        $sig        = hash_hmac('sha256', $payload, $cfg['app_secret']);
-        $state      = $payload . '.' . $sig;
-
-        // nonce'u DB'ye yaz (meta_tokens.meta_json içine)
-        $metaRow = $this->getMetaTokenRow($userId);
-        $this->saveUserAccessToken(
-            $userId,
-            $metaRow['access_token'] ?? '',
-            $metaRow['expires_at'] ?? null,
-            ['oauth_nonce' => $nonce, 'oauth_ts' => $ts]
-        );
-
-        $configId = trim((string) getenv('META_CONFIG_ID'));
-
-        $params = [
-            'client_id'     => $cfg['app_id'],
-            'redirect_uri'  => $cfg['redirect_uri'],
-            'state'         => $state,
-            'response_type' => 'code',
-
-            'scope'         => implode(',', $cfg['scopes']),
-        ];
-
-        if ($configId !== '') {
-            $params['config_id'] = $configId;
-        }
-
-        $loginUrl = 'https://www.facebook.com/' . $cfg['graph_ver'] . '/dialog/oauth?' . http_build_query($params);
-
-        log_message('error', 'META CONFIG_ID: ' . ($configId !== '' ? $configId : 'EMPTY'));
-        log_message('error', 'META SCOPES: ' . implode(',', $cfg['scopes']));
-        log_message('error', 'META REDIRECT_URI: ' . $cfg['redirect_uri']);
-        log_message('error', 'META LOGIN URL LEN: ' . strlen($loginUrl));
-        log_message('error', 'META LOGIN URL: ' . $loginUrl);
-
-        return redirect()->to($loginUrl);
+    if (!$this->hasConsent($userId)) {
+        return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+            ->with('error', 'Devam etmek için önce onayı kabul etmelisin.');
     }
+
+    if (empty($cfg['app_id']) || empty($cfg['app_secret']) || empty($cfg['redirect_uri'])) {
+        log_message('error', 'META CONFIG ERROR: app_id / app_secret / redirect_uri boş');
+        return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+            ->with('error', 'Meta ayarları eksik: META_APP_ID / META_APP_SECRET / META_REDIRECT_URI kontrol et.');
+    }
+
+    // --- STATE üret ---
+    $nonce  = bin2hex(random_bytes(16));
+    $ts     = time();
+
+    $payloadArr = ['u' => $userId, 'n' => $nonce, 't' => $ts];
+    $payload    = $this->b64urlEncode(json_encode($payloadArr));
+    $sig        = hash_hmac('sha256', $payload, $cfg['app_secret']);
+    $state      = $payload . '.' . $sig;
+
+    // nonce'u DB'ye yaz
+    $metaRow = $this->getMetaTokenRow($userId);
+    $this->saveUserAccessToken(
+        $userId,
+        $metaRow['access_token'] ?? '',
+        $metaRow['expires_at'] ?? null,
+        ['oauth_nonce' => $nonce, 'oauth_ts' => $ts]
+    );
+
+    // --- SCOPES: ENV varsa OVERRIDE et, MERGE etme ---
+    $defaultScopes = ['public_profile']; // debug için en minimal
+    $scopesEnv = trim((string) getenv('META_SCOPES'));
+
+    if ($scopesEnv !== '') {
+        $scopes = array_values(array_unique(array_filter(array_map('trim', explode(',', $scopesEnv)))));
+    } else {
+        $scopes = $defaultScopes;
+    }
+
+    // Eğer tamamen boş kaldıysa fallback
+    if (empty($scopes)) {
+        $scopes = $defaultScopes;
+    }
+
+    $params = [
+        'client_id'     => $cfg['app_id'],
+        'redirect_uri'  => $cfg['redirect_uri'],
+        'state'         => $state,
+        'response_type' => 'code',
+        'scope'         => implode(',', $scopes),
+    ];
+
+    // Business Login config_id (varsa ekle)
+    $configId = trim((string) getenv('META_CONFIG_ID'));
+    if ($configId !== '') {
+        $params['config_id'] = $configId;
+    }
+
+    $loginUrl = 'https://www.facebook.com/' . $cfg['graph_ver'] . '/dialog/oauth?' . http_build_query($params);
+
+    log_message('error', 'META CONFIG_ID: ' . ($configId !== '' ? $configId : 'EMPTY'));
+    log_message('error', 'META SCOPES (FINAL): ' . implode(',', $scopes));
+    log_message('error', 'META REDIRECT_URI: ' . $cfg['redirect_uri']);
+    log_message('error', 'META LOGIN URL LEN: ' . strlen($loginUrl));
+    log_message('error', 'META LOGIN URL: ' . $loginUrl);
+
+    return redirect()->to($loginUrl);
+}
 
     public function callback()
     {
