@@ -257,14 +257,18 @@ class MetaOAuthController extends BaseController
 
         $configId = trim((string) ($cfg['login_config_id'] ?? ''));
 
-        // ✅ Facebook Login for Business: config_id varsa scope göndermiyoruz
         if ($configId !== '') {
             $params['config_id'] = $configId;
+
+            // ✅ En az 1 supported permission zorunlu (garanti)
+            $params['scope'] = 'public_profile';
         } else {
-            // ✅ config_id yoksa klasik OAuth fallback
             $scopes = $cfg['scopes'] ?? [];
             if (empty($scopes)) {
-                $scopes = ['pages_show_list', 'pages_read_engagement', 'instagram_basic', 'instagram_content_publish'];
+                $scopes = ['pages_show_list', 'pages_read_engagement', 'instagram_basic', 'instagram_content_publish', 'public_profile'];
+            } else {
+                // public_profile garanti
+                if (!in_array('public_profile', $scopes, true)) $scopes[] = 'public_profile';
             }
             $params['scope'] = implode(',', $scopes);
         }
