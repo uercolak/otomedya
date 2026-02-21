@@ -1,5 +1,6 @@
 <?php
 
+
 namespace App\Controllers\Panel;
 
 use App\Controllers\BaseController;
@@ -19,6 +20,7 @@ class MetaOAuthController extends BaseController
 
         $scopes = $defaultScopes;
 
+        // ENV varsa override ETME, merge ET
         if ($scopesEnv !== '') {
             $parts = array_filter(array_map('trim', explode(',', $scopesEnv)));
             if (!empty($parts)) {
@@ -35,6 +37,7 @@ class MetaOAuthController extends BaseController
             'graph_ver'    => (string) (getenv('META_GRAPH_VER') ?: 'v24.0'),
             'verify_ssl'   => (getenv('META_VERIFY_SSL') !== false && getenv('META_VERIFY_SSL') !== '0'),
 
+            // Facebook Login for Business Configuration ID
             'login_config_id' => trim((string) getenv('META_LOGIN_CONFIG_ID')),
 
             'scopes' => $scopes,
@@ -68,7 +71,7 @@ class MetaOAuthController extends BaseController
             $data['_http_code'] = $resp->getStatusCode();
             return $data;
         } catch (\Throwable $e) {
-            return ['error' => ['message' => $e->getMessage(),'type' => 'Exception'], '_http_code' => 0];
+            return ['error' => ['message' => $e->getMessage(), 'type' => 'Exception'], '_http_code' => 0];
         }
     }
 
@@ -83,7 +86,7 @@ class MetaOAuthController extends BaseController
             $data['_http_code'] = $resp->getStatusCode();
             return $data;
         } catch (\Throwable $e) {
-            return ['error' => ['message' => $e->getMessage(),'type' => 'Exception'], '_http_code' => 0];
+            return ['error' => ['message' => $e->getMessage(), 'type' => 'Exception'], '_http_code' => 0];
         }
     }
 
@@ -110,6 +113,7 @@ class MetaOAuthController extends BaseController
         return ($ts - time()) <= ($thresholdDays * 86400);
     }
 
+    /* ===================== DB: meta_tokens ===================== */
 
     private function getMetaTokenRow(int $userId): ?array
     {
@@ -145,70 +149,96 @@ class MetaOAuthController extends BaseController
             'consent_accepted_at' => $now,
             'oauth_nonce'         => null,
             'oauth_ts'            => null,
-            'meta_json'           => null,
             'created_at'          => $now,
             'updated_at'          => $now,
         ]);
     }
 
     private function saveUserAccessToken(int $userId, string $accessToken, ?string $expiresAt, array $extraMeta = []): void
-        {
-            $db  = $this->db();
-            $now = date('Y-m-d H:i:s');
+    {
+        $db  = $this->db();
+        $now = date('Y-m-d H:i:s');
 
-            $existing = $this->getMetaTokenRow($userId);
+        $existing = $this->getMetaTokenRow($userId);
 
-            $oauthNonce = $extraMeta['oauth_nonce'] ?? null;
-            $oauthTs    = $extraMeta['oauth_ts'] ?? null;
-
-            if ($existing) {
-                $update = [
-                    'access_token' => $accessToken,
-                    'expires_at'   => $expiresAt,
-                    'updated_at'   => $now,
-                ];
-
-                // ✅ kolonlara yaz
-                if ($db->fieldExists('oauth_nonce', 'meta_tokens')) $update['oauth_nonce'] = $oauthNonce;
-                if ($db->fieldExists('oauth_ts', 'meta_tokens'))    $update['oauth_ts']    = $oauthTs;
-
-                $db->table('meta_tokens')->where('user_id', $userId)->update($update);
-
-                // meta_json varsa merge et
-                if ($db->fieldExists('meta_json', 'meta_tokens')) {
-                    $meta = [];
-                    if (!empty($existing['meta_json'])) {
-                        $tmp = json_decode((string) $existing['meta_json'], true);
-                        if (is_array($tmp)) $meta = $tmp;
-                    }
-                    $meta = array_merge($meta, $extraMeta);
-
-                    $db->table('meta_tokens')->where('user_id', $userId)->update([
-                        'meta_json' => json_encode($meta, JSON_UNESCAPED_UNICODE),
-                    ]);
-                }
-
-                return;
-            }
-
-            $insert = [
-                'user_id'      => $userId,
+        if ($existing) {
+            $db->table('meta_tokens')->where('user_id', $userId)->update([
                 'access_token' => $accessToken,
                 'expires_at'   => $expiresAt,
-                'created_at'   => $now,
                 'updated_at'   => $now,
-            ];
+            ]);
 
-            if ($db->fieldExists('oauth_nonce', 'meta_tokens')) $insert['oauth_nonce'] = $oauthNonce;
-            if ($db->fieldExists('oauth_ts', 'meta_tokens'))    $insert['oauth_ts']    = $oauthTs;
-
+            // meta_json opsiyonel
             if ($db->fieldExists('meta_json', 'meta_tokens')) {
-                $insert['meta_json'] = json_encode($extraMeta, JSON_UNESCAPED_UNICODE);
+                $meta = [];
+                if (!empty($existing['meta_json'])) {
+                    $tmp = json_decode((string) $existing['meta_json'], true);
+                    if (is_array($tmp)) $meta = $tmp;
+                }
+                $meta = array_merge($meta, $extraMeta);
+
+                $db->table('meta_tokens')->where('user_id', $userId)->update([
+                    'meta_json' => json_encode($meta, JSON_UNESCAPED_UNICODE),
+                ]);
             }
 
-            $db->table('meta_tokens')->insert($insert);
+            return;
         }
 
+        $insert = [
+            'user_id'      => $userId,
+            'access_token' => $accessToken,
+            'expires_at'   => $expiresAt,
+            'oauth_nonce'  => null,
+            'oauth_ts'     => null,
+            'created_at'   => $now,
+            'updated_at'   => $now,
+        ];
+
+        if ($db->fieldExists('meta_json', 'meta_tokens')) {
+            $insert['meta_json'] = json_encode($extraMeta, JSON_UNESCAPED_UNICODE);
+        }
+
+        $db->table('meta_tokens')->insert($insert);
+    }
+
+    private function setOAuthState(int $userId, string $nonce, int $ts): void
+    {
+        $db  = $this->db();
+        $now = date('Y-m-d H:i:s');
+
+        $existing = $this->getMetaTokenRow($userId);
+
+        if ($existing) {
+            $db->table('meta_tokens')->where('user_id', $userId)->update([
+                'oauth_nonce' => $nonce,
+                'oauth_ts'    => $ts,
+                'updated_at'  => $now,
+            ]);
+        } else {
+            $db->table('meta_tokens')->insert([
+                'user_id'      => $userId,
+                'access_token' => '',
+                'expires_at'   => null,
+                'consent_accepted_at' => null,
+                'oauth_nonce'  => $nonce,
+                'oauth_ts'     => $ts,
+                'created_at'   => $now,
+                'updated_at'   => $now,
+            ]);
+        }
+    }
+
+    private function clearOAuthState(int $userId): void
+    {
+        $db  = $this->db();
+        $now = date('Y-m-d H:i:s');
+        $db->table('meta_tokens')->where('user_id', $userId)->update([
+            'oauth_nonce' => null,
+            'oauth_ts'    => null,
+            'updated_at'  => $now,
+        ]);
+    }
 
     private function getUserAccessTokenOrNull(int $userId): ?string
     {
@@ -219,231 +249,233 @@ class MetaOAuthController extends BaseController
         return (string) $tok;
     }
 
+    /* ===================== OAuth Flow ===================== */
+
     public function consent()
     {
-            $userId = $this->userId();
-            $this->markConsentAccepted($userId);
-            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                ->with('success', 'Onay kaydedildi. Şimdi Meta ile bağlanabilirsin.');
+        $userId = $this->userId();
+        $this->markConsentAccepted($userId);
+        return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+            ->with('success', 'Onay kaydedildi. Şimdi Meta ile bağlanabilirsin.');
     }
 
     public function connect()
     {
-            $cfg    = $this->metaConfig();
-            $userId = $this->userId();
+        $cfg    = $this->metaConfig();
+        $userId = $this->userId();
 
-            if (!$this->hasConsent($userId)) {
-                return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                    ->with('error', 'Devam etmek için önce onayı kabul etmelisin.');
-            }
+        if (!$this->hasConsent($userId)) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'Devam etmek için önce onayı kabul etmelisin.');
+        }
 
-            if (empty($cfg['app_id']) || empty($cfg['app_secret']) || empty($cfg['redirect_uri'])) {
-                log_message('error', 'META CONFIG ERROR: app_id / app_secret / redirect_uri boş');
-                return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                    ->with('error', 'Meta ayarları eksik: META_APP_ID / META_APP_SECRET / META_REDIRECT_URI kontrol et.');
-            }
+        if (empty($cfg['app_id']) || empty($cfg['app_secret']) || empty($cfg['redirect_uri'])) {
+            log_message('error', 'META CONFIG ERROR: app_id / app_secret / redirect_uri boş');
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'Meta ayarları eksik: META_APP_ID / META_APP_SECRET / META_REDIRECT_URI kontrol et.');
+        }
 
-            // --- STATE üret ---
-            $nonce  = bin2hex(random_bytes(16));
-            $ts     = time();
+        // --- STATE üret ---
+        $nonce  = bin2hex(random_bytes(16));
+        $ts     = time();
 
-            $payloadArr = ['u' => $userId, 'n' => $nonce, 't' => $ts];
-            $payload    = $this->b64urlEncode(json_encode($payloadArr));
-            $sig        = hash_hmac('sha256', $payload, $cfg['app_secret']);
-            $state      = $payload . '.' . $sig;
+        $payloadArr = ['u' => $userId, 'n' => $nonce, 't' => $ts];
+        $payload    = $this->b64urlEncode(json_encode($payloadArr));
+        $sig        = hash_hmac('sha256', $payload, $cfg['app_secret']);
+        $state      = $payload . '.' . $sig;
 
-            // ✅ nonce'u DB'ye kesin yaz
-            $metaRow = $this->getMetaTokenRow($userId) ?: [];
-            $this->saveUserAccessToken(
-                $userId,
-                (string)($metaRow['access_token'] ?? ''),
-                $metaRow['expires_at'] ?? null,
-                ['oauth_nonce' => $nonce, 'oauth_ts' => $ts]
-            );
+        // ✅ nonce'u DB'ye yaz (meta_json’a bağlı kalma!)
+        $this->setOAuthState($userId, $nonce, $ts);
 
-            $params = [
-                'client_id'     => $cfg['app_id'],
-                'redirect_uri'  => $cfg['redirect_uri'],
-                'state'         => $state,
-                'response_type' => 'code',
-            ];
+        $params = [
+            'client_id'     => $cfg['app_id'],
+            'redirect_uri'  => $cfg['redirect_uri'],
+            'state'         => $state,
+            'response_type' => 'code',
+        ];
 
-            $configId = trim((string) ($cfg['login_config_id'] ?? ''));
+        $configId = trim((string) ($cfg['login_config_id'] ?? ''));
 
-            if ($configId !== '') {
-                $params['config_id'] = $configId;
-                // ✅ supported permission garanti
-                $params['scope'] = 'public_profile';
+        if ($configId !== '') {
+            $params['config_id'] = $configId;
+            // Facebook Login for Business config_id ile en az 1 supported permission
+            $params['scope'] = 'public_profile';
+        } else {
+            $scopes = $cfg['scopes'] ?? [];
+            if (empty($scopes)) {
+                $scopes = ['pages_show_list', 'pages_read_engagement', 'instagram_basic', 'instagram_content_publish', 'public_profile'];
             } else {
-                $scopes = $cfg['scopes'] ?? [];
-                if (empty($scopes)) {
-                    $scopes = ['pages_show_list', 'pages_read_engagement', 'instagram_basic', 'instagram_content_publish', 'public_profile'];
-                } else {
-                    if (!in_array('public_profile', $scopes, true)) $scopes[] = 'public_profile';
-                }
-                $params['scope'] = implode(',', $scopes);
+                if (!in_array('public_profile', $scopes, true)) $scopes[] = 'public_profile';
             }
+            $params['scope'] = implode(',', $scopes);
+        }
 
-            $loginUrl = 'https://www.facebook.com/' . $cfg['graph_ver'] . '/dialog/oauth?' . http_build_query($params);
+        $loginUrl = 'https://www.facebook.com/' . $cfg['graph_ver'] . '/dialog/oauth?' . http_build_query($params);
 
-            log_message('error', 'META CONFIG_ID: ' . ($configId !== '' ? $configId : 'EMPTY'));
-            log_message('error', 'META SCOPES (CFG): ' . implode(',', (array)($cfg['scopes'] ?? [])));
-            log_message('error', 'META REDIRECT_URI: ' . $cfg['redirect_uri']);
-            log_message('error', 'META LOGIN URL LEN: ' . strlen($loginUrl));
-            log_message('error', 'META LOGIN URL: ' . $loginUrl);
+        log_message('error', 'META CONFIG_ID: ' . ($configId !== '' ? $configId : 'EMPTY'));
+        log_message('error', 'META SCOPES (CFG): ' . implode(',', (array)($cfg['scopes'] ?? [])));
+        log_message('error', 'META REDIRECT_URI: ' . $cfg['redirect_uri']);
+        log_message('error', 'META LOGIN URL LEN: ' . strlen($loginUrl));
+        log_message('error', 'META LOGIN URL: ' . $loginUrl);
 
-            return redirect()->to($loginUrl);
+        return redirect()->to($loginUrl);
     }
 
     public function callback()
     {
-            log_message('error', 'META CALLBACK RAW: ' . ($this->request->getServer('REQUEST_URI') ?? 'NO_URI'));
-            log_message('error', 'META CALLBACK QUERY_STRING: ' . ($this->request->getServer('QUERY_STRING') ?? 'NO_QS'));
+        log_message('error', 'META CALLBACK RAW: ' . ($this->request->getServer('REQUEST_URI') ?? 'NO_URI'));
+        log_message('error', 'META CALLBACK QUERY_STRING: ' . ($this->request->getServer('QUERY_STRING') ?? 'NO_QS'));
 
-            $cfg = $this->metaConfig();
+        $cfg = $this->metaConfig();
 
-            $stateRaw = (string) $this->request->getGet('state');
-            if (!$stateRaw || !str_contains($stateRaw, '.')) {
-                return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                    ->with('error', 'OAuth state eksik.');
-            }
+        // Panel içinden geliyoruz -> session user şart
+        $sessionUserId = $this->userId();
+        if ($sessionUserId <= 0) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'Oturum bulunamadı. Panelden tekrar bağlanmayı dene.');
+        }
 
-            [$payload, $sig] = explode('.', $stateRaw, 2);
-            $calc = hash_hmac('sha256', $payload, $cfg['app_secret']);
+        $stateRaw = (string) $this->request->getGet('state');
+        if (!$stateRaw || !str_contains($stateRaw, '.')) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'OAuth state eksik.');
+        }
 
-            if (!hash_equals($calc, $sig)) {
-                return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                    ->with('error', 'OAuth state imzası geçersiz.');
-            }
+        [$payload, $sig] = explode('.', $stateRaw, 2);
+        $calc = hash_hmac('sha256', $payload, $cfg['app_secret']);
 
-            $decoded = $this->b64urlDecode($payload);
-            $arr = json_decode($decoded, true);
+        if (!hash_equals($calc, $sig)) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'OAuth state imzası geçersiz.');
+        }
 
-            $stateUserId = (int)($arr['u'] ?? 0);
-            $nonce  = (string)($arr['n'] ?? '');
-            $ts     = (int)($arr['t'] ?? 0);
+        $decoded = $this->b64urlDecode($payload);
+        $arr = json_decode($decoded, true);
 
-            if ($stateUserId <= 0 || $nonce === '' || $ts <= 0) {
-                return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                    ->with('error', 'OAuth state içeriği geçersiz.');
-            }
+        $stateUserId = (int)($arr['u'] ?? 0);
+        $nonce  = (string)($arr['n'] ?? '');
+        $ts     = (int)($arr['t'] ?? 0);
 
-            // ✅ Session ile state user eşleşmeli (karışıklığı bitirir)
-            $sessionUserId = $this->userId();
-            if ($sessionUserId <= 0 || $sessionUserId !== $stateUserId) {
-                return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                    ->with('error', 'Oturum uyuşmazlığı. Lütfen panelden tekrar bağlan.');
-            }
-            $userId = $sessionUserId;
+        if ($stateUserId <= 0 || $nonce === '' || $ts <= 0) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'OAuth state içeriği geçersiz.');
+        }
 
-            // 10 dk timeout
-            if (abs(time() - $ts) > 600) {
-                return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                    ->with('error', 'OAuth state zaman aşımı. Tekrar dene.');
-            }
+        // ✅ Session user ile state user aynı olmalı (aksi halde nonce mismatch olur)
+        if ($stateUserId !== $sessionUserId) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'OAuth state kullanıcı uyuşmuyor. Tekrar dene.');
+        }
 
-            // ✅ nonce DB ile eşleşiyor mu? (önce kolonlar, sonra meta_json fallback)
-            $row = $this->getMetaTokenRow($userId);
+        // 10 dk timeout
+        if (abs(time() - $ts) > 600) {
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'OAuth state zaman aşımı. Tekrar dene.');
+        }
 
-            $dbNonce = '';
-            if ($row) {
-                if (!empty($row['oauth_nonce'])) {
-                    $dbNonce = (string)$row['oauth_nonce'];
-                } else {
-                    $meta = [];
-                    if (!empty($row['meta_json'])) {
-                        $tmp = json_decode((string)$row['meta_json'], true);
-                        if (is_array($tmp)) $meta = $tmp;
-                    }
-                    $dbNonce = (string)($meta['oauth_nonce'] ?? '');
-                }
-            }
+        // nonce DB ile eşleşiyor mu?
+        $row = $this->getMetaTokenRow($sessionUserId);
+        $dbNonce = (string)($row['oauth_nonce'] ?? '');
+        $dbTs    = (int)($row['oauth_ts'] ?? 0);
 
-            if ($dbNonce === '' || !hash_equals($dbNonce, $nonce)) {
-                return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                    ->with('error', 'OAuth state doğrulanamadı (nonce).');
-            }
-
-            $code = (string) $this->request->getGet('code');
-            if (!$code) {
-                $err1 = (string) $this->request->getGet('error');
-                $err2 = (string) $this->request->getGet('error_reason');
-                $err3 = (string) $this->request->getGet('error_description');
-                $err4 = (string) $this->request->getGet('error_message');
-
-                log_message('error', 'META CALLBACK NO CODE: ' . json_encode([
-                    'error' => $err1, 'reason' => $err2, 'desc' => $err3, 'msg' => $err4,
-                    'qs' => $_GET
-                ], JSON_UNESCAPED_UNICODE));
-
-                return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                    ->with('error', 'Meta callback hatası: ' . ($err3 ?: $err4 ?: $err2 ?: $err1 ?: 'code yok'));
-            }
-
-            // 1) short token
-            $tokenRes = $this->httpGetJson(
-                $this->graphUrl($cfg, 'oauth/access_token', [
-                    'client_id'     => $cfg['app_id'],
-                    'client_secret' => $cfg['app_secret'],
-                    'redirect_uri'  => $cfg['redirect_uri'],
-                    'code'          => $code,
-                ]),
-                $cfg
-            );
-
-            if (empty($tokenRes['access_token'])) {
-                $msg = $tokenRes['error']['message'] ?? 'Token alınamadı';
-                return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                    ->with('error', 'Meta token alınamadı: ' . $msg);
-            }
-
-            $shortToken = (string) $tokenRes['access_token'];
-            $expiresAt  = null;
-
-            // 2) long token exchange
-            $longRes = $this->httpGetJson(
-                $this->graphUrl($cfg, 'oauth/access_token', [
-                    'grant_type'        => 'fb_exchange_token',
-                    'client_id'         => $cfg['app_id'],
-                    'client_secret'     => $cfg['app_secret'],
-                    'fb_exchange_token' => $shortToken,
-                ]),
-                $cfg
-            );
-
-            $finalToken = $shortToken;
-            if (!empty($longRes['access_token'])) {
-                $finalToken = (string) $longRes['access_token'];
-                if (!empty($longRes['expires_in'])) {
-                    $expiresAt = date('Y-m-d H:i:s', time() + (int)$longRes['expires_in']);
-                }
-            } else {
-                if (!empty($tokenRes['expires_in'])) {
-                    $expiresAt = date('Y-m-d H:i:s', time() + (int)$tokenRes['expires_in']);
-                }
-            }
-
-            // 3) debug_token ile gerçek expire al
-            $debug = $this->httpGetJson(
-                $this->graphUrl($cfg, 'debug_token', [
-                    'input_token'  => $finalToken,
-                    'access_token' => $this->appAccessToken($cfg),
-                ]),
-                $cfg
-            );
-
-            $debugData = $debug['data'] ?? [];
-            if (is_array($debugData) && !empty($debugData['expires_at'])) {
-                $expiresAt = $this->parseUnixToDateTime((int)$debugData['expires_at']);
-            }
-
-            // ✅ token kaydet (nonce'u burada ezmiyoruz)
-            $this->saveUserAccessToken($userId, $finalToken, $expiresAt, [
-                'debug_token' => $debugData,
-            ]);
+        if ($dbNonce === '' || !hash_equals($dbNonce, $nonce)) {
+            // debug için log
+            log_message('error', 'META NONCE MISMATCH: ' . json_encode([
+                'session_user_id' => $sessionUserId,
+                'state_user_id'   => $stateUserId,
+                'db_nonce'        => $dbNonce,
+                'state_nonce'     => $nonce,
+                'db_ts'           => $dbTs,
+                'state_ts'        => $ts,
+            ], JSON_UNESCAPED_UNICODE));
 
             return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
-                ->with('success', 'Meta bağlantısı tamamlandı.');
+                ->with('error', 'OAuth state doğrulanamadı (nonce).');
+        }
+
+        $code = (string) $this->request->getGet('code');
+        if (!$code) {
+            $err1 = (string) $this->request->getGet('error');
+            $err2 = (string) $this->request->getGet('error_reason');
+            $err3 = (string) $this->request->getGet('error_description');
+            $err4 = (string) $this->request->getGet('error_message');
+
+            log_message('error', 'META CALLBACK NO CODE: ' . json_encode([
+                'error' => $err1, 'reason' => $err2, 'desc' => $err3, 'msg' => $err4,
+                'qs' => $_GET
+            ], JSON_UNESCAPED_UNICODE));
+
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'Meta callback hatası: ' . ($err3 ?: $err4 ?: $err2 ?: $err1 ?: 'code yok'));
+        }
+
+        // code -> short token
+        $tokenRes = $this->httpGetJson(
+            $this->graphUrl($cfg, 'oauth/access_token', [
+                'client_id'     => $cfg['app_id'],
+                'client_secret' => $cfg['app_secret'],
+                'redirect_uri'  => $cfg['redirect_uri'],
+                'code'          => $code,
+            ]),
+            $cfg
+        );
+
+        if (empty($tokenRes['access_token'])) {
+            $msg = $tokenRes['error']['message'] ?? 'Token alınamadı';
+            return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+                ->with('error', 'Meta token alınamadı: ' . $msg);
+        }
+
+        $shortToken = (string) $tokenRes['access_token'];
+        $expiresAt  = null;
+
+        // exchange -> long token
+        $longRes = $this->httpGetJson(
+            $this->graphUrl($cfg, 'oauth/access_token', [
+                'grant_type'        => 'fb_exchange_token',
+                'client_id'         => $cfg['app_id'],
+                'client_secret'     => $cfg['app_secret'],
+                'fb_exchange_token' => $shortToken,
+            ]),
+            $cfg
+        );
+
+        $finalToken = $shortToken;
+        if (!empty($longRes['access_token'])) {
+            $finalToken = (string) $longRes['access_token'];
+            if (!empty($longRes['expires_in'])) {
+                $expiresAt = date('Y-m-d H:i:s', time() + (int)$longRes['expires_in']);
+            }
+        } else {
+            if (!empty($tokenRes['expires_in'])) {
+                $expiresAt = date('Y-m-d H:i:s', time() + (int)$tokenRes['expires_in']);
+            }
+        }
+
+        // debug_token -> expires_at netle
+        $debug = $this->httpGetJson(
+            $this->graphUrl($cfg, 'debug_token', [
+                'input_token'  => $finalToken,
+                'access_token' => $this->appAccessToken($cfg),
+            ]),
+            $cfg
+        );
+
+        $debugData = $debug['data'] ?? [];
+        if (is_array($debugData) && !empty($debugData['expires_at'])) {
+            $expiresAt = $this->parseUnixToDateTime((int)$debugData['expires_at']);
+        }
+
+        // token kaydet
+        $this->saveUserAccessToken($sessionUserId, $finalToken, $expiresAt, [
+            'debug_token' => $debugData,
+        ]);
+
+        // ✅ replay olmasın diye nonce temizle
+        $this->clearOAuthState($sessionUserId);
+
+        return redirect()->to(site_url('panel/social-accounts/meta/wizard'))
+            ->with('success', 'Meta bağlantısı tamamlandı.');
     }
 
     private function httpGetAllData(array $cfg, string $path, array $query): array
