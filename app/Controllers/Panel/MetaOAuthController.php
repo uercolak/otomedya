@@ -474,7 +474,7 @@ class MetaOAuthController extends BaseController
     ];
 
     // Business Login config_id (varsa ekle)
-    $configId = trim((string) getenv('META_CONFIG_ID'));
+    $configId = '';
     if ($configId !== '') {
         $params['config_id'] = $configId;
     }
