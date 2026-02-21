@@ -471,6 +471,7 @@ class MetaOAuthController extends BaseController
         log_message('error', 'META SCOPES: ' . implode(',', $cfg['scopes']));
         log_message('error', 'META REDIRECT_URI: ' . $cfg['redirect_uri']);
         log_message('error', 'META LOGIN URL LEN: ' . strlen($loginUrl));
+        log_message('error', 'META LOGIN URL: ' . $loginUrl);
 
         return redirect()->to($loginUrl);
     }
