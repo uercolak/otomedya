@@ -386,7 +386,17 @@
 
           <div class="text-muted small mt-3">
             Bağladıktan sonra bu hesap, <a href="<?= site_url('panel/calendar') ?>">Takvim &amp; Planlama</a> ekranında “Hesap” seçiminde görünür.
-          </div>
+          
+        <?php if (!empty($showDebug) && !empty($debug)): ?>
+  <hr>
+  <h5>DEBUG (wizard)</h5>
+  <pre style="max-height:520px; overflow:auto; background:#111; color:#0f0; padding:12px; border-radius:8px;">
+<?= esc(json_encode($debug, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)) ?>
+  </pre>
+<?php endif; ?>
+        
+        
+        </div>
 
         <?php endif; ?>
 
@@ -398,10 +408,3 @@
 </div>
 
 <?= $this->endSection() ?>
-<?php if (!empty($showDebug) && !empty($debug)): ?>
-  <hr>
-  <h5>DEBUG (wizard)</h5>
-  <pre style="max-height:520px; overflow:auto; background:#111; color:#0f0; padding:12px; border-radius:8px;">
-<?= esc(json_encode($debug, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)) ?>
-  </pre>
-<?php endif; ?>
