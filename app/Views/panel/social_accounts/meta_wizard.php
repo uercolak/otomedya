@@ -394,6 +394,10 @@
 
     </div>
   </div>
+
+</div>
+
+<?= $this->endSection() ?>
 <?php if (!empty($showDebug) && !empty($debug)): ?>
   <hr>
   <h5>DEBUG (wizard)</h5>
@@ -401,6 +405,3 @@
 <?= esc(json_encode($debug, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)) ?>
   </pre>
 <?php endif; ?>
-</div>
-
-<?= $this->endSection() ?>
