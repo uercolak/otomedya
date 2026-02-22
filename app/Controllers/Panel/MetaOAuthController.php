@@ -6,9 +6,6 @@ use App\Controllers\BaseController;
 
 class MetaOAuthController extends BaseController
 {
-    /* =========================================================
-     * CONFIG
-     * ========================================================= */
     private function metaConfig(): array
     {
         $scopesEnv = trim((string) getenv('META_SCOPES'));
@@ -47,6 +44,42 @@ class MetaOAuthController extends BaseController
             'cron_secret'  => (string) (getenv('META_CRON_SECRET') ?: (getenv('IDEMPOTENCY_SECRET') ?: '')),
             'health_key'   => (string) (getenv('META_HEALTH_KEY') ?: (getenv('IDEMPOTENCY_SECRET') ?: '')),
         ];
+    }
+
+
+
+     private function metaLog(string $label, $data = null): void
+    {
+        // Token'ları logda açık açık yazmayalım (mask)
+        $sanitize = function ($v) use (&$sanitize) {
+            if (is_array($v)) {
+                foreach ($v as $k => $val) {
+                    if (is_string($k) && preg_match('~token|access_token|refresh_token~i', $k)) {
+                        $v[$k] = is_string($val) ? (substr($val, 0, 8) . '***') : '***';
+                    } else {
+                        $v[$k] = $sanitize($val);
+                    }
+                }
+                return $v;
+            }
+            return $v;
+        };
+
+        $payload = [
+            'ts'    => date('Y-m-d H:i:s'),
+            'user'  => (int) (session('user_id') ?? 0),
+            'label' => $label,
+            'data'  => $sanitize($data),
+        ];
+
+        $line = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        // CI log
+        log_message('error', 'META_DBG ' . $line);
+
+        // Ayrı dosya
+        $file = WRITEPATH . 'logs/meta_oauth.log';
+        @file_put_contents($file, $line . PHP_EOL, FILE_APPEND);
     }
 
     private function userId(): int { return (int) session('user_id'); }
@@ -415,6 +448,24 @@ class MetaOAuthController extends BaseController
             $cfg
         );
 
+        $this->metaLog('callback.debug_token', $debug);
+
+        $me = $this->httpGetJson(
+            $this->graphUrl($cfg, 'me', ['fields' => 'id,name', 'access_token' => $finalToken]),
+            $cfg
+        );
+        $this->metaLog('callback.me', $me);
+
+        $accounts = $this->httpGetJson(
+            $this->graphUrl($cfg, 'me/accounts', [
+                'fields' => 'id,name',
+                'limit' => 200,
+                'access_token' => $finalToken,
+            ]),
+            $cfg
+        );
+        $this->metaLog('callback.me_accounts', $accounts);
+
         $debugData = $debug['data'] ?? [];
         if (is_array($debugData) && !empty($debugData['expires_at'])) {
             $expiresAt = $this->parseUnixToDateTime((int)$debugData['expires_at']);
@@ -559,9 +610,7 @@ class MetaOAuthController extends BaseController
                 $cfg
             );
             $debug['pages_me_accounts'] = $pagesA;
-log_message('error', 'META WIZARD permissions: ' . json_encode($debug['permissions'] ?? [], JSON_UNESCAPED_UNICODE));
-log_message('error', 'META WIZARD pagesA: ' . json_encode($pagesA ?? [], JSON_UNESCAPED_UNICODE));
-log_message('error', 'META WIZARD pagesB: ' . json_encode($pagesB ?? [], JSON_UNESCAPED_UNICODE));
+
             // B) Alternatif
             $pagesB = $this->httpGetJson(
                 $this->graphUrl($cfg, 'me', [
@@ -571,9 +620,12 @@ log_message('error', 'META WIZARD pagesB: ' . json_encode($pagesB ?? [], JSON_UN
                 $cfg
             );
             $debug['pages_me_fields_accounts'] = $pagesB;
-log_message('error', 'META WIZARD permissions: ' . json_encode($debug['permissions'] ?? [], JSON_UNESCAPED_UNICODE));
-log_message('error', 'META WIZARD pagesA: ' . json_encode($pagesA ?? [], JSON_UNESCAPED_UNICODE));
-log_message('error', 'META WIZARD pagesB: ' . json_encode($pagesB ?? [], JSON_UNESCAPED_UNICODE));
+
+            // ✅ Tek sefer log
+            $this->metaLog('wizard.me', $debug['me'] ?? []);
+            $this->metaLog('wizard.permissions', $debug['permissions'] ?? []);
+            $this->metaLog('wizard.pagesA_me_accounts', $pagesA);
+            $this->metaLog('wizard.pagesB_me_fields_accounts', $pagesB);
             $pageIdsToTry = [];
 
             if (!empty($pagesA['data']) && is_array($pagesA['data'])) {
@@ -811,9 +863,7 @@ log_message('error', 'META WIZARD pagesB: ' . json_encode($pagesB ?? [], JSON_UN
         ]);
 
         $metaRow = $this->getMetaTokenRow($userId);
-        $this->saveUserAccessToken($userId, $userToken, $metaRow['expires_at'] ?? null, [
-            'last_page_id' => $pageId,
-        ]);
+        $this->saveUserAccessToken($userId, $userToken, $metaRow['expires_at'] ?? null);
 
         return redirect()->to(site_url('panel/social-accounts'))
             ->with('success', 'Instagram hesabı başarıyla bağlandı.');
