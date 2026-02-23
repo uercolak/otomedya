@@ -230,6 +230,180 @@ class TemplatesController extends BaseController
         return redirect()->to(site_url('admin/templates'))->with('success', 'Şablon yüklendi.');
     }
 
+
+    public function edit(int $id)
+{
+    $db = \Config\Database::connect();
+
+    $row = $db->table('templates')->where('id', $id)->get()->getRowArray();
+    if (!$row) {
+        return redirect()->to(site_url('admin/templates'))->with('error', 'Şablon bulunamadı.');
+    }
+
+    $collections = $db->table('template_collections')
+        ->select('id, name, slug, is_active, sort_order')
+        ->where('is_active', 1)
+        ->orderBy('sort_order', 'ASC')
+        ->orderBy('name', 'ASC')
+        ->get()->getResultArray();
+
+    return view('admin/templates/edit', [
+        'pageTitle'   => 'Şablon Düzenle',
+        'row'         => $row,
+        'formats'     => $this->formats,
+        'collections' => $collections,
+        'errors'      => session()->getFlashdata('errors') ?? [],
+    ]);
+}
+
+    public function update(int $id)
+    {
+        helper(['form', 'url']);
+
+        $model = new TemplateModel();
+        $row   = $model->find($id);
+
+        if (!$row) {
+            return redirect()->to(site_url('admin/templates'))->with('error', 'Şablon bulunamadı.');
+        }
+
+        $type        = (string)$this->request->getPost('type');
+        $scope       = (string)$this->request->getPost('platform_scope');
+        $formatKey   = (string)($this->request->getPost('format_key') ?? '');
+        $name        = trim((string)$this->request->getPost('name'));
+        $desc        = trim((string)$this->request->getPost('description'));
+
+        $collectionId = (int)($this->request->getPost('collection_id') ?? 0);
+        $isFeatured   = (int)($this->request->getPost('is_featured') ?? 0);
+        $isActive     = (int)($this->request->getPost('is_active') ?? 1);
+
+        if ($name === '') {
+            return redirect()->back()->withInput()->with('error', 'Başlık zorunlu.');
+        }
+        if (!in_array($type, ['image','video'], true)) {
+            return redirect()->back()->withInput()->with('error', 'Type geçersiz.');
+        }
+        if (!in_array($scope, ['instagram','facebook','tiktok','youtube'], true)) {
+            return redirect()->back()->withInput()->with('error', 'Platform scope geçersiz.');
+        }
+        if ($collectionId <= 0) {
+            return redirect()->back()->withInput()->with('error', 'Tema seçmelisin.');
+        }
+
+        $db = \Config\Database::connect();
+        $col = $db->table('template_collections')
+            ->select('id')
+            ->where('id', $collectionId)
+            ->where('is_active', 1)
+            ->get()->getRowArray();
+        if (!$col) {
+            return redirect()->back()->withInput()->with('error', 'Seçilen tema geçersiz veya pasif.');
+        }
+
+        $file = $this->request->getFile('file');
+        $hasNewFile = ($file && $file->isValid() && !$file->hasMoved());
+
+        // Eğer type değiştiyse yeni dosya zorunlu
+        if (($row['type'] ?? '') !== $type && !$hasNewFile) {
+            return redirect()->back()->withInput()->with('error', 'Tür değiştirirken yeni dosya yüklemelisin.');
+        }
+
+        $width = $row['width'] ?? null;
+        $height = $row['height'] ?? null;
+        $mediaId = (int)($row['base_media_id'] ?? 0);
+        $now = date('Y-m-d H:i:s');
+
+        // Yeni dosya yüklendiyse: strict kontrol + yeni media kaydı + template media update
+        if ($hasNewFile) {
+            $mime = (string)$file->getMimeType();
+
+            $width = null; $height = null;
+
+            if ($type === 'image') {
+                if ($formatKey === '' || !isset($this->formats[$formatKey])) {
+                    return redirect()->back()->withInput()->with('error', 'Format seçmelisin.');
+                }
+
+                $tmpPath = $file->getTempName();
+                $info = @getimagesize($tmpPath);
+                if (!$info) {
+                    return redirect()->back()->withInput()->with('error', 'Görsel okunamadı.');
+                }
+
+                $width  = (int)$info[0];
+                $height = (int)$info[1];
+
+                $expW = (int)$this->formats[$formatKey]['w'];
+                $expH = (int)$this->formats[$formatKey]['h'];
+
+                if ($width !== $expW || $height !== $expH) {
+                    return redirect()->back()->withInput()->with('error', "Boyut uyumsuz. Beklenen: {$expW}x{$expH}, Gelen: {$width}x{$height}");
+                }
+            } else {
+                $formatKey = null; // video
+            }
+
+            $targetDir = ROOTPATH . 'public/uploads/templates';
+            if (!is_dir($targetDir)) @mkdir($targetDir, 0775, true);
+
+            $newName = time() . '_' . bin2hex(random_bytes(6)) . '.' . $file->getExtension();
+            if (!$file->move($targetDir, $newName)) {
+                return redirect()->back()->withInput()->with('error', 'Dosya diske yazılamadı.');
+            }
+
+            $relPath = 'uploads/templates/' . $newName;
+
+            $newMediaId = (new MediaModel())->insert([
+                'user_id'    => session('user_id') ?: null,
+                'type'       => $type,
+                'file_path'  => $relPath,
+                'mime_type'  => $mime ?: null,
+                'width'      => $width,
+                'height'     => $height,
+                'duration'   => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ], true);
+
+            if (!$newMediaId) {
+                return redirect()->back()->withInput()->with('error', 'Media kaydı oluşturulamadı.');
+            }
+
+            $mediaId = (int)$newMediaId;
+        } else {
+            // Yeni dosya yoksa:
+            // image ise format_key boş bırakıldıysa mevcut formatı koru
+            if ($type === 'image' && $formatKey === '') {
+                $formatKey = (string)($row['format_key'] ?? '');
+            }
+            // video ise format zaten null olmalı
+            if ($type === 'video') {
+                $formatKey = null;
+            }
+        }
+
+        $ok = $model->update($id, [
+            'name'           => $name,
+            'description'    => $desc ?: null,
+            'collection_id'  => $collectionId,
+            'type'           => $type,
+            'platform_scope' => $scope,
+            'format_key'     => $formatKey,
+            'width'          => $width,
+            'height'         => $height,
+            'base_media_id'  => $mediaId ?: null,
+            'is_active'      => $isActive ? 1 : 0,
+            'is_featured'    => $isFeatured ? 1 : 0,
+            'updated_at'     => $now,
+        ]);
+
+        if (!$ok) {
+            return redirect()->back()->withInput()->with('error', 'Güncelleme başarısız.');
+        }
+
+        return redirect()->to(site_url('admin/templates'))->with('success', 'Şablon güncellendi.');
+    }
+
     public function toggle(int $id)
     {
         $model = new TemplateModel();

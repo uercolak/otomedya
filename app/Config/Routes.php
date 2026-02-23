@@ -94,6 +94,8 @@ $routes->group('admin', ['namespace' => 'App\Controllers\Admin','filter'    => '
     $routes->get('templates/new',                           'TemplatesController::create');
     $routes->post('templates',                              'TemplatesController::store');
     $routes->post('templates/(:num)/toggle',                'TemplatesController::toggle/$1');
+    $routes->get('templates/(:num)/edit',                   'TemplatesController::edit/$1');
+    $routes->post('templates/(:num)',                       'TemplatesController::update/$1');
 
     $routes->get('template-collections',                    'TemplateCollectionsController::index');
     $routes->get('template-collections/new',                'TemplateCollectionsController::create');

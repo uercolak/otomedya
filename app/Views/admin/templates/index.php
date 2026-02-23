@@ -220,10 +220,15 @@ $formatKeyToLabel = static function (?string $key, array $formats = []): string 
             </td>
 
             <td class="text-end">
-              <form method="post" action="<?= site_url('admin/templates/'.(int)$r['id'].'/toggle') ?>" class="d-inline">
+            <a class="btn btn-sm btn-outline-secondary"
+                href="<?= site_url('admin/templates/'.(int)$r['id'].'/edit') ?>">
+                Düzenle
+            </a>
+
+            <form method="post" action="<?= site_url('admin/templates/'.(int)$r['id'].'/toggle') ?>" class="d-inline">
                 <?= csrf_field() ?>
                 <button class="btn btn-sm btn-outline-primary">Aktif/Pasif</button>
-              </form>
+            </form>
             </td>
           </tr>
         <?php endforeach; ?>
