@@ -127,15 +127,15 @@
 
                     <?php if ($r === 'root'): ?>
                     <span class="badge rounded-pill text-bg-danger">
-                        <i class="bi bi-shield-lock me-1"></i> root
+                        <i class="bi bi-shield-lock me-1"></i> Root
                     </span>
                     <?php elseif ($r === 'dealer'): ?>
                     <span class="badge rounded-pill text-bg-warning">
-                        <i class="bi bi-diagram-3 me-1"></i> dealer
+                        <i class="bi bi-diagram-3 me-1"></i> Bayi
                     </span>
                     <?php else: ?>
                     <span class="badge rounded-pill text-bg-secondary">
-                        <i class="bi bi-person me-1"></i> user
+                        <i class="bi bi-person me-1"></i> Kullanıcı
                     </span>
                     <?php endif; ?>
               </td>
